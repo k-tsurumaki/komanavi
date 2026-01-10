@@ -1,65 +1,93 @@
-import Image from 'next/image';
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { UrlInput } from '@/components/UrlInput';
 
 export default function Home() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (url: string) => {
+    setIsLoading(true);
+    try {
+      // TODO: 実際のAPI呼び出しに置き換える
+      // 現時点ではモックデータを使用するため、直接結果ページへ遷移
+      const encodedUrl = encodeURIComponent(url);
+      router.push(`/result?url=${encodedUrl}`);
+    } catch (error) {
+      console.error('Error:', error);
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{' '}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{' '}
-            or the{' '}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{' '}
-            center.
-          </p>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* ヒーローセクション */}
+      <section className="text-center mb-12">
+        <h2 className="text-3xl font-bold mb-4">行政情報をわかりやすく</h2>
+        <p className="text-lg text-gray-600 mb-2">
+          難しい行政ページのURLを入力するだけで、
+          <br className="hidden sm:inline" />
+          わかりやすい要約とやることリストを作成します。
+        </p>
+      </section>
+
+      {/* URL入力フォーム */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-12">
+        <UrlInput onSubmit={handleSubmit} isLoading={isLoading} />
+      </section>
+
+      {/* 使い方説明 */}
+      <section className="mb-12">
+        <h3 className="text-xl font-bold mb-6 text-center">使い方</h3>
+        <div className="grid sm:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg p-6 text-center border border-gray-200">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">1</span>
+            </div>
+            <h4 className="font-bold mb-2">URLを入力</h4>
+            <p className="text-gray-600 text-base">
+              調べたい行政ページのURLをコピーして貼り付けます
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-6 text-center border border-gray-200">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">2</span>
+            </div>
+            <h4 className="font-bold mb-2">AIが解析</h4>
+            <p className="text-gray-600 text-base">
+              AIがページの内容を読み取り、要点を抽出します
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-6 text-center border border-gray-200">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">3</span>
+            </div>
+            <h4 className="font-bold mb-2">結果を確認</h4>
+            <p className="text-gray-600 text-base">
+              わかりやすい要約とやることリストを確認できます
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* 対応例 */}
+      <section>
+        <h3 className="text-xl font-bold mb-6 text-center">こんな情報に対応</h3>
+        <div className="flex flex-wrap justify-center gap-3">
+          {['児童手当', '転入届', '介護保険', '国民健康保険', 'パスポート申請', '各種届出'].map(
+            (tag) => (
+              <span
+                key={tag}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-base"
+              >
+                {tag}
+              </span>
+            )
+          )}
         </div>
-      </main>
+      </section>
     </div>
   );
 }
