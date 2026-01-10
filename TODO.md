@@ -29,8 +29,8 @@
 ## Step 2: UI実装（モックデータで動作確認）
 
 ### 2.1 型定義・モックデータ
-- [ ] 中間表現の型定義 (lib/types/intermediate.ts)
-- [ ] モックデータの作成 (lib/mocks/sampleData.ts)
+- [x] 中間表現の型定義 (lib/types/intermediate.ts)
+- [x] モックデータの作成 (lib/mocks/sampleData.ts)
 
 ### 2.2 トップページ
 - [ ] app/page.tsx - URL入力フォーム
