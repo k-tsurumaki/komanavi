@@ -16,7 +16,7 @@
 - [x] Next.js プロジェクトの初期化 (App Router, TypeScript)
 - [x] Tailwind CSS のセットアップ
 - [x] ESLint の設定
-- [ ] Prettier の設定
+- [x] Prettier の設定
 - [ ] 環境変数の設定 (.env.local)
 
 ### 1.2 基本レイアウト
