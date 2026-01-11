@@ -7,10 +7,7 @@ import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
-import {
-  sampleAnalyzeResult,
-  sampleBenefitSummaryMarkdown,
-} from '@/lib/mocks/sampleData';
+import { sampleAnalyzeResult } from '@/lib/mocks/sampleData';
 
 function ResultContent() {
   const searchParams = useSearchParams();
@@ -55,7 +52,7 @@ function ResultContent() {
       />
 
       {/* 要約表示 */}
-      <SummaryViewer data={intermediate} summaryMarkdown={sampleBenefitSummaryMarkdown} />
+      <SummaryViewer data={intermediate} />
 
       {/* チェックリスト */}
       <div className="mb-6">

@@ -4,10 +4,9 @@ import type { IntermediateRepresentation } from '@/lib/types/intermediate';
 
 interface SummaryViewerProps {
   data: IntermediateRepresentation;
-  summaryMarkdown: string;
 }
 
-export function SummaryViewer({ data, summaryMarkdown }: SummaryViewerProps) {
+export function SummaryViewer({ data }: SummaryViewerProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
       {/* タイトル */}

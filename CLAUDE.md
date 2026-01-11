@@ -52,6 +52,14 @@ The intermediate representation is a structured JSON containing:
 - Prioritize accessibility (WCAG 2.1 Level AA target)
 - Use "やさしい日本語" (easy Japanese) for first-priority users
 
+## Development Workflow
+
+各タスク完了後は以下の手順を実行すること:
+
+1. **コードレビュー**: `npm run lint` でリントエラーがないことを確認
+2. **動作確認**: `npm run build` でビルドが成功することを確認
+3. **コミット**: 適切な粒度でコミットを作成
+
 ## Language
 
 Primary development and user interface language is Japanese. Comments and documentation may be in Japanese.
