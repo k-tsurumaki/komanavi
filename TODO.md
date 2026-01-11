@@ -17,12 +17,12 @@
 - [x] Tailwind CSS のセットアップ
 - [x] ESLint の設定
 - [x] Prettier の設定
-- [ ] 環境変数の設定 (.env.local)
+- [ ] 環境変数の設定 (.env.local) - GEMINI_API_KEY
 
 ### 1.2 基本レイアウト
-- [ ] app/layout.tsx の作成
-- [ ] フォント設定（Noto Sans JP）
-- [ ] グローバルスタイル設定
+- [x] app/layout.tsx の作成
+- [x] フォント設定（Noto Sans JP）
+- [x] グローバルスタイル設定
 
 ---
 
@@ -33,40 +33,40 @@
 - [x] モックデータの作成 (lib/mocks/sampleData.ts)
 
 ### 2.2 トップページ
-- [ ] app/page.tsx - URL入力フォーム
-- [ ] components/UrlInput.tsx
+- [x] app/page.tsx - URL入力フォーム
+- [x] components/UrlInput.tsx
 
 ### 2.3 結果表示ページ
-- [ ] app/result/page.tsx
-- [ ] components/SummaryViewer.tsx - 要約表示
-- [ ] components/ChecklistViewer.tsx - チェックリスト表示
-- [ ] components/SourceReference.tsx - 根拠表示リンク
-- [ ] components/DisclaimerBanner.tsx - 免責表示
+- [x] app/result/page.tsx
+- [x] components/SummaryViewer.tsx - 要約表示
+- [x] components/ChecklistViewer.tsx - チェックリスト表示
+- [x] components/SourceReference.tsx - 根拠表示リンク
+- [x] components/DisclaimerBanner.tsx - 免責表示
 
 ### 2.4 状態管理
-- [ ] Zustand インストール
-- [ ] stores/analyzeStore.ts
+- [x] Zustand インストール
+- [x] stores/analyzeStore.ts
 
 ---
 
 ## Step 3: バックエンド実装
 
 ### 3.1 スクレイピング機能
-- [ ] cheerio インストール
-- [ ] lib/scraper.ts - HTML取得・解析
+- [x] cheerio インストール
+- [x] lib/scraper.ts - HTML取得・解析
 
 ### 3.2 Gemini API連携
-- [ ] @google/generative-ai インストール
-- [ ] lib/gemini.ts - クライアント設定
-- [ ] 中間表現生成プロンプト
-- [ ] 要約生成プロンプト
+- [x] @google/generative-ai インストール
+- [x] lib/gemini.ts - クライアント設定
+- [x] 中間表現生成プロンプト
+- [x] 要約生成プロンプト
 
 ### 3.3 API Routes
-- [ ] app/api/analyze/route.ts - URL解析・要約生成
-- [ ] app/api/mock/result/route.ts - モックデータ返却（開発用）
+- [x] app/api/analyze/route.ts - URL解析・要約生成（インメモリキャッシュ含む）
+- [ ] app/api/mock/result/route.ts - モックデータ返却（開発用）※不要になった可能性
 
 ### 3.4 キャッシュ
-- [ ] lib/cache.ts - インメモリキャッシュ
+- [x] lib/cache.ts - インメモリキャッシュ（API Route内に実装）
 
 ---
 
