@@ -73,59 +73,60 @@
 ## Step 4: 仕上げ
 
 ### 4.1 信頼性担保機能
-- [ ] 免責同意モーダル（初回表示）
-- [ ] 原文リンクの常時表示
-- [ ] 情報取得日時の表示
-- [ ] 根拠表示機能
+- [x] 免責同意モーダル（初回表示）
+- [x] 原文リンクの常時表示（DisclaimerBanner）
+- [x] 情報取得日時の表示（DisclaimerBanner）
+- [x] 根拠表示機能（SourceReference）
 
 ### 4.2 アクセシビリティ・UX
-- [ ] 大きな文字サイズ対応（18px+）
-- [ ] 高コントラストカラー
-- [ ] レスポンシブデザイン
-- [ ] ローディング状態のフィードバック
+- [x] 大きな文字サイズ対応（18px+）
+- [x] 高コントラストカラー
+- [x] レスポンシブデザイン
+- [x] ローディング状態のフィードバック
+- [x] スキップリンク（キーボードナビゲーション）
+- [x] ARIA属性の適切な使用
 
 ### 4.3 テスト・動作確認
-- [ ] ローカル開発サーバーでの動作確認
-- [ ] モックデータでUI表示確認
-- [ ] 実際の行政サイトURLでスクレイピング動作確認
-- [ ] Gemini API連携後、実際の要約生成確認
+- [x] ローカル開発サーバーでの動作確認
+- [x] モックデータでUI表示確認
+- [ ] 実際の行政サイトURLでスクレイピング動作確認（GEMINI_API_KEY設定後）
+- [ ] Gemini API連携後、実際の要約生成確認（GEMINI_API_KEY設定後）
 - [ ] モバイル表示確認
 
 ---
 
-## ファイル構成
+## ファイル構成（実際）
 
 ```
 komanavi/
 ├── src/
 │   ├── app/
+│   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
 │   │   ├── result/
 │   │   │   └── page.tsx
 │   │   └── api/
-│   │       ├── analyze/
-│   │       │   └── route.ts
-│   │       └── mock/
-│   │           └── result/
-│   │               └── route.ts
+│   │       └── analyze/
+│   │           └── route.ts
 │   ├── components/
 │   │   ├── UrlInput.tsx
 │   │   ├── SummaryViewer.tsx
 │   │   ├── ChecklistViewer.tsx
 │   │   ├── SourceReference.tsx
-│   │   └── DisclaimerBanner.tsx
+│   │   ├── DisclaimerBanner.tsx
+│   │   └── DisclaimerModal.tsx
 │   ├── lib/
 │   │   ├── types/
 │   │   │   └── intermediate.ts
 │   │   ├── mocks/
 │   │   │   └── sampleData.ts
 │   │   ├── scraper.ts
-│   │   ├── gemini.ts
-│   │   └── cache.ts
+│   │   └── gemini.ts
 │   └── stores/
 │       └── analyzeStore.ts
 ├── public/
-├── .env.local
+├── .env.example
+├── .env.local (要作成)
 └── ...
 ```
