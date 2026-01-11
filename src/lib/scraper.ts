@@ -118,13 +118,14 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
       '.article',
     ];
 
-    let $main = $('body');
+    let mainSelector = 'body';
     for (const selector of mainSelectors) {
       if ($(selector).length > 0) {
-        $main = $(selector).first();
+        mainSelector = selector;
         break;
       }
     }
+    const $main = $(mainSelector)
 
     // セクション抽出
     const sections: { heading: string; content: string }[] = [];
