@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UrlInput } from '@/components/UrlInput';
+import { DisclaimerModal } from '@/components/DisclaimerModal';
 
 export default function Home() {
   const router = useRouter();
@@ -23,6 +24,9 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* 免責同意モーダル */}
+      <DisclaimerModal />
+
       {/* ヒーローセクション */}
       <section className="text-center mb-12">
         <h2 className="text-3xl font-bold mb-4">行政情報をわかりやすく</h2>
