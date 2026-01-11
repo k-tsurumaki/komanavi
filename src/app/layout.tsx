@@ -26,6 +26,14 @@ export default function RootLayout({
     <html lang="ja">
       <body className={`${notoSansJP.variable} font-sans antialiased bg-gray-50 text-gray-900`}>
         <div className="min-h-screen flex flex-col">
+          {/* スキップリンク（キーボードナビゲーション用） */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded"
+          >
+            メインコンテンツへスキップ
+          </a>
+
           <header className="bg-white border-b border-gray-200">
             <div className="max-w-4xl mx-auto px-4 py-4">
               <h1 className="text-xl font-bold text-blue-600">
@@ -33,7 +41,7 @@ export default function RootLayout({
               </h1>
             </div>
           </header>
-          <main className="flex-1">{children}</main>
+          <main id="main-content" className="flex-1">{children}</main>
           <footer className="bg-white border-t border-gray-200 mt-auto">
             <div className="max-w-4xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
               <p>
