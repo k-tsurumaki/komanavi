@@ -4,7 +4,7 @@
 - **ORM**: Prisma
 - **ホスティング**: Vercel（無料版）
 - **データベース/キャッシュ**: MVPではなし（ローカル開発のみ）
-- **LLM**: Gemini API（Google AI Hackathonのため）※当面はモックデータで開発
+- **LLM**: Vertex AI経由 Gemini 2.5 Flash（quota_project_id: zenn-ai-agent-hackathon-vol4）
 - **対象サイト**: 汎用対応（特定サイトに依存しない実装）
 - **優先順位**: コア機能優先（URL入力→解析→要約表示の基本フロー）
 
@@ -55,11 +55,14 @@
 - [x] cheerio インストール
 - [x] lib/scraper.ts - HTML取得・解析
 
-### 3.2 Gemini API連携
-- [x] @google/generative-ai インストール
-- [x] lib/gemini.ts - クライアント設定
+### 3.2 Gemini API連携（Vertex AI移行）
+- [x] @google/generative-ai インストール（旧）
+- [ ] @google-cloud/vertexai インストール（移行先）
+- [x] lib/gemini.ts - クライアント設定（旧）
+- [ ] lib/gemini.ts - Vertex AI対応に修正
 - [x] 中間表現生成プロンプト
 - [x] 要約生成プロンプト
+- [ ] 環境変数設定（GOOGLE_CLOUD_PROJECT, GOOGLE_APPLICATION_CREDENTIALS等）
 
 ### 3.3 API Routes
 - [x] app/api/analyze/route.ts - URL解析・要約生成（インメモリキャッシュ含む）

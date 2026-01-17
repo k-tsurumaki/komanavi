@@ -11,6 +11,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
     "@google/generative-ai": "^0.24.1",
     "cheerio": "^1.1.2",
     "next": "16.1.1",
