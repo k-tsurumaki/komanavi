@@ -85,19 +85,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gemini APIキーの確認
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        {
-          id: crypto.randomUUID(),
-          status: 'error',
-          error: 'Gemini APIキーが設定されていません',
-        } satisfies Partial<AnalyzeResult>,
-        { status: 500 }
-      );
-    }
-
-    // 中間表現生成
+    // 中間表現生成（Vertex AI使用）
     const intermediate = await generateIntermediateRepresentation(scrapeResult.data);
 
     if (!intermediate) {

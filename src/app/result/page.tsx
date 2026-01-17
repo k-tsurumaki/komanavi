@@ -1,22 +1,25 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
-import { sampleAnalyzeResult } from '@/lib/mocks/sampleData';
+import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
+  const { result, status, error, analyze } = useAnalyzeStore();
 
-  // TODO: 実際のAPI呼び出しに置き換える
-  // 現時点ではモックデータを使用
-  const result = sampleAnalyzeResult;
-  const { intermediate, checklist } = result;
+  // URLパラメータがあり、まだ解析結果がない場合は解析を実行
+  useEffect(() => {
+    if (url && !result && status === 'idle') {
+      analyze(url);
+    }
+  }, [url, result, status, analyze]);
 
   if (!url) {
     return (
@@ -33,6 +36,50 @@ function ResultContent() {
       </div>
     );
   }
+
+  // ローディング中
+  if (status === 'loading') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
+          <p className="text-lg text-gray-700">ページを解析しています...</p>
+          <p className="text-sm text-gray-500 mt-2">（30秒〜1分程度かかります）</p>
+        </div>
+      </div>
+    );
+  }
+
+  // エラー
+  if (status === 'error') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <p className="text-red-700 mb-4">{error || '解析に失敗しました'}</p>
+          <Link
+            href="/"
+            className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            トップページに戻る
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // 結果がない場合
+  if (!result || !result.intermediate) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
+          <p className="text-lg text-gray-700">データを読み込んでいます...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { intermediate, checklist } = result;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">

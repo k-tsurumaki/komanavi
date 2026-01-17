@@ -48,11 +48,13 @@ export function SummaryViewer({ data }: SummaryViewerProps) {
           {data.target.eligibility_summary && (
             <p className="text-gray-700 mb-2">{data.target.eligibility_summary}</p>
           )}
-          <ul className="list-disc list-inside space-y-1 text-gray-700">
-            {data.target.conditions.map((condition, index) => (
-              <li key={index}>{condition}</li>
-            ))}
-          </ul>
+          {data.target.conditions && data.target.conditions.length > 0 && (
+            <ul className="list-disc list-inside space-y-1 text-gray-700">
+              {data.target.conditions.map((condition, index) => (
+                <li key={index}>{condition}</li>
+              ))}
+            </ul>
+          )}
           {data.target.exceptions && data.target.exceptions.length > 0 && (
             <div className="mt-3 p-3 bg-gray-50 rounded">
               <p className="text-sm font-medium text-gray-600 mb-1">例外・注意事項</p>
@@ -84,22 +86,24 @@ export function SummaryViewer({ data }: SummaryViewerProps) {
       {data.procedure && (
         <div className="mb-6">
           <h3 className="text-lg font-bold mb-3">手続きの流れ</h3>
-          <ol className="space-y-3">
-            {data.procedure.steps.map((step) => (
-              <li key={step.order} className="flex gap-3">
-                <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
-                  {step.order}
-                </span>
-                <div>
-                  <p className="font-medium text-gray-800">{step.action}</p>
-                  {step.details && <p className="text-gray-600 text-sm mt-1">{step.details}</p>}
-                  {step.note && (
-                    <p className="text-blue-600 text-sm mt-1">💡 {step.note}</p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
+          {data.procedure.steps && data.procedure.steps.length > 0 && (
+            <ol className="space-y-3">
+              {data.procedure.steps.map((step) => (
+                <li key={step.order} className="flex gap-3">
+                  <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
+                    {step.order}
+                  </span>
+                  <div>
+                    <p className="font-medium text-gray-800">{step.action}</p>
+                    {step.details && <p className="text-gray-600 text-sm mt-1">{step.details}</p>}
+                    {step.note && (
+                      <p className="text-blue-600 text-sm mt-1">💡 {step.note}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
 
           {/* 必要書類 */}
           {data.procedure.required_documents && data.procedure.required_documents.length > 0 && (

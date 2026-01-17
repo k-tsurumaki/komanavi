@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { VertexAI } from '@google-cloud/vertexai';
 import type {
   IntermediateRepresentation,
   ChecklistItem,
@@ -6,11 +6,15 @@ import type {
 } from '@/lib/types/intermediate';
 import type { ScrapedContent } from '@/lib/scraper';
 
-// Gemini クライアント初期化
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// Vertex AI クライアント初期化
+const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
+const LOCATION = 'us-central1';
+const MODEL_NAME = 'gemini-2.5-flash';
 
-// 使用するモデル
-const MODEL_NAME = 'gemini-1.5-flash';
+const vertexAI = new VertexAI({
+  project: PROJECT_ID,
+  location: LOCATION,
+});
 
 /**
  * ドキュメントタイプを判定するプロンプト
@@ -152,6 +156,13 @@ const CHECKLIST_PROMPT = `
 `;
 
 /**
+ * Vertex AI レスポンスからテキストを抽出
+ */
+function extractText(response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }): string {
+  return response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/**
  * JSONをパースする（エラーハンドリング付き）
  */
 function parseJSON<T>(text: string): T | null {
@@ -174,7 +185,7 @@ function parseJSON<T>(text: string): T | null {
 export async function generateIntermediateRepresentation(
   content: ScrapedContent
 ): Promise<IntermediateRepresentation | null> {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  const model = vertexAI.getGenerativeModel({ model: MODEL_NAME });
 
   const pageContent = `
 # ページ情報
@@ -187,18 +198,18 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
 
   try {
     // ドキュメントタイプ判定
-    const typeResult = await model.generateContent(
-      DOCUMENT_TYPE_PROMPT + '\n\n---\n\n' + pageContent
-    );
-    const typeText = typeResult.response.text();
+    const typeResult = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: DOCUMENT_TYPE_PROMPT + '\n\n---\n\n' + pageContent }] }],
+    });
+    const typeText = extractText(typeResult.response);
     const typeData = parseJSON<{ documentType: DocumentType }>(typeText);
     const documentType = typeData?.documentType || 'other';
 
     // 中間表現生成
-    const intermediateResult = await model.generateContent(
-      INTERMEDIATE_PROMPT + '\n\n---\n\n' + pageContent
-    );
-    const intermediateText = intermediateResult.response.text();
+    const intermediateResult = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: INTERMEDIATE_PROMPT + '\n\n---\n\n' + pageContent }] }],
+    });
+    const intermediateText = extractText(intermediateResult.response);
     const intermediateData = parseJSON<Partial<IntermediateRepresentation>>(intermediateText);
 
     if (!intermediateData) {
@@ -206,10 +217,10 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
     }
 
     // 根拠情報抽出
-    const sourcesResult = await model.generateContent(
-      SOURCES_PROMPT + '\n\n---\n\n' + pageContent
-    );
-    const sourcesText = sourcesResult.response.text();
+    const sourcesResult = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: SOURCES_PROMPT + '\n\n---\n\n' + pageContent }] }],
+    });
+    const sourcesText = extractText(sourcesResult.response);
     const sources = parseJSON<IntermediateRepresentation['sources']>(sourcesText) || [];
 
     return {
@@ -232,7 +243,7 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
       sources,
     };
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('Vertex AI error:', error);
     return null;
   }
 }
@@ -243,15 +254,15 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
 export async function generateChecklist(
   intermediate: IntermediateRepresentation
 ): Promise<ChecklistItem[]> {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  const model = vertexAI.getGenerativeModel({ model: MODEL_NAME });
 
   const context = JSON.stringify(intermediate, null, 2);
 
   try {
-    const result = await model.generateContent(
-      CHECKLIST_PROMPT + '\n\n---\n\n' + context
-    );
-    const text = result.response.text();
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: CHECKLIST_PROMPT + '\n\n---\n\n' + context }] }],
+    });
+    const text = extractText(result.response);
     const items = parseJSON<Omit<ChecklistItem, 'completed'>[]>(text);
 
     if (!items) {
@@ -274,7 +285,7 @@ export async function generateChecklist(
 export async function generateSimpleSummary(
   intermediate: IntermediateRepresentation
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  const model = vertexAI.getGenerativeModel({ model: MODEL_NAME });
 
   const prompt = `
 あなたは行政情報を市民にわかりやすく説明するエキスパートです。
@@ -309,10 +320,10 @@ Markdown形式で出力してください。以下の構成を参考にしてく
 `;
 
   try {
-    const result = await model.generateContent(
-      prompt + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2)
-    );
-    return result.response.text();
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2) }] }],
+    });
+    return extractText(result.response);
   } catch (error) {
     console.error('Summary generation error:', error);
     return '';

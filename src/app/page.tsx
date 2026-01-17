@@ -1,25 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UrlInput } from '@/components/UrlInput';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
+import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 export default function Home() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const { status, error, analyze, reset } = useAnalyzeStore();
 
-  const handleSubmit = async (url: string) => {
-    setIsLoading(true);
-    try {
-      // TODO: 実際のAPI呼び出しに置き換える
-      // 現時点ではモックデータを使用するため、直接結果ページへ遷移
+  // 解析成功時に結果ページへ遷移
+  useEffect(() => {
+    if (status === 'success') {
+      const url = useAnalyzeStore.getState().url;
       const encodedUrl = encodeURIComponent(url);
       router.push(`/result?url=${encodedUrl}`);
-    } catch (error) {
-      console.error('Error:', error);
-      setIsLoading(false);
     }
+  }, [status, router]);
+
+  // 成功/エラー状態でページに戻ってきた場合のみリセット（新規解析用）
+  useEffect(() => {
+    const currentStatus = useAnalyzeStore.getState().status;
+    if (currentStatus === 'success' || currentStatus === 'error') {
+      reset();
+    }
+  }, [reset]);
+
+  const handleSubmit = async (url: string) => {
+    await analyze(url);
   };
 
   return (
@@ -39,7 +48,27 @@ export default function Home() {
 
       {/* URL入力フォーム */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-12">
-        <UrlInput onSubmit={handleSubmit} isLoading={isLoading} />
+        <UrlInput onSubmit={handleSubmit} isLoading={status === 'loading'} />
+
+        {/* ローディング表示 */}
+        {status === 'loading' && (
+          <div className="mt-6 text-center">
+            <div className="inline-flex items-center gap-3 px-6 py-4 bg-blue-50 rounded-lg">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+              <span className="text-blue-700">
+                ページを解析しています...<br />
+                <span className="text-sm text-blue-600">（30秒〜1分程度かかります）</span>
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* エラー表示 */}
+        {status === 'error' && error && (
+          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700">{error}</p>
+          </div>
+        )}
       </section>
 
       {/* 使い方説明 */}

@@ -66,8 +66,9 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
     }),
 
   analyze: async (url) => {
-    const { setStatus, setResult, setError, resetCheckedItems } = get();
+    const { setUrl, setStatus, setResult, setError, resetCheckedItems } = get();
 
+    setUrl(url);
     setStatus('loading');
     setError(null);
 
