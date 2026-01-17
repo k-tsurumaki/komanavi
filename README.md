@@ -31,6 +31,7 @@ Dockerfile を使ったデプロイ:
 	```
 
 補足:
+- `gcloud run deploy ... --source .` は本リポジトリのルート（Dockerfile とプロジェクトファイルがある階層）で実行してください。別階層で実行する場合は `--source` にルートのパスを指定します。
 - 本リポジトリは Next.js の `output: "standalone"` を利用しており、Cloud Run の `PORT=8080` で起動します（Dockerfile で設定済み）。
 - `GCP_LOCATION` は Vertex AI のロケーションです（例: `global`, `us-central1`）。
 
