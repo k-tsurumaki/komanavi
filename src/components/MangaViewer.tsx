@@ -17,8 +17,6 @@ interface MangaViewerProps {
 const USAGE_KEY = 'komanavi-manga-usage';
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 60000;
-const DAILY_LIMIT = 3;
-const COOLDOWN_MS = 10 * 60 * 1000;
 
 interface MangaUsageState {
   date: string;
@@ -176,13 +174,6 @@ export function MangaViewer(props: MangaViewerProps) {
 
   const canGenerateMessage = useMemo(() => {
     const usage = loadUsage();
-    if (usage.count >= DAILY_LIMIT) {
-      return '本日の漫画生成回数の上限に達しました（最大3回）';
-    }
-    const last = usage.urlCooldowns[props.url];
-    if (last && Date.now() - last < COOLDOWN_MS) {
-      return '同じURLの再生成は10分後にお試しください';
-    }
     if (usage.activeJob && usage.activeJob.url !== props.url && Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS) {
       return '現在ほかの漫画生成が進行中です。完了後に再度お試しください。';
     }
@@ -220,6 +211,9 @@ export function MangaViewer(props: MangaViewerProps) {
     async (job: string) => {
       try {
         const response = await fetch(`/api/manga/${job}`);
+        if (response.status === 404) {
+          return;
+        }
         if (!response.ok) {
           throw new Error('ステータスの取得に失敗しました');
         }
@@ -228,8 +222,12 @@ export function MangaViewer(props: MangaViewerProps) {
 
         if (data.status === 'done' && data.result) {
           setResult(data.result);
-          const pngUrl = renderManga(data.result);
-          setImageUrl(pngUrl);
+          if (data.result.imageUrls && data.result.imageUrls.length > 0) {
+            setImageUrl(data.result.imageUrls[0]);
+          } else {
+            const pngUrl = renderManga(data.result);
+            setImageUrl(pngUrl);
+          }
           setError(null);
           clearPolling();
           clearActiveJob(job);
@@ -273,16 +271,6 @@ export function MangaViewer(props: MangaViewerProps) {
     setError(null);
 
     const usage = loadUsage();
-    if (usage.count >= DAILY_LIMIT) {
-      setError('本日の漫画生成回数の上限に達しました（最大3回）');
-      return;
-    }
-
-    const last = usage.urlCooldowns[props.url];
-    if (last && Date.now() - last < COOLDOWN_MS) {
-      setError('同じURLの再生成は10分後にお試しください');
-      return;
-    }
 
     if (usage.activeJob && usage.activeJob.url !== props.url && Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS) {
       setError('現在ほかの漫画生成が進行中です。完了後に再度お試しください。');
@@ -307,7 +295,7 @@ export function MangaViewer(props: MangaViewerProps) {
       const nextUsage: MangaUsageState = {
         ...usage,
         count: usage.count + 1,
-        urlCooldowns: { ...usage.urlCooldowns, [props.url]: Date.now() },
+        urlCooldowns: usage.urlCooldowns,
         activeJob: { jobId: data.jobId, startedAt: Date.now(), url: props.url },
       };
       saveUsage(nextUsage);
@@ -351,8 +339,22 @@ export function MangaViewer(props: MangaViewerProps) {
             <a
               href={imageUrl}
               download={`${props.title}-manga.png`}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 visited:text-blue-700 transition"
             >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </svg>
               画像をダウンロード
             </a>
             <button

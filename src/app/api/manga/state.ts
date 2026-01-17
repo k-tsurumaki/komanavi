@@ -22,5 +22,13 @@ export interface MangaUsageState {
   };
 }
 
-export const jobs = new Map<string, MangaJob>();
-export const usageByClient = new Map<string, MangaUsageState>();
+const globalState = globalThis as typeof globalThis & {
+  __mangaJobs?: Map<string, MangaJob>;
+  __mangaUsageByClient?: Map<string, MangaUsageState>;
+};
+
+export const jobs = globalState.__mangaJobs ?? new Map<string, MangaJob>();
+export const usageByClient = globalState.__mangaUsageByClient ?? new Map<string, MangaUsageState>();
+
+globalState.__mangaJobs = jobs;
+globalState.__mangaUsageByClient = usageByClient;
