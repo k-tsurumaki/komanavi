@@ -7,6 +7,8 @@ import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
+import { MangaViewer } from '@/components/MangaViewer';
+import { FeedbackSection } from '@/components/FeedbackSection';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -91,6 +93,12 @@ function ResultContent() {
         <span aria-hidden="true">←</span>
         新しいURLを解析
       </Link>
+      <Link
+        href="/history"
+        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 mb-6 ml-4"
+      >
+        履歴を見る
+      </Link>
 
       {/* 免責バナー */}
       <DisclaimerBanner
@@ -106,29 +114,21 @@ function ResultContent() {
         <ChecklistViewer items={checklist} />
       </div>
 
+      {/* 漫画ビューア（Phase 2） */}
+      <MangaViewer
+        url={intermediate.metadata.source_url}
+        title={intermediate.title}
+        summary={intermediate.summary}
+        keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+      />
+
       {/* 根拠表示 */}
       <div className="mb-6">
         <SourceReference sources={intermediate.sources} />
       </div>
 
       {/* フィードバックセクション */}
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
-        <p className="text-gray-700 mb-3">この情報は正しいですか？</p>
-        <div className="flex justify-center gap-4">
-          <button
-            className="px-6 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-            onClick={() => alert('フィードバックありがとうございます！')}
-          >
-            👍 はい
-          </button>
-          <button
-            className="px-6 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-            onClick={() => alert('ご報告ありがとうございます。改善に努めます。')}
-          >
-            👎 いいえ
-          </button>
-        </div>
-      </div>
+      <FeedbackSection url={intermediate.metadata.source_url} resultId={result.id} />
     </div>
   );
 }

@@ -1,0 +1,394 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  MangaJobStatusResponse,
+  MangaRequest,
+  MangaResult,
+} from '@/lib/types/intermediate';
+
+interface MangaViewerProps {
+  url: string;
+  title: string;
+  summary: string;
+  keyPoints?: string[];
+}
+
+const USAGE_KEY = 'komanavi-manga-usage';
+const POLL_INTERVAL_MS = 2000;
+const POLL_TIMEOUT_MS = 60000;
+const DAILY_LIMIT = 3;
+const COOLDOWN_MS = 10 * 60 * 1000;
+
+interface MangaUsageState {
+  date: string;
+  count: number;
+  urlCooldowns: Record<string, number>;
+  activeJob?: {
+    jobId: string;
+    startedAt: number;
+    url: string;
+  };
+}
+
+function getTodayKey() {
+  const now = new Date();
+  return now.toISOString().slice(0, 10);
+}
+
+function loadUsage(): MangaUsageState {
+  if (typeof window === 'undefined') {
+    return { date: getTodayKey(), count: 0, urlCooldowns: {} };
+  }
+  try {
+    const raw = localStorage.getItem(USAGE_KEY);
+    if (!raw) return { date: getTodayKey(), count: 0, urlCooldowns: {} };
+    const parsed = JSON.parse(raw) as MangaUsageState;
+    if (parsed.date !== getTodayKey()) {
+      return { date: getTodayKey(), count: 0, urlCooldowns: {} };
+    }
+    return parsed;
+  } catch {
+    return { date: getTodayKey(), count: 0, urlCooldowns: {} };
+  }
+}
+
+function saveUsage(state: MangaUsageState) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(USAGE_KEY, JSON.stringify(state));
+}
+
+function buildRequest(props: MangaViewerProps): MangaRequest {
+  return {
+    url: props.url,
+    title: props.title,
+    summary: props.summary,
+    keyPoints: props.keyPoints,
+  };
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const words = text.split('');
+  const lines: string[] = [];
+  let line = '';
+
+  words.forEach((char) => {
+    const testLine = line + char;
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && line.length > 0) {
+      lines.push(line);
+      line = char;
+    } else {
+      line = testLine;
+    }
+  });
+
+  if (line) lines.push(line);
+  return lines;
+}
+
+function renderManga(result: MangaResult): string {
+  const canvas = document.createElement('canvas');
+  const panelCount = result.panels.length;
+  const columns = Math.ceil(Math.sqrt(panelCount));
+  const rows = Math.ceil(panelCount / columns);
+  const panelSize = Math.floor(1200 / Math.max(columns, rows));
+  const width = panelSize * columns;
+  const height = panelSize * rows;
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  const padding = Math.floor(panelSize * 0.08);
+  const bubblePadding = Math.floor(panelSize * 0.1);
+  const fontSize = Math.max(16, Math.floor(panelSize * 0.08));
+
+  result.panels.forEach((panel, index) => {
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const x = col * panelSize;
+    const y = row * panelSize;
+
+    ctx.fillStyle = '#f7f7fb';
+    ctx.fillRect(x, y, panelSize, panelSize);
+
+    ctx.strokeStyle = '#d6d6e7';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x + 2, y + 2, panelSize - 4, panelSize - 4);
+
+    ctx.fillStyle = '#eef2ff';
+    ctx.beginPath();
+    ctx.arc(x + padding + panelSize * 0.15, y + padding + panelSize * 0.15, panelSize * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#1f2937';
+    ctx.font = `bold ${fontSize}px sans-serif`;
+
+    const textX = x + bubblePadding;
+    const textY = y + panelSize * 0.45;
+    const maxWidth = panelSize - bubblePadding * 2;
+    const lines = wrapText(ctx, panel.text, maxWidth);
+
+    lines.forEach((line, lineIndex) => {
+      ctx.fillText(line, textX, textY + lineIndex * (fontSize + 6));
+    });
+  });
+
+  return canvas.toDataURL('image/png');
+}
+
+export function MangaViewer(props: MangaViewerProps) {
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>('');
+  const [result, setResult] = useState<MangaResult | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedAtRef = useRef<number | null>(null);
+
+  const canGenerateMessage = useMemo(() => {
+    const usage = loadUsage();
+    if (usage.count >= DAILY_LIMIT) {
+      return '本日の漫画生成回数の上限に達しました（最大3回）';
+    }
+    const last = usage.urlCooldowns[props.url];
+    if (last && Date.now() - last < COOLDOWN_MS) {
+      return '同じURLの再生成は10分後にお試しください';
+    }
+    if (usage.activeJob && usage.activeJob.url !== props.url && Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS) {
+      return '現在ほかの漫画生成が進行中です。完了後に再度お試しください。';
+    }
+    return null;
+  }, [props.url]);
+
+  const clearPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setIsPolling(false);
+  };
+
+  const clearActiveJob = useCallback((job?: string) => {
+    const usage = loadUsage();
+    if (!usage.activeJob) return;
+    if (job && usage.activeJob.jobId !== job) return;
+    delete usage.activeJob;
+    saveUsage(usage);
+  }, []);
+
+  const pollStatus = useCallback(
+    async (job: string) => {
+      try {
+        const response = await fetch(`/api/manga/${job}`);
+        if (!response.ok) {
+          throw new Error('ステータスの取得に失敗しました');
+        }
+        const data: MangaJobStatusResponse = await response.json();
+        setProgress(data.progress || 0);
+
+        if (data.status === 'done' && data.result) {
+          setResult(data.result);
+          const pngUrl = renderManga(data.result);
+          setImageUrl(pngUrl);
+          setError(null);
+          clearPolling();
+          clearActiveJob(job);
+        }
+
+        if (data.status === 'error') {
+          setError(data.error || '漫画生成に失敗しました');
+          clearPolling();
+          clearActiveJob(job);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'ステータス取得に失敗しました');
+        clearPolling();
+        clearActiveJob(job);
+      }
+    },
+    [clearActiveJob]
+  );
+
+  const startPolling = useCallback(
+    (job: string) => {
+      if (isPolling) return;
+      setIsPolling(true);
+      startedAtRef.current = Date.now();
+      pollingRef.current = setInterval(() => {
+        if (startedAtRef.current && Date.now() - startedAtRef.current > POLL_TIMEOUT_MS) {
+          setError('漫画生成がタイムアウトしました');
+          clearPolling();
+          clearActiveJob(job);
+          return;
+        }
+        pollStatus(job);
+      }, POLL_INTERVAL_MS);
+    },
+    [isPolling, pollStatus]
+  );
+
+  const handleGenerate = useCallback(async () => {
+    setError(null);
+
+    const usage = loadUsage();
+    if (usage.count >= DAILY_LIMIT) {
+      setError('本日の漫画生成回数の上限に達しました（最大3回）');
+      return;
+    }
+
+    const last = usage.urlCooldowns[props.url];
+    if (last && Date.now() - last < COOLDOWN_MS) {
+      setError('同じURLの再生成は10分後にお試しください');
+      return;
+    }
+
+    if (usage.activeJob && usage.activeJob.url !== props.url && Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS) {
+      setError('現在ほかの漫画生成が進行中です。完了後に再度お試しください。');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/manga', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildRequest(props)),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '漫画生成に失敗しました');
+      }
+
+      const data = (await response.json()) as { jobId: string };
+      setProgress(0);
+
+      const nextUsage: MangaUsageState = {
+        ...usage,
+        count: usage.count + 1,
+        urlCooldowns: { ...usage.urlCooldowns, [props.url]: Date.now() },
+        activeJob: { jobId: data.jobId, startedAt: Date.now(), url: props.url },
+      };
+      saveUsage(nextUsage);
+
+      startPolling(data.jobId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '漫画生成に失敗しました');
+    }
+  }, [props, startPolling]);
+
+  useEffect(() => {
+    const usage = loadUsage();
+    if (usage.activeJob && usage.activeJob.url === props.url) {
+      startPolling(usage.activeJob.jobId);
+    }
+
+    return () => {
+      clearPolling();
+    };
+  }, [props.url, startPolling]);
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+      <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+        <span aria-hidden="true">📖</span>
+        もっとわかりやすく（漫画で見る）
+      </h3>
+
+      <p className="text-sm text-gray-600 mb-4">
+        4〜8コマの漫画で制度の要点を整理します。生成には最大60秒かかる場合があります。
+      </p>
+
+      {imageUrl ? (
+        <div className="space-y-4">
+          <img
+            src={imageUrl}
+            alt={`${props.title}の漫画`}
+            className="w-full border border-gray-200 rounded-lg"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href={imageUrl}
+              download={`${props.title}-manga.png`}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              画像をダウンロード
+            </a>
+            <button
+              type="button"
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              onClick={() => {
+                setImageUrl('');
+                setResult(null);
+              }}
+            >
+              もう一度生成する
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+            disabled={!!canGenerateMessage || isPolling}
+          >
+            漫画を生成する
+          </button>
+
+          {isPolling && (
+            <div className="text-sm text-gray-600">
+              生成中... {progress}%
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {error}
+              <div className="mt-2">
+                <button
+                  type="button"
+                  className="text-blue-600 hover:text-blue-800"
+                  onClick={() => {
+                    setError(null);
+                    handleGenerate();
+                  }}
+                >
+                  再試行する
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!error && canGenerateMessage && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+              {canGenerateMessage}
+            </div>
+          )}
+
+          {!error && !isPolling && !canGenerateMessage && (
+            <div className="text-sm text-gray-500">生成失敗時はテキスト要約を表示します。</div>
+          )}
+        </div>
+      )}
+
+      {(error || (result && !imageUrl)) && (
+        <div className="mt-4 space-y-2 text-sm text-gray-600">
+          <p>テキスト要約にフォールバックしました。</p>
+          <ul className="list-disc list-inside">
+            {(result?.panels ?? [{ id: 'summary', text: props.summary }]).map((panel) => (
+              <li key={panel.id}>{panel.text}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
