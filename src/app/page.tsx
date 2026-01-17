@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { UrlInput } from '@/components/UrlInput';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
@@ -9,10 +9,11 @@ import { useAnalyzeStore } from '@/stores/analyzeStore';
 export default function Home() {
   const router = useRouter();
   const { status, error, analyze, reset } = useAnalyzeStore();
+  const redirectRequestedRef = useRef(false);
 
   // 解析成功時に結果ページへ遷移
   useEffect(() => {
-    if (status === 'success') {
+    if (status === 'success' && redirectRequestedRef.current) {
       const url = useAnalyzeStore.getState().url;
       const encodedUrl = encodeURIComponent(url);
       router.push(`/result?url=${encodedUrl}`);
@@ -21,13 +22,13 @@ export default function Home() {
 
   // 成功/エラー状態でページに戻ってきた場合のみリセット（新規解析用）
   useEffect(() => {
-    const currentStatus = useAnalyzeStore.getState().status;
-    if (currentStatus === 'success' || currentStatus === 'error') {
+    if ((status === 'success' || status === 'error') && !redirectRequestedRef.current) {
       reset();
     }
-  }, [reset]);
+  }, [status, reset]);
 
   const handleSubmit = async (url: string) => {
+    redirectRequestedRef.current = true;
     await analyze(url);
   };
 
