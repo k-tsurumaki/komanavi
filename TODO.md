@@ -17,7 +17,7 @@
 - [x] Tailwind CSS のセットアップ
 - [x] ESLint の設定
 - [x] Prettier の設定
-- [ ] 環境変数の設定 (.env.local) - GEMINI_API_KEY
+- [ ] 環境変数の設定 (.env.local) - GOOGLE_CLOUD_PROJECT / GOOGLE_APPLICATION_CREDENTIALS など
 
 ### 1.2 基本レイアウト
 - [x] app/layout.tsx の作成
@@ -57,16 +57,15 @@
 
 ### 3.2 Gemini API連携（Vertex AI移行）
 - [x] @google/generative-ai インストール（旧）
-- [ ] @google-cloud/vertexai インストール（移行先）
+- [x] @google-cloud/vertexai インストール（移行先）
 - [x] lib/gemini.ts - クライアント設定（旧）
-- [ ] lib/gemini.ts - Vertex AI対応に修正
+- [x] lib/gemini.ts - Vertex AI対応に修正
 - [x] 中間表現生成プロンプト
 - [x] 要約生成プロンプト
 - [ ] 環境変数設定（GOOGLE_CLOUD_PROJECT, GOOGLE_APPLICATION_CREDENTIALS等）
 
 ### 3.3 API Routes
 - [x] app/api/analyze/route.ts - URL解析・要約生成（インメモリキャッシュ含む）
-- [ ] app/api/mock/result/route.ts - モックデータ返却（開発用）※不要になった可能性
 
 ### 3.4 キャッシュ
 - [x] lib/cache.ts - インメモリキャッシュ（API Route内に実装）
@@ -92,8 +91,8 @@
 ### 4.3 テスト・動作確認
 - [x] ローカル開発サーバーでの動作確認
 - [x] モックデータでUI表示確認
-- [ ] 実際の行政サイトURLでスクレイピング動作確認（GEMINI_API_KEY設定後）
-- [ ] Gemini API連携後、実際の要約生成確認（GEMINI_API_KEY設定後）
+- [x] 実際の行政サイトURLでスクレイピング動作確認（Vertex AIの認証設定後）
+- [x] Vertex AI連携後、実際の要約生成確認（認証設定後）
 - [ ] モバイル表示確認
 
 ---
