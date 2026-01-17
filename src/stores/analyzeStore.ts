@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AnalyzeResult, AnalyzeStatus, ChecklistItem, HistoryItem } from '@/lib/types/intermediate';
-import { saveHistoryItem } from '@/lib/storage';
+import { saveHistoryItem, saveHistoryResult } from '@/lib/storage';
 
 interface AnalyzeState {
   // 入力URL
@@ -103,6 +103,12 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
         resultId: data.id,
       };
       saveHistoryItem(historyItem);
+      saveHistoryResult({
+        historyId: historyItem.id,
+        resultId: data.id,
+        createdAt: historyItem.createdAt,
+        result: data,
+      });
       setStatus('success');
     } catch (err) {
       const message = err instanceof Error ? err.message : '予期しないエラーが発生しました';

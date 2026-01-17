@@ -67,6 +67,27 @@ function buildRequest(props: MangaViewerProps): MangaRequest {
   };
 }
 
+function getErrorMessage(errorCode?: MangaJobStatusResponse['errorCode'], fallback?: string) {
+  switch (errorCode) {
+    case 'timeout':
+      return '漫画生成がタイムアウトしました';
+    case 'api_error':
+      return '漫画生成中にエラーが発生しました';
+    case 'validation_error':
+      return '入力内容を確認してください';
+    case 'rate_limited':
+      return '本日の漫画生成回数の上限に達しました（最大3回）';
+    case 'cooldown':
+      return '同じURLの再生成は10分後にお試しください';
+    case 'concurrent':
+      return '現在ほかの漫画生成が進行中です。完了後に再度お試しください。';
+    case 'unknown':
+      return '漫画生成に失敗しました';
+    default:
+      return fallback || '漫画生成に失敗しました';
+  }
+}
+
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   const words = text.split('');
   const lines: string[] = [];
@@ -203,7 +224,8 @@ export function MangaViewer(props: MangaViewerProps) {
         }
 
         if (data.status === 'error') {
-          setError(data.error || '漫画生成に失敗しました');
+          setResult(data.result ?? null);
+          setError(getErrorMessage(data.errorCode, data.error));
           clearPolling();
           clearActiveJob(job);
         }
@@ -263,7 +285,7 @@ export function MangaViewer(props: MangaViewerProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || '漫画生成に失敗しました');
+        throw new Error(getErrorMessage(errorData.errorCode, errorData.error));
       }
 
       const data = (await response.json()) as { jobId: string };

@@ -2,19 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { clearHistory, loadHistory } from '@/lib/storage';
+import { clearHistory, loadHistoryPage } from '@/lib/storage';
 import type { HistoryItem } from '@/lib/types/intermediate';
+
+const PAGE_SIZE = 8;
 
 export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    setItems(loadHistory());
-  }, []);
+    const { items: loaded, totalPages: pages, total: count, page: safePage } =
+      loadHistoryPage(page, PAGE_SIZE);
+    setItems(loaded);
+    setTotalPages(pages);
+    setTotal(count);
+    setPage(safePage);
+  }, [page]);
 
   const handleClear = () => {
     clearHistory();
     setItems([]);
+    setTotalPages(0);
+    setTotal(0);
+    setPage(1);
   };
 
   return (
@@ -32,7 +45,10 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-sm text-gray-500">
+              全{total}件 / {page}ページ目
+            </p>
             <button
               type="button"
               className="text-sm text-gray-600 hover:text-gray-800"
@@ -52,7 +68,7 @@ export default function HistoryPage() {
                     </p>
                   </div>
                   <Link
-                    href={`/result?url=${encodeURIComponent(item.url)}`}
+                    href={`/result?historyId=${item.id}&url=${encodeURIComponent(item.url)}`}
                     className="inline-flex items-center text-blue-600 hover:text-blue-800"
                   >
                     結果を見る →
@@ -61,6 +77,29 @@ export default function HistoryPage() {
               </li>
             ))}
           </ul>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 pt-4">
+              <button
+                type="button"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg disabled:text-gray-400 disabled:border-gray-200"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+              >
+                前へ
+              </button>
+              <span className="text-sm text-gray-600">
+                {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg disabled:text-gray-400 disabled:border-gray-200"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+              >
+                次へ
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

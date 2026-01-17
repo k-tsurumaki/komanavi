@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
@@ -9,21 +9,51 @@ import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
 import { MangaViewer } from '@/components/MangaViewer';
 import { FeedbackSection } from '@/components/FeedbackSection';
+import { loadHistoryDetail } from '@/lib/storage';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
-  const { result, status, error, analyze } = useAnalyzeStore();
+  const historyId = searchParams.get('historyId');
+  const { result, status, error, analyze, setResult, setStatus, setError, setUrl, resetCheckedItems } =
+    useAnalyzeStore();
+  const lastLoadedHistoryId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!historyId) return;
+    if (lastLoadedHistoryId.current === historyId) return;
+    const detail = loadHistoryDetail(historyId);
+    if (!detail.item) {
+      setError('履歴が見つかりませんでした');
+      setStatus('error');
+      lastLoadedHistoryId.current = historyId;
+      return;
+    }
+    setUrl(detail.item.url);
+    if (detail.result) {
+      setResult(detail.result);
+      resetCheckedItems(detail.result.checklist);
+      setStatus('success');
+      setError(null);
+      lastLoadedHistoryId.current = historyId;
+      return;
+    }
+    if (status === 'idle' && !result) {
+      analyze(detail.item.url);
+      lastLoadedHistoryId.current = historyId;
+    }
+  }, [historyId, analyze, resetCheckedItems, result, setError, setResult, setStatus, setUrl, status]);
 
   // URLパラメータがあり、まだ解析結果がない場合は解析を実行
   useEffect(() => {
+    if (historyId) return;
     if (url && !result && status === 'idle') {
       analyze(url);
     }
-  }, [url, result, status, analyze]);
+  }, [historyId, url, result, status, analyze]);
 
-  if (!url) {
+  if (!url && !historyId) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">

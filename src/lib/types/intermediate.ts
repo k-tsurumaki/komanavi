@@ -263,6 +263,15 @@ export interface MangaPanel {
 export interface MangaResult {
   title: string;
   panels: MangaPanel[];
+  imageUrls?: string[];
+  meta?: {
+    panelCount: number;
+    generatedAt: string;
+    sourceUrl?: string;
+    format?: 'png';
+    maxEdge?: number;
+    title?: string;
+  };
 }
 
 /** 漫画生成リクエスト */
@@ -284,6 +293,14 @@ export interface MangaJobStatusResponse {
   progress?: number;
   result?: MangaResult;
   error?: string;
+  errorCode?:
+    | 'timeout'
+    | 'api_error'
+    | 'validation_error'
+    | 'unknown'
+    | 'rate_limited'
+    | 'cooldown'
+    | 'concurrent';
 }
 
 /** 履歴アイテム */

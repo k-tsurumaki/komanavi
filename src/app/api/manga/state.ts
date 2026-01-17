@@ -6,7 +6,21 @@ export interface MangaJob {
   progress: number;
   result?: MangaResult;
   error?: string;
+  errorCode?: MangaJobStatusResponse['errorCode'];
   createdAt: number;
+  clientId?: string;
+}
+
+export interface MangaUsageState {
+  date: string;
+  count: number;
+  urlCooldowns: Record<string, number>;
+  activeJob?: {
+    jobId: string;
+    startedAt: number;
+    url: string;
+  };
 }
 
 export const jobs = new Map<string, MangaJob>();
+export const usageByClient = new Map<string, MangaUsageState>();

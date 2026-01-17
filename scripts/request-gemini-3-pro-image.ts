@@ -1,10 +1,10 @@
 /**
- * Gemini 3 Pro Image (REST) サンプル
+ * Gemini 3 Pro Image (Google Gen AI SDK) サンプル
  * 実行: npx tsx scripts/request-gemini-3-pro-image.ts
  * 前提: ADC (gcloud auth application-default login など)
  */
 
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleGenAI } from '@google/genai';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -34,18 +34,6 @@ type GenerateContentResponse = {
   }>;
 };
 
-async function getAccessToken() {
-  const auth = new GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-  });
-  const client = await auth.getClient();
-  const tokenResponse = await client.getAccessToken();
-  if (!tokenResponse?.token) {
-    throw new Error('アクセストークン取得に失敗しました。');
-  }
-  return tokenResponse.token;
-}
-
 function extensionFromMime(mimeType: string) {
   if (mimeType === 'image/jpeg') return 'jpg';
   if (mimeType === 'image/png') return 'png';
@@ -74,44 +62,37 @@ async function saveImages(parts: Part[], outputDir: string) {
 }
 
 async function main() {
-  const host = LOCATION === 'global' ? 'aiplatform.googleapis.com' : `${LOCATION}-aiplatform.googleapis.com`;
-  const endpoint = `https://${host}/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL_ID}:generateContent`;
-  const accessToken = await getAccessToken();
+  const ai = new GoogleGenAI({
+    vertexai: true,
+    project: PROJECT_ID,
+    location: LOCATION,
+    apiVersion: 'v1',
+  });
 
-  const body = {
-    contents: {
-      role: 'USER',
-      parts: [{ text: PROMPT }],
-    },
+  const result = (await ai.models.generateContent({
+    model: MODEL_ID,
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: PROMPT }],
+      },
+    ],
     generationConfig: {
       responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '16:9',
       },
     },
-    safetySettings: {
-      method: 'PROBABILITY',
-      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-    },
-  };
+    safetySettings: [
+      {
+        method: 'PROBABILITY',
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+      },
+    ],
+  })) as GenerateContentResponse;
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`リクエスト失敗: ${res.status} ${res.statusText}\n${errorText}`);
-  }
-
-  const json = (await res.json()) as GenerateContentResponse;
-  const parts = json.candidates?.[0]?.content?.parts ?? [];
+  const parts = result.candidates?.[0]?.content?.parts ?? [];
 
   const texts = parts
     .filter((part): part is { text: string } => 'text' in part)

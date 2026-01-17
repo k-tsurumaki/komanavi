@@ -1,4 +1,4 @@
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 import type {
   IntermediateRepresentation,
   ChecklistItem,
@@ -8,12 +8,14 @@ import type { ScrapedContent } from '@/lib/scraper';
 
 // Vertex AI クライアント初期化
 const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
-const LOCATION = 'us-central1';
-const MODEL_NAME = 'gemini-2.5-flash';
+const LOCATION = 'global';
+const MODEL_NAME = 'gemini-3-flash-preview';
 
-const vertexAI = new VertexAI({
+const ai = new GoogleGenAI({
+  vertexai: true,
   project: PROJECT_ID,
   location: LOCATION,
+  apiVersion: 'v1',
 });
 
 /**
@@ -185,8 +187,6 @@ function parseJSON<T>(text: string): T | null {
 export async function generateIntermediateRepresentation(
   content: ScrapedContent
 ): Promise<IntermediateRepresentation | null> {
-  const model = vertexAI.getGenerativeModel({ model: MODEL_NAME });
-
   const pageContent = `
 # ページ情報
 - URL: ${content.url}
@@ -198,18 +198,20 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
 
   try {
     // ドキュメントタイプ判定
-    const typeResult = await model.generateContent({
+    const typeResult = await ai.models.generateContent({
+      model: MODEL_NAME,
       contents: [{ role: 'user', parts: [{ text: DOCUMENT_TYPE_PROMPT + '\n\n---\n\n' + pageContent }] }],
     });
-    const typeText = extractText(typeResult.response);
+    const typeText = extractText(typeResult);
     const typeData = parseJSON<{ documentType: DocumentType }>(typeText);
     const documentType = typeData?.documentType || 'other';
 
     // 中間表現生成
-    const intermediateResult = await model.generateContent({
+    const intermediateResult = await ai.models.generateContent({
+      model: MODEL_NAME,
       contents: [{ role: 'user', parts: [{ text: INTERMEDIATE_PROMPT + '\n\n---\n\n' + pageContent }] }],
     });
-    const intermediateText = extractText(intermediateResult.response);
+    const intermediateText = extractText(intermediateResult);
     const intermediateData = parseJSON<Partial<IntermediateRepresentation>>(intermediateText);
 
     if (!intermediateData) {
@@ -217,10 +219,11 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
     }
 
     // 根拠情報抽出
-    const sourcesResult = await model.generateContent({
+    const sourcesResult = await ai.models.generateContent({
+      model: MODEL_NAME,
       contents: [{ role: 'user', parts: [{ text: SOURCES_PROMPT + '\n\n---\n\n' + pageContent }] }],
     });
-    const sourcesText = extractText(sourcesResult.response);
+    const sourcesText = extractText(sourcesResult);
     const sources = parseJSON<IntermediateRepresentation['sources']>(sourcesText) || [];
 
     return {
@@ -243,7 +246,7 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
       sources,
     };
   } catch (error) {
-    console.error('Vertex AI error:', error);
+    console.error('Google Gen AI error:', error);
     return null;
   }
 }
@@ -254,15 +257,14 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
 export async function generateChecklist(
   intermediate: IntermediateRepresentation
 ): Promise<ChecklistItem[]> {
-  const model = vertexAI.getGenerativeModel({ model: MODEL_NAME });
-
   const context = JSON.stringify(intermediate, null, 2);
 
   try {
-    const result = await model.generateContent({
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
       contents: [{ role: 'user', parts: [{ text: CHECKLIST_PROMPT + '\n\n---\n\n' + context }] }],
     });
-    const text = extractText(result.response);
+    const text = extractText(result);
     const items = parseJSON<Omit<ChecklistItem, 'completed'>[]>(text);
 
     if (!items) {
@@ -285,8 +287,6 @@ export async function generateChecklist(
 export async function generateSimpleSummary(
   intermediate: IntermediateRepresentation
 ): Promise<string> {
-  const model = vertexAI.getGenerativeModel({ model: MODEL_NAME });
-
   const prompt = `
 あなたは行政情報を市民にわかりやすく説明するエキスパートです。
 
@@ -320,10 +320,11 @@ Markdown形式で出力してください。以下の構成を参考にしてく
 `;
 
   try {
-    const result = await model.generateContent({
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
       contents: [{ role: 'user', parts: [{ text: prompt + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2) }] }],
     });
-    return extractText(result.response);
+    return extractText(result);
   } catch (error) {
     console.error('Summary generation error:', error);
     return '';

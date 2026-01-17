@@ -7,7 +7,11 @@ export async function GET(_request: NextRequest, { params }: { params: { jobId: 
 
   if (!job) {
     return NextResponse.json(
-      { status: 'error', error: 'ジョブが見つかりません' } satisfies MangaJobStatusResponse,
+      {
+        status: 'error',
+        error: 'ジョブが見つかりません',
+        errorCode: 'unknown',
+      } satisfies MangaJobStatusResponse,
       { status: 404 }
     );
   }
@@ -18,6 +22,7 @@ export async function GET(_request: NextRequest, { params }: { params: { jobId: 
       progress: job.progress,
       result: job.result,
       error: job.error,
+      errorCode: job.errorCode,
     } satisfies MangaJobStatusResponse
   );
 }
