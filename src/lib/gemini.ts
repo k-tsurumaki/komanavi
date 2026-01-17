@@ -33,7 +33,7 @@ const DOCUMENT_TYPE_PROMPT = `
 - guide: ガイド・案内
 - other: その他
 
-回答は以下のJSON形式で返してください:
+回答は以下のJSON形式で返してください（JSONのみ。説明文や前置き、コードフェンスは不要）:
 {"documentType": "benefit"}
 `;
 
@@ -47,7 +47,7 @@ const INTERMEDIATE_PROMPT = `
 
 ## 出力形式
 
-以下のJSON形式で出力してください。すべてのフィールドは日本語で記入してください。
+以下のJSON形式で出力してください。すべてのフィールドは日本語で記入してください（JSONのみ。説明文や前置き、コードフェンスは不要）。
 
 {
   "title": "ページのタイトル（簡潔に）",
@@ -110,7 +110,7 @@ const SOURCES_PROMPT = `
 
 ## 出力形式
 
-以下のJSON配列形式で出力してください:
+以下のJSON配列形式で出力してください（JSONのみ。説明文や前置き、コードフェンスは不要）:
 
 [
   {
@@ -137,7 +137,7 @@ const CHECKLIST_PROMPT = `
 
 ## 出力形式
 
-以下のJSON配列形式で出力してください:
+以下のJSON配列形式で出力してください（JSONのみ。説明文や前置き、コードフェンスは不要）:
 
 [
   {
@@ -167,17 +167,81 @@ function extractText(response: { candidates?: Array<{ content?: { parts?: Array<
 /**
  * JSONをパースする（エラーハンドリング付き）
  */
+function extractJsonSubstring(text: string): string | null {
+  const cleaned = text
+    .replace(/```json\n?/g, '')
+    .replace(/```\n?/g, '')
+    .trim();
+
+  const startIndex = cleaned.search(/[\[{]/);
+  if (startIndex === -1) {
+    return null;
+  }
+
+  const openChar = cleaned[startIndex];
+  const closeChar = openChar === '{' ? '}' : ']';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < cleaned.length; i += 1) {
+    const char = cleaned[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === openChar) {
+      depth += 1;
+      continue;
+    }
+
+    if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return cleaned.slice(startIndex, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
 function parseJSON<T>(text: string): T | null {
   try {
-    // コードブロックを削除
     const cleaned = text
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
       .trim();
     return JSON.parse(cleaned);
   } catch {
-    console.error('JSON parse error:', text);
-    return null;
+    const extracted = extractJsonSubstring(text);
+    if (!extracted) {
+      console.error('JSON parse error:', text);
+      return null;
+    }
+
+    try {
+      return JSON.parse(extracted);
+    } catch {
+      console.error('JSON parse error:', text);
+      return null;
+    }
   }
 }
 

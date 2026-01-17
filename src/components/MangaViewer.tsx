@@ -172,6 +172,7 @@ export function MangaViewer(props: MangaViewerProps) {
   const [isPolling, setIsPolling] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number | null>(null);
+  const isPollingRef = useRef(false);
 
   const canGenerateMessage = useMemo(() => {
     const usage = loadUsage();
@@ -188,12 +189,23 @@ export function MangaViewer(props: MangaViewerProps) {
     return null;
   }, [props.url]);
 
+  const fallbackTexts = useMemo(() => {
+    if (result?.panels?.length) {
+      return result.panels.map((panel) => panel.text).filter(Boolean);
+    }
+    if (props.keyPoints && props.keyPoints.length > 0) {
+      return props.keyPoints.filter(Boolean);
+    }
+    return [props.summary].filter(Boolean);
+  }, [props.keyPoints, props.summary, result?.panels]);
+
   const clearPolling = () => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
     setIsPolling(false);
+    isPollingRef.current = false;
   };
 
   const clearActiveJob = useCallback((job?: string) => {
@@ -240,7 +252,8 @@ export function MangaViewer(props: MangaViewerProps) {
 
   const startPolling = useCallback(
     (job: string) => {
-      if (isPolling) return;
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
       setIsPolling(true);
       startedAtRef.current = Date.now();
       pollingRef.current = setInterval(() => {
@@ -253,7 +266,7 @@ export function MangaViewer(props: MangaViewerProps) {
         pollStatus(job);
       }, POLL_INTERVAL_MS);
     },
-    [isPolling, pollStatus]
+    [pollStatus]
   );
 
   const handleGenerate = useCallback(async () => {
@@ -386,6 +399,19 @@ export function MangaViewer(props: MangaViewerProps) {
                   再試行する
                 </button>
               </div>
+            </div>
+          )}
+
+          {error && fallbackTexts.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <p className="text-sm font-semibold text-gray-700 mb-2">
+                テキスト要約でご案内します
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                {fallbackTexts.map((text, index) => (
+                  <li key={`${text}-${index}`}>{text}</li>
+                ))}
+              </ul>
             </div>
           )}
 

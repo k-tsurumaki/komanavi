@@ -90,7 +90,7 @@ async function main() {
         threshold: 'BLOCK_MEDIUM_AND_ABOVE',
       },
     ],
-  })) as GenerateContentResponse;
+  } as any)) as GenerateContentResponse;
 
   const parts = result.candidates?.[0]?.content?.parts ?? [];
 

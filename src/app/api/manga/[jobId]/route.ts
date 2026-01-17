@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { MangaJobStatusResponse } from '@/lib/types/intermediate';
 import { jobs } from '../state';
 
-export async function GET(_request: NextRequest, { params }: { params: { jobId: string } }) {
-  const job = jobs.get(params.jobId);
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ jobId: string }> }
+) {
+  const { jobId } = await params;
+  const job = jobs.get(jobId);
 
   if (!job) {
     return NextResponse.json(

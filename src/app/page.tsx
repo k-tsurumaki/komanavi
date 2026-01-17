@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { UrlInput } from '@/components/UrlInput';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
@@ -46,15 +45,6 @@ export default function Home() {
           <br className="hidden sm:inline" />
           わかりやすい要約とやることリストを作成します。
         </p>
-        <div className="mt-4">
-          <Link
-            href="/history"
-            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
-          >
-            解析履歴を見る
-            <span aria-hidden="true">→</span>
-          </Link>
-        </div>
       </section>
 
       {/* URL入力フォーム */}
