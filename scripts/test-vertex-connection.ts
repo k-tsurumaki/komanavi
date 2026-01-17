@@ -3,11 +3,11 @@
  * 実行: npx tsx scripts/test-vertex-connection.ts
  */
 
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 
 const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
-const LOCATION = 'us-central1';
-const MODEL = 'gemini-2.5-flash';
+const LOCATION = 'global';
+const MODEL = 'gemini-3-flash-preview';
 
 async function testConnection() {
   console.log('Vertex AI 接続テスト開始...');
@@ -17,16 +17,15 @@ async function testConnection() {
   console.log('---');
 
   try {
-    const vertexAI = new VertexAI({
+    const ai = new GoogleGenAI({
+      vertexai: true,
       project: PROJECT_ID,
       location: LOCATION,
+      apiVersion: 'v1',
     });
 
-    const generativeModel = vertexAI.getGenerativeModel({
+    const result = await ai.models.generateContent({
       model: MODEL,
-    });
-
-    const result = await generativeModel.generateContent({
       contents: [
         {
           role: 'user',
@@ -35,8 +34,7 @@ async function testConnection() {
       ],
     });
 
-    const response = result.response;
-    const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = result.text;
 
     console.log('✅ 接続成功!');
     console.log(`レスポンス: ${text}`);

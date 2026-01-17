@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { AnalyzeResult, AnalyzeStatus, ChecklistItem } from '@/lib/types/intermediate';
+import type { AnalyzeResult, AnalyzeStatus, ChecklistItem, HistoryItem } from '@/lib/types/intermediate';
+import { saveHistoryItem, saveHistoryResult } from '@/lib/storage';
 
 interface AnalyzeState {
   // 入力URL
@@ -94,6 +95,20 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
 
       setResult(data);
       resetCheckedItems(data.checklist);
+      const historyItem: HistoryItem = {
+        id: crypto.randomUUID(),
+        url,
+        title: data.intermediate?.title || url,
+        createdAt: new Date().toISOString(),
+        resultId: data.id,
+      };
+      saveHistoryItem(historyItem);
+      saveHistoryResult({
+        historyId: historyItem.id,
+        resultId: data.id,
+        createdAt: historyItem.createdAt,
+        result: data,
+      });
       setStatus('success');
     } catch (err) {
       const message = err instanceof Error ? err.message : '予期しないエラーが発生しました';
