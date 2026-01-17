@@ -9,7 +9,13 @@ import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 const SIDEBAR_PAGE_SIZE = 10;
 
-export function AppSidebar() {
+type AppSidebarProps = {
+  className?: string;
+  showCloseButton?: boolean;
+  onClose?: () => void;
+};
+
+export function AppSidebar({ className, showCloseButton = false, onClose }: AppSidebarProps) {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const router = useRouter();
   const reset = useAnalyzeStore((state) => state.reset);
@@ -20,12 +26,42 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <aside className="hidden md:flex md:flex-col md:w-72 lg:w-80 bg-white text-gray-900 border-r border-gray-200 min-h-screen">
+    <aside
+      className={`flex flex-col w-72 lg:w-80 bg-white text-gray-900 border-r border-gray-200 min-h-screen ${
+        className || ''
+      }`}
+    >
       <div className="p-5 border-b border-gray-100">
-        <Link href="/" className="text-lg font-semibold text-gray-900">
-          KOMANAVI
-        </Link>
-        <p className="text-xs text-gray-500 mt-1">行政情報をわかりやすく</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <Link href="/" className="text-lg font-semibold text-gray-900">
+              KOMANAVI
+            </Link>
+            <p className="text-xs text-gray-500 mt-1">行政情報をわかりやすく</p>
+          </div>
+          {showCloseButton && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center justify-center rounded-md border border-gray-200 px-2 py-1 text-sm text-gray-600"
+              aria-label="メニューを閉じる"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-4 w-4 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 6l12 12" />
+                <path d="M18 6l-12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
       <div className="px-5 py-4 space-y-3">
         <button
