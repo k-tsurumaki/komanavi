@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { AppSidebar } from '@/components/AppSidebar';
+import { UserMenu } from '@/components/UserMenu';
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -72,7 +73,7 @@ export function AppShell({ children }: AppShellProps) {
             <h1 className="text-lg font-bold text-blue-600">
               <Link href="/">KOMANAVI</Link>
             </h1>
-            <span className="w-[64px]" aria-hidden="true" />
+            <UserMenu />
           </div>
         </header>
 

@@ -120,25 +120,25 @@ FIREBASE_PROJECT_ID=
 ## 実装ステップ
 
 ### Phase 1: 基盤セットアップ
-1. GCP Identity Platform の有効化
-2. Firebase プロジェクト設定
-3. Google OAuth クライアント作成
-4. 環境変数設定
+- [x] GCP Identity Platform の有効化
+- [x] Firebase プロジェクト設定
+- [x] Google OAuth クライアント作成
+- [x] 環境変数設定
 
 ### Phase 2: 認証機能実装
-5. Auth.js 設定 (`src/lib/auth.ts`)
-6. Firebase SDK 初期化
-7. ログイン/登録ページ作成
-8. 認証API実装
+- [x] Auth.js 設定 (`src/lib/auth.ts`)
+- [x] Firebase SDK 初期化 (`src/lib/firebase.ts`, `src/lib/firebase-admin.ts`)
+- [x] ログイン/登録ページ作成 (`src/app/login/page.tsx`)
+- [x] 認証API実装 (`src/app/api/auth/[...nextauth]/route.ts`, `src/middleware.ts`)
 
 ### Phase 3: データ永続化
-9. Firestore ヘルパー関数
-10. ユーザープロファイル CRUD
-11. 会話履歴の永続化
+- [ ] Firestore ヘルパー関数
+- [ ] ユーザープロファイル CRUD
+- [ ] 会話履歴の永続化
 
 ### Phase 4: パーソナライズ
-12. ユーザー属性入力フォーム
-13. パーソナライズ漫画生成フロー
+- [ ] ユーザー属性入力フォーム
+- [ ] パーソナライズ漫画生成フロー
 
 ## 参考リンク
 

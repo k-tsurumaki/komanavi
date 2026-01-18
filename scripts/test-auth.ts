@@ -27,7 +27,7 @@ const firebaseConfig = {
 };
 
 // テスト用のメールアドレスとパスワード
-const TEST_EMAIL = 'komanai@example.com';
+const TEST_EMAIL = 'komanavi@example.com';
 const TEST_PASSWORD = 'password';
 
 async function testAuth() {
