@@ -14,6 +14,7 @@
 - 環境変数設定（.env.local, .env.example）
 - Auth.js型拡張 `src/lib/types/auth.d.ts`
 - 未認証ユーザーの`/`, `/history`, `/result`アクセス時にログインリダイレクト設定
+- GCPコンソールでリダイレクトURI追加（redirect_uri_mismatchエラー修正）
 
 # TODO
 
@@ -21,8 +22,8 @@
 
 ## 高優先度
 
-- [ ] ログイン時にGoogleアカウントによる認証を選ぶとエラー`400: redirect_uri_mismatch`が出るバグを修正
-  - GCPコンソールで以下のリダイレクトURIを追加: `http://localhost:3000/api/auth/callback/google`
+- [ ] ログインボタンのデザインを修正
+- [ ] ログイン画面にも履歴が表示されるバグを修正
 
 ## 中優先度
 
@@ -34,7 +35,3 @@
 
 - [ ] Phase 4: ユーザー属性入力フォーム
 - [ ] Phase 4: パーソナライズ漫画生成フロー
-
-## 完了
-
-- [x] 未認証のアカウントが`/`にアクセスしようとするとログイン画面にリダイレクトされるように修正
