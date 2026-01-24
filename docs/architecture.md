@@ -30,4 +30,4 @@
 ## 備考
 - 図の構成は現状実装と将来予定の双方を含む
 - 汎用ロゴの出典: https://fonts.google.com/icons?selected=Material+Symbols+Outlined:computer:FILL@0;wght@400;GRAD@0;opsz@24&icon.size=24&icon.color=%231f1f1f
-- Google Cloud ロゴの出典: https://cloud.google.com/icons?hl=ja
+- Google Cloud の各種アイコンの出典: https://cloud.google.com/icons?hl=ja
