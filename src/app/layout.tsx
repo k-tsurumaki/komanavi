@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
 import { AppShell } from '@/components/AppShell';
+import { AuthProvider } from '@/components/AuthProvider';
 import './globals.css';
 
 const notoSansJP = Noto_Sans_JP({
@@ -33,7 +34,9 @@ export default function RootLayout({
           メインコンテンツへスキップ
         </a>
 
-        <AppShell>{children}</AppShell>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );

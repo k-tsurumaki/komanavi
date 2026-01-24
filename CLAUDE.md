@@ -4,62 +4,97 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KOMANAVI (コマナビ) is a government document visualization application that simplifies complex administrative documents for citizens. The app takes government webpage URLs as input and generates easy-to-understand summaries, checklists, and optionally manga-style visual explanations.
+KOMANAVI (コマナビ) は行政ドキュメントを簡素化するアプリケーション。行政ページのURLを入力すると、わかりやすい要約、チェックリスト、漫画形式の視覚的説明を生成する。
 
-## Technology Stack (Planned)
+## Development Commands
 
-- **Frontend/Backend**: Next.js (App Router) with TypeScript
-- **Hosting**: Vercel
-- **Database**: Vercel Postgres
-- **Cache**: Vercel KV (Redis)
-- **LLM**: Claude API for document analysis and summarization
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand or Jotai
+```bash
+npm run dev       # 開発サーバー起動
+npm run build     # 本番ビルド
+npm run lint      # ESLint実行
+npm run format    # Prettier整形
+npm run format:check  # フォーマットチェック
+```
 
 ## Architecture
 
-The system processes government documents through this flow:
-1. URL input → Page scraping → Intermediate representation (JSON) → Summary/Checklist generation
-2. Results are cached by URL hash for 24-72 hours
-3. Manga generation (Phase 2) will be async with job queue
+### データフロー
 
-### Key Data Structure
+```
+URL入力 → scraper.ts（スクレイピング）
+       → gemini.ts（Vertex AI解析）
+       → IntermediateRepresentation（中間表現JSON）
+       → 要約・チェックリスト生成
+       → クライアント表示
+```
 
-The intermediate representation is a structured JSON containing:
-- `title`, `summary`: Document identification
-- `target.conditions`, `target.exceptions`: Eligibility criteria
-- `procedure.steps`, `procedure.required_documents`: Action items
-- `sources`: References to original text for verification
-- `personalization.questions`: Dynamic questions for customization
+### ディレクトリ構造
 
-## Development Phases
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── analyze/route.ts   # メイン解析API（POST /api/analyze）
+│   │   └── manga/             # 漫画生成API（Phase 2）
+│   │       ├── route.ts       # POST /api/manga（ジョブ作成）
+│   │       └── [jobId]/route.ts  # GET /api/manga/[jobId]（ステータス取得）
+│   ├── page.tsx               # トップページ（URL入力）
+│   ├── result/page.tsx        # 結果表示ページ
+│   └── history/page.tsx       # 履歴ページ
+├── components/                # UIコンポーネント
+├── lib/
+│   ├── scraper.ts            # Webスクレイピング（Cheerio使用）
+│   ├── gemini.ts             # Vertex AI（Gemini）連携
+│   ├── storage.ts            # ローカルストレージ操作
+│   └── types/intermediate.ts  # 型定義（中間表現、API型）
+└── stores/
+    └── analyzeStore.ts       # Zustand状態管理
+```
 
-- **Phase 1 (MVP)**: URL input, page analysis, summary generation, checklist, caching, personalization
-- **Phase 2**: Manga generation (template-based), history, feedback collection
-- **Phase 3**: Multi-language support, audio, SNS sharing, API publication
+### 主要な型定義（`src/lib/types/intermediate.ts`）
 
-## Target Users (Priority Order)
+- `IntermediateRepresentation`: 中間表現（title, summary, documentType, target, procedure, benefits, sources等）
+- `AnalyzeResult`: 解析結果（intermediate, checklist, generatedSummary）
+- `ChecklistItem`: チェックリスト項目
+- `MangaResult`, `MangaJobStatus`: 漫画生成関連
 
-1. **High Priority**: Single parents, elderly caregivers, foreign residents, disaster victims - requires simplest UI, large fonts (18px+), no jargon
-2. **Medium Priority**: New parents, newcomers, unemployed - step-by-step guidance
-3. **General**: Regular citizens - standard UI
+### API仕様
 
-## Key Design Principles
+**POST /api/analyze**
+- リクエスト: `{ url: string }`
+- レスポンス: `AnalyzeResult`
+- インメモリキャッシュ（24時間TTL）
 
-- Always show source references linking back to original government text
-- Display disclaimer that this is reference information only
-- Include last-updated timestamp prominently
-- Prioritize accessibility (WCAG 2.1 Level AA target)
-- Use "やさしい日本語" (easy Japanese) for first-priority users
+**POST /api/manga** / **GET /api/manga/[jobId]**
+- 非同期ジョブキュー方式
+- Gemini 3 Pro Imageで4コマ漫画生成
+
+### 外部サービス
+
+- **Vertex AI (Gemini)**: `gemini-3-flash-preview`（解析）、`gemini-3-pro-image-preview`（漫画）
+- **Cloud Run**: 本番デプロイ先
+- 環境変数: `GCP_PROJECT_ID`, `GCP_LOCATION`
 
 ## Development Workflow
 
-各タスク完了後は以下の手順を実行すること:
+各タスク完了後:
+1. `npm run lint` でリントエラーがないことを確認
+2. `npm run build` でビルドが成功することを確認
+3. 適切な粒度でコミットを作成
 
-1. **コードレビュー**: `npm run lint` でリントエラーがないことを確認
-2. **動作確認**: `npm run build` でビルドが成功することを確認
-3. **コミット**: 適切な粒度でコミットを作成
+## Key Design Principles
+
+- 原文への根拠参照を常に表示（`sources`フィールド）
+- 免責事項を表示（参考情報であることを明示）
+- 「やさしい日本語」を使用（専門用語を避ける、短文で）
+- アクセシビリティ（WCAG 2.1 Level AA、18px以上のフォント）
+
+## Target Users
+
+1. **高優先**: ひとり親、高齢者介護者、外国人住民、災害被災者
+2. **中優先**: 新米パパママ、転入者、失業者
+3. **一般**: 一般市民
 
 ## Language
 
-Primary development and user interface language is Japanese. Comments and documentation may be in Japanese.
+主言語は日本語。コメントとドキュメントも日本語で可。

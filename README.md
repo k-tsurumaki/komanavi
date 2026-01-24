@@ -1,4 +1,4 @@
-# komanabi
+# komanavi
 sandbox for gcp-ai-agent-hackathon-vol4
 
 ## Cloud Run デプロイ手順

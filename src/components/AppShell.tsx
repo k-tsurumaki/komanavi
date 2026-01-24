@@ -2,50 +2,67 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { AppSidebar } from '@/components/AppSidebar';
+import { UserMenu } from '@/components/UserMenu';
 
 type AppShellProps = {
   children: React.ReactNode;
 };
 
+// AppShellを使用しないルート（独立レイアウト）
+const standaloneRoutes = ['/', '/login'];
+
 export function AppShell({ children }: AppShellProps) {
+  const pathname = usePathname();
+  const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
+  // ランディングページとログインページは独立レイアウト
+  if (standaloneRoutes.includes(pathname)) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen flex">
-      <AppSidebar
-        className={isSidebarVisible ? 'hidden md:flex' : 'hidden md:hidden'}
-        showCloseButton={isSidebarVisible}
-        onClose={() => setIsSidebarVisible(false)}
-      />
+      {session && (
+        <AppSidebar
+          className={isSidebarVisible ? 'hidden md:flex' : 'hidden md:hidden'}
+          showCloseButton={isSidebarVisible}
+          onClose={() => setIsSidebarVisible(false)}
+        />
+      )}
 
       <div className="flex-1 flex flex-col">
         <header className="bg-white border-b border-gray-200">
           <div className="px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(true)}
-                className="inline-flex items-center justify-center rounded-md border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 md:hidden"
-                aria-label="メニューを開く"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  className="h-5 w-5 text-gray-700"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              {session && (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="inline-flex items-center justify-center rounded-md border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 md:hidden"
+                  aria-label="メニューを開く"
                 >
-                  <path d="M4 6h16" />
-                  <path d="M4 12h16" />
-                  <path d="M4 18h16" />
-                </svg>
-              </button>
-              {!isSidebarVisible && (
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="h-5 w-5 text-gray-700"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 6h16" />
+                    <path d="M4 12h16" />
+                    <path d="M4 18h16" />
+                  </svg>
+                </button>
+              )}
+              {session && !isSidebarVisible && (
                 <button
                   type="button"
                   onClick={() => setIsSidebarVisible(true)}
@@ -72,7 +89,7 @@ export function AppShell({ children }: AppShellProps) {
             <h1 className="text-lg font-bold text-blue-600">
               <Link href="/">KOMANAVI</Link>
             </h1>
-            <span className="w-[64px]" aria-hidden="true" />
+            <UserMenu />
           </div>
         </header>
 
@@ -90,7 +107,7 @@ export function AppShell({ children }: AppShellProps) {
         </footer>
       </div>
 
-      {isSidebarOpen && (
+      {session && isSidebarOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <button
             type="button"

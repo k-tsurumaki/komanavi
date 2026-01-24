@@ -68,7 +68,7 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
           type="button"
           onClick={() => {
             reset();
-            router.push('/');
+            router.push('/analyze');
           }}
           className="inline-flex w-full items-center justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-700 border border-blue-200 shadow-sm hover:bg-blue-50"
         >
