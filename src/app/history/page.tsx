@@ -71,7 +71,7 @@ function HistoryPageContent() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/"
+            href="/analyze"
             className="px-4 py-2 bg-white text-blue-700 rounded-lg border border-blue-200 shadow-sm hover:bg-blue-50"
           >
             新規解析

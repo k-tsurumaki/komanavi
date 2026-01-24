@@ -28,14 +28,14 @@ export const authConfig: NextAuthConfig = {
       const { pathname } = nextUrl;
 
       // 保護されたルート（認証必須）
-      const protectedRoutes = ["/", "/history", "/result"];
+      const protectedRoutes = ["/analyze", "/history", "/result"];
 
       // 認証ページ
       const authRoutes = ["/login"];
 
       // 保護されたルートへのアクセス
       const isProtected = protectedRoutes.some((route) =>
-        route === "/" ? pathname === "/" : pathname.startsWith(route)
+        pathname.startsWith(route)
       );
       if (isProtected) {
         return isLoggedIn;
@@ -43,7 +43,7 @@ export const authConfig: NextAuthConfig = {
 
       // ログイン済みユーザーが認証ページにアクセス
       if (authRoutes.includes(pathname) && isLoggedIn) {
-        return Response.redirect(new URL("/", nextUrl));
+        return Response.redirect(new URL("/analyze", nextUrl));
       }
 
       return true;

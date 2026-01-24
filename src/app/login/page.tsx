@@ -14,7 +14,7 @@ type AuthMode = "login" | "register";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const callbackUrl = searchParams.get("callbackUrl") || "/analyze";
 
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");

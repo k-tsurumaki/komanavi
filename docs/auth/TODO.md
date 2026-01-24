@@ -13,17 +13,23 @@
 - next.config.tsに外部画像ホスト許可追加
 - 環境変数設定（.env.local, .env.example）
 - Auth.js型拡張 `src/lib/types/auth.d.ts`
-- 未認証ユーザーの`/`, `/history`, `/result`アクセス時にログインリダイレクト設定
+- 未認証ユーザーの`/analyze`, `/history`, `/result`アクセス時にログインリダイレクト設定
 - GCPコンソールでリダイレクトURI追加（redirect_uri_mismatchエラー修正）
+- ランディングページ作成 `src/app/page.tsx`（公開ページ）
+- URL入力ページを `/analyze` に移動 `src/app/analyze/page.tsx`
+- AppShellでランディングページ・ログインページを独立レイアウト化
+- ログイン後のリダイレクト先を `/analyze` に変更
+- 各ページのリンクを `/analyze` に修正（result, history, AppSidebar）
 
 # TODO
 
-> 最終更新: 2026-01-18
+> 最終更新: 2026-01-24
 
 ## 高優先度
 
-- [ ] ログインボタンのデザインを修正
-- [ ] ログイン画面にも履歴が表示されるバグを修正
+- [x] ログインボタンのデザインを修正
+- [x] ログイン画面にも履歴が表示されるバグを修正
+- [x] ランディングページを作成する
 
 ## 中優先度
 
