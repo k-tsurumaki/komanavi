@@ -5,18 +5,18 @@ sandbox for gcp-ai-agent-hackathon-vol4
 
 ## 必要な環境変数
 
-| 変数名 | 説明 | 例 |
+| 変数名 | 説明 | 本プロジェクトの設定値 |
 | --- | --- | --- |
 | GCP_PROJECT_ID | Google Cloud のプロジェクト ID。Cloud Run から Vertex AI を呼び出す際に利用。 | `zenn-ai-agent-hackathon-vol4` |
 | GCP_LOCATION | Vertex AI のロケーション。本プロジェクトは `global` を使用（※ previewモデルは `global` のみ対応）。 | `global` |
-| AUTH_SECRET | Auth.js の署名用シークレット。認証機能を使う場合に必須。 | `openssl rand -base64 32` で生成した値 |
-| AUTH_URL | Auth.js のベース URL。認証機能を使う場合に必須。 | `http://localhost:3000` / `https://example.com` |
-| AUTH_GOOGLE_ID | Google OAuth クライアント ID。認証機能を使う場合に必須。 | `xxxxxxxx.apps.googleusercontent.com` |
-| AUTH_GOOGLE_SECRET | Google OAuth クライアントシークレット。認証機能を使う場合に必須。 | `GOCSPX-...` |
-| NEXT_PUBLIC_FIREBASE_API_KEY | Firebase Web SDK の API キー（クライアント用）。認証機能を使う場合に必須。 | Firebase コンソールの値 |
-| NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN | Firebase Web SDK の authDomain（クライアント用）。認証機能を使う場合に必須。 | `xxxx.firebaseapp.com` |
-| NEXT_PUBLIC_FIREBASE_PROJECT_ID | Firebase Web SDK の projectId（クライアント用）。認証機能を使う場合に必須。 | `your-firebase-project` |
-| FIREBASE_PROJECT_ID | Firebase Admin SDK の projectId（サーバー用）。認証機能を使う場合に必須。 | `your-firebase-project` |
+| AUTH_SECRET | Auth.js の署名用シークレット。認証機能を使う場合に必須。 | .env.local参照 |
+| AUTH_URL | Auth.js のベース URL。認証機能を使う場合に必須。 | .env.local参照 |
+| AUTH_GOOGLE_ID | Google OAuth クライアント ID。認証機能を使う場合に必須。 | .env.local参照 |
+| AUTH_GOOGLE_SECRET | Google OAuth クライアントシークレット。認証機能を使う場合に必須。 | .env.local参照 |
+| NEXT_PUBLIC_FIREBASE_API_KEY | Firebase Web SDK の API キー（クライアント用）。認証機能を使う場合に必須。 | .env.local参照 |
+| NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN | Firebase Web SDK の authDomain（クライアント用）。認証機能を使う場合に必須。 | .env.local参照 |
+| NEXT_PUBLIC_FIREBASE_PROJECT_ID | Firebase Web SDK の projectId（クライアント用）。認証機能を使う場合に必須。 | .env.local参照 |
+| FIREBASE_PROJECT_ID | Firebase Admin SDK の projectId（サーバー用）。認証機能を使う場合に必須。 | `zenn-ai-agent-hackathon-vol4` |
 
 ### 1. 前提条件
 - GCP プロジェクト作成済み
