@@ -1,33 +1,117 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
+import { MangaViewer } from '@/components/MangaViewer';
+import { FeedbackSection } from '@/components/FeedbackSection';
+import { loadHistoryDetail } from '@/lib/storage';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
-  const { result, status, error, analyze } = useAnalyzeStore();
+  const historyId = searchParams.get('historyId');
+  const {
+    result,
+    status,
+    error,
+    analyze,
+    setResult,
+    setStatus,
+    setError,
+    setUrl,
+    resetCheckedItems,
+    reset,
+  } =
+    useAnalyzeStore();
+  const lastLoadedHistoryId = useRef<string | null>(null);
+
+  const handleDownload = () => {
+    if (!result || !result.intermediate) return;
+    const { intermediate, checklist } = result;
+    const lines: string[] = [];
+    lines.push(`# ${intermediate.title}`);
+    lines.push('');
+    lines.push(`- 元URL: ${intermediate.metadata.source_url}`);
+    lines.push(`- 取得日時: ${intermediate.metadata.fetched_at}`);
+    lines.push('');
+    lines.push('## 要約');
+    lines.push(intermediate.summary || result.generatedSummary || '');
+    lines.push('');
+    if (intermediate.keyPoints && intermediate.keyPoints.length > 0) {
+      lines.push('## ポイント');
+      intermediate.keyPoints.forEach((point) => {
+        lines.push(`- ${point.text}`);
+      });
+      lines.push('');
+    }
+    if (checklist && checklist.length > 0) {
+      lines.push('## やることチェックリスト');
+      checklist.forEach((item) => {
+        lines.push(`- [ ] ${item.text}`);
+      });
+      lines.push('');
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = `${intermediate.title || 'summary'}.md`;
+    anchor.click();
+    URL.revokeObjectURL(blobUrl);
+  };
+
+  const handleBackToHome = () => {
+    reset();
+  };
+
+  useEffect(() => {
+    if (!historyId) return;
+    if (lastLoadedHistoryId.current === historyId) return;
+    const detail = loadHistoryDetail(historyId);
+    if (!detail.item) {
+      setError('履歴が見つかりませんでした');
+      setStatus('error');
+      lastLoadedHistoryId.current = historyId;
+      return;
+    }
+    setUrl(detail.item.url);
+    if (detail.result) {
+      setResult(detail.result);
+      resetCheckedItems(detail.result.checklist);
+      setStatus('success');
+      setError(null);
+      lastLoadedHistoryId.current = historyId;
+      return;
+    }
+    if (status === 'idle' && !result) {
+      analyze(detail.item.url);
+      lastLoadedHistoryId.current = historyId;
+    }
+  }, [historyId, analyze, resetCheckedItems, result, setError, setResult, setStatus, setUrl, status]);
 
   // URLパラメータがあり、まだ解析結果がない場合は解析を実行
   useEffect(() => {
+    if (historyId) return;
     if (url && !result && status === 'idle') {
       analyze(url);
     }
-  }, [url, result, status, analyze]);
+  }, [historyId, url, result, status, analyze]);
 
-  if (!url) {
+  if (!url && !historyId) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
           <p className="text-red-700 mb-4">URLが指定されていません</p>
           <Link
-            href="/"
+            href="/analyze"
+            onClick={handleBackToHome}
             className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             トップページに戻る
@@ -57,7 +141,8 @@ function ResultContent() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
           <p className="text-red-700 mb-4">{error || '解析に失敗しました'}</p>
           <Link
-            href="/"
+            href="/analyze"
+            onClick={handleBackToHome}
             className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             トップページに戻る
@@ -83,15 +168,25 @@ function ResultContent() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* 戻るリンク */}
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 mb-6"
-      >
-        <span aria-hidden="true">←</span>
-        新しいURLを解析
-      </Link>
-
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <Link
+          href="/analyze"
+          onClick={handleBackToHome}
+          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+        >
+          <span aria-hidden="true">←</span>
+          新しいURLを解析
+        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            結果をダウンロード
+          </button>
+        </div>
+      </div>
       {/* 免責バナー */}
       <DisclaimerBanner
         sourceUrl={intermediate.metadata.source_url}
@@ -106,29 +201,21 @@ function ResultContent() {
         <ChecklistViewer items={checklist} />
       </div>
 
+      {/* 漫画ビューア（Phase 2） */}
+      <MangaViewer
+        url={intermediate.metadata.source_url}
+        title={intermediate.title}
+        summary={intermediate.summary}
+        keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+      />
+
       {/* 根拠表示 */}
       <div className="mb-6">
         <SourceReference sources={intermediate.sources} />
       </div>
 
       {/* フィードバックセクション */}
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
-        <p className="text-gray-700 mb-3">この情報は正しいですか？</p>
-        <div className="flex justify-center gap-4">
-          <button
-            className="px-6 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-            onClick={() => alert('フィードバックありがとうございます！')}
-          >
-            👍 はい
-          </button>
-          <button
-            className="px-6 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-            onClick={() => alert('ご報告ありがとうございます。改善に努めます。')}
-          >
-            👎 いいえ
-          </button>
-        </div>
-      </div>
+      <FeedbackSection url={intermediate.metadata.source_url} resultId={result.id} />
     </div>
   );
 }
