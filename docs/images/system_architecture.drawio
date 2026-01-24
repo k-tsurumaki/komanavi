@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="system-architecture" name="System Architecture">
-        <mxGraphModel dx="1693" dy="1129" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="1800" math="0" shadow="0">
+        <mxGraphModel dx="2177" dy="1451" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="1800" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -128,7 +128,7 @@
                 <mxCell id="57" value="Cloud Deploy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=12" parent="1" vertex="1">
                     <mxGeometry x="1515" y="170" width="150" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="66" value="" style="edgeStyle=none;html=1;strokeWidth=5;" parent="1" edge="1" target="109">
+                <mxCell id="66" value="" style="edgeStyle=none;html=1;strokeWidth=5;" edge="1" parent="1" target="109">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="670" y="200" as="sourcePoint"/>
                         <mxPoint x="665" y="200" as="targetPoint"/>
@@ -140,13 +140,13 @@
                 <mxCell id="63" value="&lt;span style=&quot;font-size: 22px;&quot;&gt;&lt;b&gt;Developer&lt;/b&gt;&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
                     <mxGeometry x="540" y="290" width="130" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="67" value="" style="edgeStyle=none;html=1;strokeWidth=5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" edge="1" source="109">
+                <mxCell id="67" value="" style="edgeStyle=none;html=1;strokeWidth=5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="109">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="870" y="204.41" as="sourcePoint"/>
                         <mxPoint x="1002" y="200" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="68" value="&lt;span style=&quot;font-size: 22px;&quot;&gt;&lt;b&gt;GitHub&lt;/b&gt;&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                <mxCell id="68" value="&lt;span style=&quot;font-size: 22px;&quot;&gt;&lt;b&gt;GitHub&lt;/b&gt;&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
                     <mxGeometry x="775.19" y="290" width="130" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="73" value="&lt;b&gt;漫画生成&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">

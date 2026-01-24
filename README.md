@@ -3,6 +3,13 @@ sandbox for gcp-ai-agent-hackathon-vol4
 
 ## Cloud Run デプロイ手順
 
+## 必要な環境変数
+
+| 変数名 | 説明 | 例 |
+| --- | --- | --- |
+| GCP_PROJECT_ID | Google Cloud のプロジェクト ID。Cloud Run から Vertex AI を呼び出す際に利用。 | `zenn-ai-agent-hackathon-vol4` |
+| GCP_LOCATION | Vertex AI のロケーション。環境に合わせて指定。 | `global` / `us-central1` |
+
 ### 1. 前提条件
 - GCP プロジェクト作成済み
 - 請求先（Billing）有効化済み
@@ -24,7 +31,7 @@ Dockerfile を使ったデプロイ:
 
 1) Cloud Run サービスを作成・更新
 	```
-	gcloud run deploy komanabi \
+	gcloud run deploy komanavi \
 	  --source . \
 	  --allow-unauthenticated \
 	  --set-env-vars GCP_PROJECT_ID=<YOUR_PROJECT_ID>,GCP_LOCATION=<YOUR_LOCATION>
@@ -38,7 +45,7 @@ Dockerfile を使ったデプロイ:
 ### 4. デフォルトの環境変数の更新
 デプロイ後に環境変数を更新する場合:
 ```
-gcloud run services update komanabi \
+gcloud run services update komanavi \
 	--set-env-vars GCP_PROJECT_ID=<YOUR_PROJECT_ID>,GCP_LOCATION=<YOUR_LOCATION>
 ```
 
