@@ -15,7 +15,7 @@ sandbox for gcp-ai-agent-hackathon-vol4
 | AUTH_GOOGLE_SECRET | Google OAuth クライアントシークレット。認証機能を使う場合に必須。 | .env.local参照 |
 | NEXT_PUBLIC_FIREBASE_API_KEY | Firebase Web SDK の API キー（クライアント用）。認証機能を使う場合に必須。 | .env.local参照 |
 | NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN | Firebase Web SDK の authDomain（クライアント用）。認証機能を使う場合に必須。 | .env.local参照 |
-| NEXT_PUBLIC_FIREBASE_PROJECT_ID | Firebase Web SDK の projectId（クライアント用）。認証機能を使う場合に必須。 | .env.local参照 |
+| NEXT_PUBLIC_FIREBASE_PROJECT_ID | Firebase Web SDK の projectId（クライアント用）。認証機能を使う場合に必須。 | `zenn-ai-agent-hackathon-vol4` |
 | FIREBASE_PROJECT_ID | Firebase Admin SDK の projectId（サーバー用）。認証機能を使う場合に必須。 | `zenn-ai-agent-hackathon-vol4` |
 
 ### 1. 前提条件
