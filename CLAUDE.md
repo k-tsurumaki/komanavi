@@ -4,62 +4,100 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KOMANAVI (コマナビ) is a government document visualization application that simplifies complex administrative documents for citizens. The app takes government webpage URLs as input and generates easy-to-understand summaries, checklists, and optionally manga-style visual explanations.
+KOMANAVI (コマナビ) は行政ドキュメントを簡素化するアプリケーション。行政ページのURLを入力すると、わかりやすい要約、チェックリスト、漫画形式の視覚的説明を生成する。
 
-## Technology Stack (Planned)
+## Development Commands
 
-- **Frontend/Backend**: Next.js (App Router) with TypeScript
-- **Hosting**: Vercel
-- **Database**: Vercel Postgres
-- **Cache**: Vercel KV (Redis)
-- **LLM**: Claude API for document analysis and summarization
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand or Jotai
+```bash
+npm run dev       # 開発サーバー起動
+npm run build     # 本番ビルド
+npm run lint      # ESLint実行
+npm run format    # Prettier整形
+npm run format:check  # フォーマットチェック
+```
 
 ## Architecture
 
-The system processes government documents through this flow:
-1. URL input → Page scraping → Intermediate representation (JSON) → Summary/Checklist generation
-2. Results are cached by URL hash for 24-72 hours
-3. Manga generation (Phase 2) will be async with job queue
+アーキテクチャ図: `docs/images/system_architecture.svg`
 
-### Key Data Structure
+### データフロー
 
-The intermediate representation is a structured JSON containing:
-- `title`, `summary`: Document identification
-- `target.conditions`, `target.exceptions`: Eligibility criteria
-- `procedure.steps`, `procedure.required_documents`: Action items
-- `sources`: References to original text for verification
-- `personalization.questions`: Dynamic questions for customization
+```
+URL入力 → scraper.ts（Cheerioでスクレイピング）
+       → gemini.ts（Vertex AI Gemini 3.0 Flashで解析）
+       → IntermediateRepresentation（中間表現JSON）
+       → チェックリスト・要約生成
+       → Zustand（analyzeStore）で状態管理
+       → クライアント表示 + ローカルストレージに履歴保存
+```
 
-## Development Phases
+### 主要コンポーネント
 
-- **Phase 1 (MVP)**: URL input, page analysis, summary generation, checklist, caching, personalization
-- **Phase 2**: Manga generation (template-based), history, feedback collection
-- **Phase 3**: Multi-language support, audio, SNS sharing, API publication
+| ファイル | 役割 |
+|---------|------|
+| `src/lib/scraper.ts` | Cheerioを使用したWebスクレイピング |
+| `src/lib/gemini.ts` | Vertex AI（Gemini）連携。`@google/genai`を使用 |
+| `src/lib/types/intermediate.ts` | 全型定義（中間表現、API型、漫画関連） |
+| `src/stores/analyzeStore.ts` | Zustand状態管理（解析結果、チェックリスト状態） |
+| `src/lib/storage.ts` | ローカルストレージ操作（履歴保存） |
 
-## Target Users (Priority Order)
+### 認証システム
 
-1. **High Priority**: Single parents, elderly caregivers, foreign residents, disaster victims - requires simplest UI, large fonts (18px+), no jargon
-2. **Medium Priority**: New parents, newcomers, unemployed - step-by-step guidance
-3. **General**: Regular citizens - standard UI
+- **NextAuth + Firebase Auth**: Google OAuth + メール/パスワード認証
+- `src/lib/auth.ts`: NextAuth設定（Credentialsプロバイダー、Firebase IDトークン検証）
+- `src/lib/firebase.ts`: クライアント側Firebase SDK
+- `src/lib/firebase-admin.ts`: サーバー側Firebase Admin SDK
 
-## Key Design Principles
+### API仕様
 
-- Always show source references linking back to original government text
-- Display disclaimer that this is reference information only
-- Include last-updated timestamp prominently
-- Prioritize accessibility (WCAG 2.1 Level AA target)
-- Use "やさしい日本語" (easy Japanese) for first-priority users
+**POST /api/analyze**
+- リクエスト: `{ url: string }`
+- レスポンス: `AnalyzeResult`（intermediate, checklist, generatedSummary）
+- インメモリキャッシュ（24時間TTL）
+
+**POST /api/manga** / **GET /api/manga/[jobId]**
+- 非同期ジョブキュー方式
+- Gemini 3.0 Pro Imageで4コマ漫画生成
+
+### 外部サービス
+
+- **Vertex AI**: `gemini-3-flash-preview`（解析）、`gemini-3-pro-image-preview`（漫画）
+- **Firebase**: 認証（Identity Platform）
+- **Cloud Run**: 本番デプロイ先（asia-northeast1）
+
+### 環境変数
+
+必須環境変数は `.env.local` で設定。詳細は `README.md` 参照。
+
+| 変数名 | 用途 |
+|--------|------|
+| `GCP_PROJECT_ID` | Vertex AI呼び出し用 |
+| `GCP_LOCATION` | Vertex AIロケーション（`global`） |
+| `AUTH_SECRET` | NextAuth署名用 |
+| `AUTH_GOOGLE_ID/SECRET` | Google OAuth |
+| `NEXT_PUBLIC_FIREBASE_*` | Firebase Web SDK（クライアント） |
+| `FIREBASE_PROJECT_ID` | Firebase Admin SDK（サーバー） |
 
 ## Development Workflow
 
-各タスク完了後は以下の手順を実行すること:
+各タスク完了後:
+1. `npm run lint` でリントエラーがないことを確認
+2. `npm run build` でビルドが成功することを確認
+3. 適切な粒度でコミットを作成
 
-1. **コードレビュー**: `npm run lint` でリントエラーがないことを確認
-2. **動作確認**: `npm run build` でビルドが成功することを確認
-3. **コミット**: 適切な粒度でコミットを作成
+## Key Design Principles
+
+- 原文への根拠参照を常に表示（`sources`フィールド）
+- 免責事項を表示（参考情報であることを明示）
+- 「やさしい日本語」を使用（専門用語を避ける、短文で）
+- アクセシビリティ（WCAG 2.1 Level AA、18px以上のフォント）
+
+## Target Users
+
+1. **高優先**: ひとり親、高齢者介護者、外国人住民、災害被災者
+2. **中優先**: 新米パパママ、転入者、失業者
+3. **一般**: 一般市民
 
 ## Language
 
-Primary development and user interface language is Japanese. Comments and documentation may be in Japanese.
+主言語は日本語。コメントとドキュメントも日本語で可。

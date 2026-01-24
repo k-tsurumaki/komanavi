@@ -62,7 +62,7 @@
 - [x] lib/gemini.ts - Vertex AI対応に修正
 - [x] 中間表現生成プロンプト
 - [x] 要約生成プロンプト
-- [ ] 環境変数設定（GOOGLE_CLOUD_PROJECT, GOOGLE_APPLICATION_CREDENTIALS等）
+- [x]] 環境変数設定（GOOGLE_CLOUD_PROJECT, GOOGLE_APPLICATION_CREDENTIALS等）
 
 ### 3.3 API Routes
 - [x] app/api/analyze/route.ts - URL解析・要約生成（インメモリキャッシュ含む）
@@ -93,7 +93,7 @@
 - [x] モックデータでUI表示確認
 - [x] 実際の行政サイトURLでスクレイピング動作確認（Vertex AIの認証設定後）
 - [x] Vertex AI連携後、実際の要約生成確認（認証設定後）
-- [ ] モバイル表示確認
+- [x]] モバイル表示確認
 
 ---
 

@@ -245,3 +245,79 @@ export interface AnalyzeRequest {
 
 /** 解析ステータス */
 export type AnalyzeStatus = 'idle' | 'loading' | 'success' | 'error';
+
+// ============================================
+// Phase 2: 漫画・履歴・フィードバック
+// ============================================
+
+/** 漫画ジョブステータス */
+export type MangaJobStatus = 'queued' | 'processing' | 'done' | 'error';
+
+/** 漫画パネル */
+export interface MangaPanel {
+  id: string;
+  text: string;
+}
+
+/** 漫画生成結果 */
+export interface MangaResult {
+  title: string;
+  panels: MangaPanel[];
+  imageUrls?: string[];
+  meta?: {
+    panelCount: number;
+    generatedAt: string;
+    sourceUrl?: string;
+    format?: 'png';
+    maxEdge?: number;
+    title?: string;
+  };
+}
+
+/** 漫画生成リクエスト */
+export interface MangaRequest {
+  url: string;
+  title: string;
+  summary: string;
+  keyPoints?: string[];
+}
+
+/** 漫画ジョブレスポンス */
+export interface MangaJobResponse {
+  jobId: string;
+}
+
+/** 漫画ジョブステータスレスポンス */
+export interface MangaJobStatusResponse {
+  status: MangaJobStatus;
+  progress?: number;
+  result?: MangaResult;
+  error?: string;
+  errorCode?:
+    | 'timeout'
+    | 'api_error'
+    | 'validation_error'
+    | 'unknown'
+    | 'rate_limited'
+    | 'cooldown'
+    | 'concurrent';
+}
+
+/** 履歴アイテム */
+export interface HistoryItem {
+  id: string;
+  url: string;
+  title: string;
+  createdAt: string;
+  resultId: string;
+}
+
+/** フィードバックアイテム */
+export interface FeedbackItem {
+  id: string;
+  url: string;
+  resultId: string;
+  rating: 'accurate' | 'inaccurate';
+  comment?: string;
+  createdAt: string;
+}

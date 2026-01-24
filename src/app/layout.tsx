@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
-import Link from 'next/link';
+import { AppShell } from '@/components/AppShell';
+import { AuthProvider } from '@/components/AuthProvider';
 import './globals.css';
 
 const notoSansJP = Noto_Sans_JP({
@@ -25,33 +26,17 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className={`${notoSansJP.variable} font-sans antialiased bg-gray-50 text-gray-900`}>
-        <div className="min-h-screen flex flex-col">
-          {/* スキップリンク（キーボードナビゲーション用） */}
-          <a
-            href="#main-content"
-            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded"
-          >
-            メインコンテンツへスキップ
-          </a>
+        {/* スキップリンク（キーボードナビゲーション用） */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded"
+        >
+          メインコンテンツへスキップ
+        </a>
 
-          <header className="bg-white border-b border-gray-200">
-            <div className="max-w-4xl mx-auto px-4 py-4">
-              <h1 className="text-xl font-bold text-blue-600">
-                <Link href="/">KOMANAVI</Link>
-              </h1>
-            </div>
-          </header>
-          <main id="main-content" className="flex-1">{children}</main>
-          <footer className="bg-white border-t border-gray-200 mt-auto">
-            <div className="max-w-4xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
-              <p>
-                ※ 本サービスは参考情報を提供するものであり、正確性を保証するものではありません。
-                <br />
-                正式な手続きの際は必ず公式情報をご確認ください。
-              </p>
-            </div>
-          </footer>
-        </div>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );

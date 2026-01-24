@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import iconv from 'iconv-lite';
 
 export interface ScrapedContent {
   url: string;
@@ -74,7 +75,40 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
       };
     }
 
-    html = await response.text();
+    const contentType = response.headers.get('content-type') || '';
+    const charsetMatch = contentType.match(/charset=([^;]+)/i);
+    let charset = charsetMatch?.[1]?.trim().toLowerCase();
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    if (!charset) {
+      const headSample = buffer.slice(0, 4096).toString('latin1');
+      const metaMatch = headSample.match(/<meta[^>]+charset=["']?\s*([^"'>\s]+)/i);
+      const metaHttpEquivMatch = headSample.match(/content=["'][^"']*charset=([^"'>\s;]+)/i);
+      charset = metaMatch?.[1]?.trim().toLowerCase() || metaHttpEquivMatch?.[1]?.trim().toLowerCase();
+    }
+
+    const normalizeCharset = (value?: string) => {
+      if (!value) {
+        return undefined;
+      }
+      if (value === 'utf8') {
+        return 'utf-8';
+      }
+      return value;
+    };
+
+    const normalizedCharset = normalizeCharset(charset);
+
+    try {
+      if (normalizedCharset && normalizedCharset !== 'utf-8') {
+        html = iconv.decode(buffer, normalizedCharset);
+      } else {
+        html = new TextDecoder('utf-8').decode(buffer);
+      }
+    } catch {
+      html = new TextDecoder('utf-8').decode(buffer);
+    }
     lastModified = response.headers.get('last-modified') || undefined;
   } catch (err) {
     return {
