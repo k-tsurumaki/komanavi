@@ -8,7 +8,7 @@ sandbox for gcp-ai-agent-hackathon-vol4
 | 変数名 | 説明 | 例 |
 | --- | --- | --- |
 | GCP_PROJECT_ID | Google Cloud のプロジェクト ID。Cloud Run から Vertex AI を呼び出す際に利用。 | `zenn-ai-agent-hackathon-vol4` |
-| GCP_LOCATION | Vertex AI のロケーション。環境に合わせて指定。 | `global` / `asia-northeast1` |
+| GCP_LOCATION | Vertex AI のロケーション。本プロジェクトは `global` を使用（※ previewモデルは `global` のみ対応）。 | `global` |
 | AUTH_SECRET | Auth.js の署名用シークレット。認証機能を使う場合に必須。 | `openssl rand -base64 32` で生成した値 |
 | AUTH_URL | Auth.js のベース URL。認証機能を使う場合に必須。 | `http://localhost:3000` / `https://example.com` |
 | AUTH_GOOGLE_ID | Google OAuth クライアント ID。認証機能を使う場合に必須。 | `xxxxxxxx.apps.googleusercontent.com` |
@@ -22,6 +22,9 @@ sandbox for gcp-ai-agent-hackathon-vol4
 - GCP プロジェクト作成済み
 - 請求先（Billing）有効化済み
 - gcloud CLI インストール済み
+- 利用リージョンの棲み分け
+	- Cloud Run：asia-northeast1（参考：[komanavi](https://console.cloud.google.com/run/detail/asia-northeast1/komanavi/observability/metrics?project=zenn-ai-agent-hackathon-vol4&authuser=1)）
+	- Vertex AI（Gemini 3.0 Flash / Gemini 3.0 Image）：global（※ previewモデルはglobalでしか使えない）
 
 ### 2. 初期セットアップ
 1) gcloud にログイン
@@ -31,7 +34,7 @@ sandbox for gcp-ai-agent-hackathon-vol4
 2) 既定プロジェクトとリージョンを設定
 	```
 	gcloud config set project <YOUR_PROJECT_ID>
-	gcloud config set run/region <YOUR_REGION>
+	gcloud config set run/region asia-northeast1
 	```
 
 ### 3. Cloud Run にデプロイ
@@ -42,19 +45,19 @@ Dockerfile を使ったデプロイ:
 	gcloud run deploy komanavi \
 	  --source . \
 	  --allow-unauthenticated \
-	  --set-env-vars GCP_PROJECT_ID=<YOUR_PROJECT_ID>,GCP_LOCATION=<YOUR_LOCATION>
+	  --set-env-vars GCP_PROJECT_ID=<YOUR_PROJECT_ID>,GCP_LOCATION=global
 	```
 
 補足:
 - `gcloud run deploy ... --source .` は本リポジトリのルート（Dockerfile とプロジェクトファイルがある階層）で実行してください。別階層で実行する場合は `--source` にルートのパスを指定します。
 - 本リポジトリは Next.js の `output: "standalone"` を利用しており、Cloud Run の `PORT=8080` で起動します（Dockerfile で設定済み）。
-- `GCP_LOCATION` は Vertex AI のロケーションです（例: `global`, `us-central1`）。
+- `GCP_LOCATION` は Vertex AI のロケーションです（本プロジェクトは `global` を使用）。
 
 ### 4. デフォルトの環境変数の更新
 デプロイ後に環境変数を更新する場合:
 ```
 gcloud run services update komanavi \
-	--set-env-vars GCP_PROJECT_ID=<YOUR_PROJECT_ID>,GCP_LOCATION=<YOUR_LOCATION>
+	--set-env-vars GCP_PROJECT_ID=<YOUR_PROJECT_ID>,GCP_LOCATION=global
 ```
 
 ### 5. 動作確認
