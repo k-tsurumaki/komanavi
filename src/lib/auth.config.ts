@@ -12,7 +12,11 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     jwt: async ({ token, user, account }) => {
-      if (account?.providerAccountId) {
+      if (account?.provider === "firebase" || account?.type === "credentials") {
+        if (user?.id) {
+          token.id = user.id;
+        }
+      } else if (account?.providerAccountId) {
         token.id = account.providerAccountId;
       } else if (user?.id) {
         token.id = user.id;
