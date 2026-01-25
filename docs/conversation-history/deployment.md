@@ -26,5 +26,14 @@
 | NEXT_PUBLIC_FIREBASE_PROJECT_ID | ✅ | Firebase Web SDK 設定 | プロジェクト特定に必須 | [src/lib/firebase.ts](src/lib/firebase.ts) |
 | FIREBASE_PROJECT_ID | ✅ | Firebase Admin SDK のプロジェクトID | Admin SDK の初期化に必須 | [src/lib/firebase-admin.ts](src/lib/firebase-admin.ts) |
 
+### ローカル履歴の削除フロー
+- 対象: 旧実装でローカルストレージに保存された会話履歴
+- 手順:
+  1. Developer Consoleを開く（Chrome: 表示 > 開発/管理 > デベロッパーツール）
+  2. Applicationタブ（Chrome）で、Storage > Local Storage を開く
+  3. 対象ドメインを選択し、旧実装の履歴キーを確認
+  4. 該当キーを削除（右クリック > Delete）
+  5. アプリを再読み込みし、ローカル履歴が消えていることを確認
+  6. 以降は履歴取得/削除をAPI経由に統一
 
 
