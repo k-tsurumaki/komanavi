@@ -1,12 +1,11 @@
-import type { AnalyzeResult, ChecklistItem, IntermediateRepresentation } from '@/lib/types/intermediate';
+import type {
+  AnalyzeResult,
+  ChecklistItem,
+  HistoryItem,
+  IntermediateRepresentation,
+} from '@/lib/types/intermediate';
 
-type HistoryListItem = {
-  id: string;
-  url: string;
-  title: string;
-  createdAt: string | null;
-  resultId: string;
-};
+type HistoryListItem = HistoryItem;
 
 type HistoryListResponse = {
   items: HistoryListItem[];

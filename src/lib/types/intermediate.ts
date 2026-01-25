@@ -308,6 +308,6 @@ export interface HistoryItem {
   id: string;
   url: string;
   title: string;
-  createdAt: string;
+  createdAt: string | null;
   resultId: string;
 }

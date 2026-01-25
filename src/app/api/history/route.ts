@@ -72,7 +72,9 @@ export async function GET(request: NextRequest) {
     const createdAt = toIsoString(data.createdAt) ?? null;
     return {
       id: doc.id,
-      ...data,
+      url: data.url ?? '',
+      title: data.title ?? '',
+      resultId: data.resultId ?? '',
       createdAt,
     };
   });
@@ -148,7 +150,6 @@ export async function POST(request: NextRequest) {
     createdAt,
     checklist: body.checklist,
     generatedSummary: body.generatedSummary,
-    intermediateRef: body.intermediate ? intermediateRef.path : undefined,
     schemaVersion: body.schemaVersion ?? 1,
   });
 

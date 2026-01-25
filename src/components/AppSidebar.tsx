@@ -50,7 +50,7 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
             id: item.id,
             url: item.url,
             title: item.title,
-            createdAt: item.createdAt ?? '',
+            createdAt: item.createdAt,
             resultId: item.resultId,
           }));
           setHistoryItems(nextItems);
