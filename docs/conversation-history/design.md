@@ -17,13 +17,13 @@
 	- `id`: string（UUID）
 	- `url`: string
 	- `title`: string
-	- `createdAt`: string（ISO）
+	- `createdAt`: Firestore `Timestamp`
 	- `resultId`: string
 
 - `StoredHistoryResult`（[src/lib/storage.ts](src/lib/storage.ts#L7)）
 	- `historyId`: string
 	- `resultId`: string
-	- `createdAt`: string（ISO）
+	- `createdAt`: Firestore `Timestamp`
 	- `result`: AnalyzeResult
 
 ### 保存・更新のタイミング
@@ -100,6 +100,23 @@
 
 ## 最適化した設計（確定案）
 
+### 0) 認証方式と`userId`正規化（現状）
+- 認証基盤は **Auth.js (NextAuth v5) + Firebase Auth** の併用。
+	- **Googleログイン**: Auth.jsのGoogle Providerでログイン。
+	- **メール/パスワード**: Firebase AuthでIDトークン取得 → Auth.jsのCredentials Providerでセッション作成。
+	- 実装: [src/lib/auth.config.ts](src/lib/auth.config.ts), [src/lib/auth.ts](src/lib/auth.ts), [src/app/login/page.tsx](src/app/login/page.tsx)
+- `userId`正規化ルール（現状）
+	- **`userId = session.user.id`** を唯一の正規化IDとして採用。
+	- `session.user.id` は **JWTの`token.id`** を引き継ぐ。
+	- `token.id` は **`user.id`** をそのまま保存。
+	- `user.id` の実体
+		- **Firebase（メール/パスワード）**: `decodedToken.uid`（Firebase UID）
+		- **Google（OAuth）**: Auth.jsのGoogle Providerが返す`user.id`（Googleのsub/プロバイダーアカウントID）
+- 重要な現状の含意
+	- **プロバイダー間でID空間が異なる**（Firebase UIDとGoogle subが混在）。
+	- 追加の名前空間付与（例: `firebase:{uid}`, `google:{sub}`）は**現状未実装**。
+	- 履歴保存の`userId`は上記の`session.user.id`をそのまま使う前提。
+
 ### 1) 要件適合
 - 明確なSLOを定義
 	- 保持期間: 1年（デフォルト）
@@ -167,3 +184,60 @@
 - 監視指標: 書込/読取回数、失敗率、P95応答、ストレージ容量。
 - 監査ログ/バックアップ方針を明文化。
 - TTLルールで古い履歴を自動削除（ユーザー設定で期間変更可）。
+
+## 作業手順（実装タスク分解）
+
+### フェーズ0: 合意事項の確定
+1. 既存の認証方式（NextAuth/Firebase Auth）と`userId`の正規化ルールを確定。✅
+2. 履歴保持期間・削除ポリシー・サマリー保存方針を最終決定。
+	- 保持期間: **1年（デフォルト）**。ユーザー削除は即時反映。
+	- 削除ポリシー: **TTL（1年）+ ユーザーによる明示削除**。
+	- サマリー保存方針: **`conversation_histories.summary`に300文字以内の要約を保存**。
+		- 生成元: 解析結果の要約（既存のサマリーが無い場合は本文先頭から要約生成）。
+3. 解析結果の最大サイズ見積もり（$200\,\mathrm{KB}$以内か）を確認。
+	- 目標値: **構造化結果は$200\,\mathrm{KB}$以内**、本文/根拠は`conversation_intermediates`またはStorageへ分離。
+	- 超過時は本文をStorageへ退避し、メタのみをFirestoreに保存。
+
+### フェーズ1: データ層の準備（Firestore/Storage）
+1. Firestoreにコレクションを作成（`conversation_histories`/`conversation_results`/`conversation_intermediates`/`conversation_manga`）。
+2. ルールと複合インデックス（`userId + createdAt desc`）を追加。
+3. Storageバケットを用意し、本文/画像の格納先を確定。
+
+**実装物（リポジトリ内）**
+- Firestore ルール: [firestore.rules](firestore.rules)
+- Firestore インデックス: [firestore.indexes.json](firestore.indexes.json)
+- Storage ルール: [storage.rules](storage.rules)
+- Firebase 設定: [firebase.json](firebase.json)
+
+**Storageパス（確定）**
+- `conversation-results/{userId}/{resultId}/...`
+
+### フェーズ2: サーバAPIの実装
+1. **保存API**（解析結果の分割保存・冪等）
+	- `resultId`を冪等キーとしてアップサート。
+	- `history`/`result`/`intermediate`/`manga`を分割保存。
+2. **一覧API**（`userId` + `createdAt`降順 + ページング）
+3. **詳細API**（`historyId`から`resultId`取得 → 本文参照）
+4. **削除API**（論理削除 or TTL前提の削除）
+5. 失敗時の再試行（指数バックオフ・最大回数）を実装。
+
+### フェーズ3: クライアント切替
+1. 履歴一覧ページをサーバAPI参照に切替。
+2. サイドバー履歴をAPI参照に切替し、解析完了後に再取得。
+3. 結果ページの`historyId`復元をサーバAPI参照に切替。
+4. キャッシュ戦略（SWR/React Query）を導入。
+
+### フェーズ4: 移行フロー
+1. 初回ログイン時に`localStorage`履歴をまとめて送信。
+2. サーバ保存成功後に`localStorage`を削除。
+3. 移行失敗時の再試行UI/ログを実装。
+
+### フェーズ5: 監視・運用
+1. 書込/読取失敗率とP95を監視ダッシュボード化。
+2. 監査ログ（`audit_logs`）の保存と保全。
+3. TTL/保持期間の変更手順をドキュメント化。
+
+### フェーズ6: 受け入れテスト
+1. マルチデバイスで同一ユーザーの履歴同期を確認。
+2. `resultId`重複保存の冪等性を検証。
+3. 期限超過データの自動削除が行われることを確認。
