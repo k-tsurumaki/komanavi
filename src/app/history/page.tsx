@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { deleteAllHistory, fetchHistoryList } from '@/lib/history-api';
+import { fetchHistoryList } from '@/lib/history-api';
 import type { HistoryItem } from '@/lib/types/intermediate';
 
 const PAGE_SIZE = 12;
@@ -65,24 +65,6 @@ function HistoryPageContent() {
     loadPage(null);
   }, []);
 
-  const handleClear = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await deleteAllHistory();
-      cursorStackRef.current = [];
-      currentCursorRef.current = null;
-      await loadPage(null);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('history:updated'));
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '履歴の削除に失敗しました');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const goToNext = async () => {
     if (!state.nextCursor || isLoading) return;
     cursorStackRef.current.push(currentCursorRef.current);
@@ -109,14 +91,6 @@ function HistoryPageContent() {
           >
             新規解析
           </Link>
-          <button
-            type="button"
-            onClick={handleClear}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            disabled={isLoading || state.items.length === 0}
-          >
-            履歴を削除
-          </button>
         </div>
       </div>
 

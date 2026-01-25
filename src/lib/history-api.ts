@@ -80,15 +80,6 @@ export async function deleteHistory(historyId: string): Promise<void> {
   }
 }
 
-export async function deleteAllHistory(): Promise<void> {
-  const response = await fetch('/api/history/clear', {
-    method: 'DELETE',
-  });
-  if (!response.ok) {
-    throw new Error('履歴の一括削除に失敗しました');
-  }
-}
-
 export async function saveHistoryFromResult(params: {
   url: string;
   title: string;
