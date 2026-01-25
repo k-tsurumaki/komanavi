@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import type { ChecklistItem, IntermediateRepresentation } from '@/lib/types/intermediate';
 import { requireUserId, toIsoString } from '@/app/api/history/utils';
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   const snapshot = await query.get();
-  const items = snapshot.docs.map((doc: any) => {
+  const items = snapshot.docs.map((doc: QueryDocumentSnapshot) => {
     const data = doc.data();
     const createdAt = toIsoString(data.createdAt) ?? null;
     return {
