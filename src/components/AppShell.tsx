@@ -19,6 +19,7 @@ export function AppShell({ children }: AppShellProps) {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
   // ランディングページとログインページは独立レイアウト
   if (standaloneRoutes.includes(pathname)) {
     return <>{children}</>;
