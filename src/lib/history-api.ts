@@ -90,7 +90,6 @@ export async function saveHistoryFromResult(params: {
     resultId: result.id,
     url,
     title,
-    summary: result.generatedSummary,
     status: result.status,
     checklist: result.checklist,
     generatedSummary: result.generatedSummary,
