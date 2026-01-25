@@ -17,10 +17,6 @@ type SaveHistoryRequest = {
   resultId: string;
   url: string;
   title: string;
-  summary?: string;
-  status?: string;
-  sourceDomain?: string;
-  tags?: string[];
   checklist?: ChecklistItem[];
   intermediate?: IntermediateRepresentation;
   manga?: MangaResult;
@@ -47,14 +43,6 @@ function compact<T extends Record<string, unknown>>(data: T): T {
     }
   });
   return next as T;
-}
-
-function resolveSourceDomain(url: string): string | undefined {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return undefined;
-  }
 }
 
 async function requireUserId(): Promise<string | null> {
@@ -136,8 +124,6 @@ export async function POST(request: NextRequest) {
 
   let historyId = body.historyId ?? crypto.randomUUID();
   const createdAt = new Date();
-  const sourceDomain = body.sourceDomain ?? resolveSourceDomain(url);
-
   const db = getAdminFirestore();
   const resultRef = db.collection(COLLECTIONS.results).doc(resultId);
   const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultId);
@@ -179,10 +165,6 @@ export async function POST(request: NextRequest) {
     title,
     createdAt,
     resultId,
-    summary: body.summary,
-    status: body.status,
-    sourceDomain,
-    tags: body.tags,
   });
 
   const resultData = compact({

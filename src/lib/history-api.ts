@@ -6,10 +6,6 @@ type HistoryListItem = {
   title: string;
   createdAt: string | null;
   resultId: string;
-  summary?: string;
-  status?: string;
-  sourceDomain?: string;
-  tags?: string[];
 };
 
 type HistoryListResponse = {
@@ -90,7 +86,6 @@ export async function saveHistoryFromResult(params: {
     resultId: result.id,
     url,
     title,
-    status: result.status,
     checklist: result.checklist,
     generatedSummary: result.generatedSummary,
     intermediate: result.intermediate,
