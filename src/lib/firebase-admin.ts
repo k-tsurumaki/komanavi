@@ -6,8 +6,6 @@ import {
   applicationDefault,
   type App,
 } from "firebase-admin/app";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
@@ -21,33 +19,10 @@ const initializeAdminApp = (): App => {
   // ローカル開発時はサービスアカウントキーを使用
   // Cloud Run ではデフォルト認証情報を使用
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    let serviceAccount: string | Record<string, unknown> = raw;
-
-    try {
-      if (raw.trim().startsWith("{")) {
-        serviceAccount = JSON.parse(raw) as Record<string, unknown>;
-      } else {
-        const resolvedPath = resolve(raw);
-        const fileContent = readFileSync(resolvedPath, "utf8");
-        serviceAccount = JSON.parse(fileContent) as Record<string, unknown>;
-      }
-    } catch (error) {
-      console.error("Failed to load service account credentials:", error);
-      throw error;
-    }
-
-    const serviceAccountObj = serviceAccount as Record<string, unknown>;
-    if (typeof serviceAccountObj.project_id === "string" && serviceAccountObj.project_id) {
-      return initializeApp({
-        credential: cert(serviceAccountObj as Parameters<typeof cert>[0]),
-        projectId: process.env.FIREBASE_PROJECT_ID,
-      });
-    }
-
-    console.warn(
-      "GOOGLE_APPLICATION_CREDENTIALS is set but missing project_id. Falling back to application default credentials."
-    );
+    return initializeApp({
+      credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+      projectId: process.env.FIREBASE_PROJECT_ID,
+    });
   }
 
   return initializeApp({
@@ -69,8 +44,7 @@ export const getAdminAuth = (): Auth => {
 };
 
 export const getAdminFirestore = (): Firestore => {
-  const databaseId = process.env.FIREBASE_DATABASE_ID;
-  return databaseId ? getFirestore(getAdminApp(), databaseId) : getFirestore(getAdminApp());
+  return getFirestore(getAdminApp());
 };
 
 // IDトークン検証

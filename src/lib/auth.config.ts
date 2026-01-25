@@ -8,12 +8,6 @@ export const authConfig: NextAuthConfig = {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
-      profile: (profile) => ({
-        id: profile.sub ?? profile.id ?? "",
-        name: profile.name,
-        email: profile.email,
-        image: profile.picture,
-      }),
     }),
   ],
   callbacks: {
