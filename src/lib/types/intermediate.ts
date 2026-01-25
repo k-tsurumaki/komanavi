@@ -311,13 +311,3 @@ export interface HistoryItem {
   createdAt: string;
   resultId: string;
 }
-
-/** フィードバックアイテム */
-export interface FeedbackItem {
-  id: string;
-  url: string;
-  resultId: string;
-  rating: 'accurate' | 'inaccurate';
-  comment?: string;
-  createdAt: string;
-}

@@ -8,7 +8,6 @@ import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
 import { MangaViewer } from '@/components/MangaViewer';
-import { FeedbackSection } from '@/components/FeedbackSection';
 import { fetchHistoryDetail } from '@/lib/history-api';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
@@ -237,7 +236,6 @@ function ResultContent() {
       </div>
 
       {/* フィードバックセクション */}
-      <FeedbackSection url={intermediate.metadata.source_url} resultId={result.id} />
     </div>
   );
 }

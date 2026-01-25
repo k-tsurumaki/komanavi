@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { fetchHistoryList } from '@/lib/history-api';
+import { deleteHistory, fetchHistoryList } from '@/lib/history-api';
 import type { HistoryItem } from '@/lib/types/intermediate';
 
 const PAGE_SIZE = 12;
@@ -35,6 +35,7 @@ function HistoryPageContent() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const cursorStackRef = useRef<(string | null)[]>([]);
   const currentCursorRef = useRef<string | null>(null);
 
@@ -64,6 +65,30 @@ function HistoryPageContent() {
   useEffect(() => {
     loadPage(null);
   }, []);
+
+  const handleDelete = async (historyId: string) => {
+    const confirmed = typeof window === 'undefined'
+      ? false
+      : window.confirm('この履歴を削除しますか？');
+    if (!confirmed) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      await deleteHistory(historyId);
+      setOpenMenuId(null);
+      cursorStackRef.current = [];
+      currentCursorRef.current = null;
+      await loadPage(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('history:updated'));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '履歴の削除に失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const goToNext = async () => {
     if (!state.nextCursor || isLoading) return;
@@ -112,17 +137,61 @@ function HistoryPageContent() {
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             {state.items.map((item) => (
-              <Link
+              <div
                 key={item.id}
-                href={`/result?historyId=${item.id}&url=${encodeURIComponent(item.url)}`}
-                className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-400"
+                className="relative bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-400"
               >
-                <p className="font-semibold text-gray-900 line-clamp-2">{item.title}</p>
-                <p className="text-sm text-gray-600 mt-2 break-all">{item.url}</p>
-                <p className="text-xs text-gray-500 mt-2">
-                  {item.createdAt ? new Date(item.createdAt).toLocaleString('ja-JP') : '-'}
-                </p>
-              </Link>
+                <Link
+                  href={`/result?historyId=${item.id}&url=${encodeURIComponent(item.url)}`}
+                  className="block pr-8"
+                >
+                  <p className="font-semibold text-gray-900 line-clamp-2">{item.title}</p>
+                  <p className="text-sm text-gray-600 mt-2 break-all">{item.url}</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {item.createdAt ? new Date(item.createdAt).toLocaleString('ja-JP') : '-'}
+                  </p>
+                </Link>
+
+                <div className="absolute right-3 top-3 z-10">
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={openMenuId === item.id}
+                    onClick={() =>
+                      setOpenMenuId((prev) => (prev === item.id ? null : item.id))
+                    }
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50"
+                  >
+                    <span className="sr-only">メニュー</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                      fill="currentColor"
+                    >
+                      <circle cx="12" cy="5" r="1.8" />
+                      <circle cx="12" cy="12" r="1.8" />
+                      <circle cx="12" cy="19" r="1.8" />
+                    </svg>
+                  </button>
+                  {openMenuId === item.id && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 mt-2 w-32 rounded-md border border-gray-200 bg-white shadow-lg"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleDelete(item.id)}
+                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                        disabled={isLoading}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
 
