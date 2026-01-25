@@ -115,7 +115,7 @@ function ResultContent() {
     };
 
     loadDetail();
-  }, [historyId, analyze, resetCheckedItems, result, setError, setResult, setStatus, setUrl, status]);
+  }, [historyId, analyze, resetCheckedItems, setError, setResult, setStatus, setUrl]);
 
   // URLパラメータがあり、まだ解析結果がない場合は解析を実行
   useEffect(() => {
