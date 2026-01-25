@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { User } from "next-auth";
 
 interface ProfileFormProps {
@@ -28,38 +26,32 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
     useEffect(() => {
         const fetchProfile = async () => {
-            if (!user.id) return;
             try {
-                const docRef = doc(db, "users", user.id);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    // Convert Timestamp to YYYY-MM-DD string for input[type="date"]
-                    let birthDateStr = "";
-                    if (data.birthDate instanceof Timestamp) {
-                        birthDateStr = data.birthDate.toDate().toISOString().split("T")[0];
-                    } else if (typeof data.birthDate === "string") {
-                        // Fallback if somehow stored as string
-                        birthDateStr = data.birthDate;
-                    }
-
-                    setProfile({
-                        displayName: data.displayName || "",
-                        birthDate: birthDateStr,
-                        gender: data.gender || "",
-                        occupation: data.occupation || "",
-                        nationality: data.nationality || "日本",
-                        location: data.location || "",
-                        visualTraits: data.visualTraits || "",
-                        personality: data.personality || "",
-                    });
-                } else {
-                    // Default values for new profile
-                    setProfile({
-                        nationality: "日本"
-                    })
+                const res = await fetch("/api/user/profile");
+                if (!res.ok) {
+                    throw new Error("Failed to fetch profile");
                 }
+
+                const data = await res.json();
+
+                // Handle birthDate: API returns ISO string or null.
+                // Input type="date" needs YYYY-MM-DD.
+                let birthDateStr = "";
+                if (data.birthDate) {
+                    // Assuming ISO string "YYYY-MM-DDTHH:mm:ss.sssZ"
+                    birthDateStr = data.birthDate.split("T")[0];
+                }
+
+                setProfile({
+                    displayName: data.displayName || "",
+                    birthDate: birthDateStr,
+                    gender: data.gender || "",
+                    occupation: data.occupation || "",
+                    nationality: data.nationality || "日本",
+                    location: data.location || "",
+                    visualTraits: data.visualTraits || "",
+                    personality: data.personality || "",
+                });
             } catch (error) {
                 console.error("Error fetching profile:", error);
                 setMessage({ type: "error", text: "プロフィールの取得に失敗しました。" });
@@ -69,7 +61,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         };
 
         fetchProfile();
-    }, [user.id]);
+    }, []); // Remove dependency on user.id as auth is handled by cookies/session in API
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -80,25 +72,22 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user.id) return;
         setSaving(true);
         setMessage(null);
 
         try {
-            const docRef = doc(db, "users", user.id);
+            const res = await fetch("/api/user/profile", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(profile),
+            });
 
-            // Convert date string back to Timestamp/Date object if needed, 
-            // but requirement says "DBには日付で保存". Firestore Timestamp is best.
-            const saveData: any = { ...profile };
-            if (profile.birthDate) {
-                saveData.birthDate = Timestamp.fromDate(new Date(profile.birthDate));
-            } else {
-                saveData.birthDate = null;
+            if (!res.ok) {
+                throw new Error("Failed to save profile");
             }
 
-            saveData.updatedAt = Timestamp.now();
-
-            await setDoc(docRef, saveData, { merge: true });
             setMessage({ type: "success", text: "プロフィールを保存しました。" });
         } catch (error) {
             console.error("Error saving profile:", error);
