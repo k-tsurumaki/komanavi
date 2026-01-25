@@ -78,7 +78,6 @@ export async function saveHistoryFromResult(params: {
     checklist: result.checklist,
     generatedSummary: result.generatedSummary,
     intermediate: result.intermediate,
-    schemaVersion: 1,
   };
 
   const response = await fetch('/api/history', {

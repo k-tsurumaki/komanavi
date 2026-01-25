@@ -19,7 +19,6 @@ type SaveHistoryRequest = {
   checklist?: ChecklistItem[];
   intermediate?: IntermediateRepresentation;
   generatedSummary?: string;
-  schemaVersion?: number;
 };
 
 function compact<T extends Record<string, unknown>>(data: T): T {
@@ -133,7 +132,6 @@ export async function POST(request: NextRequest) {
     createdAt,
     checklist: body.checklist,
     generatedSummary: body.generatedSummary,
-    schemaVersion: body.schemaVersion ?? 1,
   });
 
   const batch = db.batch();
