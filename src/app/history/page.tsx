@@ -1,19 +1,15 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { clearHistory, loadHistoryPage } from '@/lib/storage';
+import { deleteAllHistory, fetchHistoryList } from '@/lib/history-api';
 import type { HistoryItem } from '@/lib/types/intermediate';
 
 const PAGE_SIZE = 12;
 
 interface HistoryState {
   items: HistoryItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
+  nextCursor: string | null;
 }
 
 export default function HistoryPage() {
@@ -33,33 +29,70 @@ export default function HistoryPage() {
 }
 
 function HistoryPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pageParam = searchParams.get('page');
-  const pageNumber = useMemo(() => {
-    const value = Number(pageParam || '1');
-    return Number.isNaN(value) || value < 1 ? 1 : value;
-  }, [pageParam]);
+  const [state, setState] = useState<HistoryState>({
+    items: [],
+    nextCursor: null,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const cursorStackRef = useRef<(string | null)[]>([]);
+  const currentCursorRef = useRef<string | null>(null);
 
-  const [state, setState] = useState<HistoryState>(() => loadHistoryPage(1, PAGE_SIZE));
-
-  useEffect(() => {
-    const next = loadHistoryPage(pageNumber, PAGE_SIZE);
-    setState(next);
-    if (next.page !== pageNumber) {
-      router.replace(`/history?page=${next.page}`);
+  const loadPage = async (cursor: string | null) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetchHistoryList({ limit: PAGE_SIZE, cursor });
+      currentCursorRef.current = cursor;
+      setState({
+        items: response.items.map((item) => ({
+          id: item.id,
+          url: item.url,
+          title: item.title,
+          createdAt: item.createdAt ?? '',
+          resultId: item.resultId,
+        })),
+        nextCursor: response.nextCursor,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '履歴の取得に失敗しました');
+    } finally {
+      setIsLoading(false);
     }
-  }, [pageNumber]);
-
-  const handleClear = () => {
-    clearHistory();
-    const next = loadHistoryPage(1, PAGE_SIZE);
-    setState(next);
-    router.replace('/history?page=1');
   };
 
-  const goToPage = (nextPage: number) => {
-    router.push(`/history?page=${nextPage}`);
+  useEffect(() => {
+    loadPage(null);
+  }, []);
+
+  const handleClear = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await deleteAllHistory();
+      cursorStackRef.current = [];
+      currentCursorRef.current = null;
+      await loadPage(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('history:updated'));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '履歴の削除に失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const goToNext = async () => {
+    if (!state.nextCursor || isLoading) return;
+    cursorStackRef.current.push(currentCursorRef.current);
+    await loadPage(state.nextCursor);
+  };
+
+  const goToPrev = async () => {
+    if (cursorStackRef.current.length === 0 || isLoading) return;
+    const prevCursor = cursorStackRef.current.pop() ?? null;
+    await loadPage(prevCursor ?? null);
   };
 
   return (
@@ -67,7 +100,7 @@ function HistoryPageContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold">解析履歴</h2>
-          <p className="text-sm text-gray-600">直近90日分を保存しています。</p>
+          <p className="text-sm text-gray-600">履歴はサーバに保存されます。</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
@@ -80,14 +113,24 @@ function HistoryPageContent() {
             type="button"
             onClick={handleClear}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            disabled={state.total === 0}
+            disabled={isLoading || state.items.length === 0}
           >
             履歴を削除
           </button>
         </div>
       </div>
 
-      {state.total === 0 ? (
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {isLoading && state.items.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+          <p className="text-gray-600">読み込み中...</p>
+        </div>
+      ) : state.items.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
           <p className="text-gray-600">まだ履歴がありません。</p>
         </div>
@@ -103,29 +146,26 @@ function HistoryPageContent() {
                 <p className="font-semibold text-gray-900 line-clamp-2">{item.title}</p>
                 <p className="text-sm text-gray-600 mt-2 break-all">{item.url}</p>
                 <p className="text-xs text-gray-500 mt-2">
-                  {new Date(item.createdAt).toLocaleString('ja-JP')}
+                  {item.createdAt ? new Date(item.createdAt).toLocaleString('ja-JP') : '-'}
                 </p>
               </Link>
             ))}
           </div>
 
-          {state.totalPages > 1 && (
+          {(cursorStackRef.current.length > 0 || state.nextCursor) && (
             <div className="flex items-center justify-center gap-2 pt-4">
               <button
                 type="button"
-                onClick={() => goToPage(state.page - 1)}
-                disabled={state.page <= 1}
+                onClick={goToPrev}
+                disabled={isLoading || cursorStackRef.current.length === 0}
                 className="px-3 py-2 rounded-lg border border-gray-300 disabled:text-gray-400"
               >
                 前へ
               </button>
-              <span className="text-sm text-gray-600">
-                {state.page} / {state.totalPages}
-              </span>
               <button
                 type="button"
-                onClick={() => goToPage(state.page + 1)}
-                disabled={state.page >= state.totalPages}
+                onClick={goToNext}
+                disabled={isLoading || !state.nextCursor}
                 className="px-3 py-2 rounded-lg border border-gray-300 disabled:text-gray-400"
               >
                 次へ

@@ -1,11 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { UserMenu } from '@/components/UserMenu';
+import {
+  clearMigrationError,
+  getMigrationError,
+  migrateLocalHistoryIfNeeded,
+} from '@/lib/history-migration';
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -19,6 +24,22 @@ export function AppShell({ children }: AppShellProps) {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    migrateLocalHistoryIfNeeded(session.user.id).finally(() => {
+      setMigrationError(getMigrationError(session.user.id));
+    });
+  }, [session?.user?.id]);
+
+  const handleRetryMigration = async () => {
+    if (!session?.user?.id) return;
+    clearMigrationError(session.user.id);
+    setMigrationError(null);
+    await migrateLocalHistoryIfNeeded(session.user.id);
+    setMigrationError(getMigrationError(session.user.id));
+  };
 
   // ランディングページとログインページは独立レイアウト
   if (standaloneRoutes.includes(pathname)) {
@@ -92,6 +113,23 @@ export function AppShell({ children }: AppShellProps) {
             <UserMenu />
           </div>
         </header>
+
+        {migrationError && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-900">
+            <div className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm">
+                履歴の移行に失敗しました。再試行してください。
+              </p>
+              <button
+                type="button"
+                onClick={handleRetryMigration}
+                className="px-3 py-1.5 text-sm font-semibold rounded-md border border-amber-300 bg-white hover:bg-amber-100"
+              >
+                再試行
+              </button>
+            </div>
+          </div>
+        )}
 
         <main id="main-content" className="flex-1">
           {children}

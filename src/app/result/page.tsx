@@ -9,7 +9,7 @@ import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
 import { MangaViewer } from '@/components/MangaViewer';
 import { FeedbackSection } from '@/components/FeedbackSection';
-import { loadHistoryDetail } from '@/lib/storage';
+import { fetchHistoryDetail } from '@/lib/history-api';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -74,26 +74,48 @@ function ResultContent() {
   useEffect(() => {
     if (!historyId) return;
     if (lastLoadedHistoryId.current === historyId) return;
-    const detail = loadHistoryDetail(historyId);
-    if (!detail.item) {
-      setError('履歴が見つかりませんでした');
-      setStatus('error');
-      lastLoadedHistoryId.current = historyId;
-      return;
-    }
-    setUrl(detail.item.url);
-    if (detail.result) {
-      setResult(detail.result);
-      resetCheckedItems(detail.result.checklist);
-      setStatus('success');
-      setError(null);
-      lastLoadedHistoryId.current = historyId;
-      return;
-    }
-    if (status === 'idle' && !result) {
-      analyze(detail.item.url);
-      lastLoadedHistoryId.current = historyId;
-    }
+
+    const loadDetail = async () => {
+      try {
+        const detail = await fetchHistoryDetail(historyId);
+        if (!detail.history) {
+          setError('履歴が見つかりませんでした');
+          setStatus('error');
+          lastLoadedHistoryId.current = historyId;
+          return;
+        }
+
+        setUrl(detail.history.url);
+
+        if (detail.result && detail.intermediate) {
+          const mergedResult = {
+            id: detail.result.id,
+            intermediate: detail.intermediate.intermediate,
+            generatedSummary:
+              detail.result.generatedSummary || detail.intermediate.intermediate.summary || '',
+            checklist: detail.result.checklist || [],
+            status: 'success' as const,
+          };
+          setResult(mergedResult);
+          resetCheckedItems(mergedResult.checklist);
+          setStatus('success');
+          setError(null);
+          lastLoadedHistoryId.current = historyId;
+          return;
+        }
+
+        if (status === 'idle' && !result) {
+          analyze(detail.history.url);
+          lastLoadedHistoryId.current = historyId;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '履歴の取得に失敗しました');
+        setStatus('error');
+        lastLoadedHistoryId.current = historyId;
+      }
+    };
+
+    loadDetail();
   }, [historyId, analyze, resetCheckedItems, result, setError, setResult, setStatus, setUrl, status]);
 
   // URLパラメータがあり、まだ解析結果がない場合は解析を実行

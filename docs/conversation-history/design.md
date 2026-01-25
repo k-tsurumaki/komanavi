@@ -221,16 +221,63 @@
 4. **削除API**（論理削除 or TTL前提の削除）
 5. 失敗時の再試行（指数バックオフ・最大回数）を実装。
 
+**実装内容（現状）**
+- ルート: [src/app/api/history/route.ts](src/app/api/history/route.ts)
+	- `GET /api/history`: 一覧取得（`createdAt desc` + `__name__ desc`）
+		- クエリ: `limit`（1〜100）、`cursor`（`{createdAtMillis}:{docId}`）
+		- レスポンスの`nextCursor`は同形式
+	- `POST /api/history`: 保存（分割保存 + バッチ）
+		- `historyId`/`resultId`の整合性チェックを実施
+		- `createdAt`は**原則サーバ時刻**
+		- 移行用途のみ`allowClientCreatedAt`を許可
+			- ヘッダー: `x-migration-token`
+			- 環境変数: `MIGRATION_TOKEN`
+- ルート: [src/app/api/history/[historyId]/route.ts](src/app/api/history/%5BhistoryId%5D/route.ts)
+	- `GET /api/history/{historyId}`: 詳細取得（不整合時は409）
+	- `DELETE /api/history/{historyId}`: 履歴/関連ドキュメント削除
+
 ### フェーズ3: クライアント切替
 1. 履歴一覧ページをサーバAPI参照に切替。
 2. サイドバー履歴をAPI参照に切替し、解析完了後に再取得。
 3. 結果ページの`historyId`復元をサーバAPI参照に切替。
 4. キャッシュ戦略（SWR/React Query）を導入。
 
+**実装内容（現状）**
+- 履歴APIクライアント: [src/lib/history-api.ts](src/lib/history-api.ts)
+- 解析成功時の保存をAPI経由に変更し、`historyId`を保持
+	- 実装: [src/stores/analyzeStore.ts](src/stores/analyzeStore.ts#L1)
+	- 結果遷移で`historyId`を利用: [src/app/analyze/page.tsx](src/app/analyze/page.tsx#L1)
+- サイドバー履歴をAPI参照に切替（`history:updated`で再取得）
+	- 実装: [src/components/AppSidebar.tsx](src/components/AppSidebar.tsx#L1)
+- 履歴一覧ページをAPI参照に切替（前へ/次へナビ）
+	- 実装: [src/app/history/page.tsx](src/app/history/page.tsx#L1)
+- 結果ページの履歴復元をAPI参照に切替
+	- 実装: [src/app/result/page.tsx](src/app/result/page.tsx#L1)
+
+**追加API（フェーズ3対応）**
+- 一括削除: `DELETE /api/history/clear`
+	- 実装: [src/app/api/history/clear/route.ts](src/app/api/history/clear/route.ts)
+
+**UI変更点**
+- 履歴一覧はページ番号ではなく前へ/次へナビに変更
+- `createdAt`が未取得の場合は「-」表示
+
 ### フェーズ4: 移行フロー
 1. 初回ログイン時に`localStorage`履歴をまとめて送信。
 2. サーバ保存成功後に`localStorage`を削除。
 3. 移行失敗時の再試行UI/ログを実装。
+
+**実装内容（現状）**
+- 移行API: `POST /api/history/migrate`
+	- 実装: [src/app/api/history/migrate/route.ts](src/app/api/history/migrate/route.ts)
+	- 受信: `historyItems`/`historyResults`
+	- 書込み: `conversation_histories`/`conversation_results`/`conversation_intermediates` をバッチ保存
+- クライアント移行処理
+	- 実装: [src/lib/history-migration.ts](src/lib/history-migration.ts), [src/components/AppShell.tsx](src/components/AppShell.tsx#L1)
+	- 初回ログイン時に実行（`userId`単位で一度だけ）
+	- 成功後に`localStorage`を削除し、`history:updated`を発火
+	- 失敗時は`localStorage`にエラーを記録し、次回ログインで再試行
+	- 失敗時に再試行UIを表示（ヘッダー直下）
 
 ### フェーズ5: 監視・運用
 1. 書込/読取失敗率とP95を監視ダッシュボード化。

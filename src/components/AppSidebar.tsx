@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loadHistoryPage } from '@/lib/storage';
+import { fetchHistoryList } from '@/lib/history-api';
 import type { HistoryItem } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
@@ -21,8 +21,42 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
   const reset = useAnalyzeStore((state) => state.reset);
 
   useEffect(() => {
-    const { items } = loadHistoryPage(1, SIDEBAR_PAGE_SIZE);
-    setHistoryItems(items);
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const response = await fetchHistoryList({ limit: SIDEBAR_PAGE_SIZE });
+        if (isMounted) {
+          setHistoryItems(
+            response.items.map((item) => ({
+              id: item.id,
+              url: item.url,
+              title: item.title,
+              createdAt: item.createdAt ?? '',
+              resultId: item.resultId,
+            }))
+          );
+        }
+      } catch {
+        if (isMounted) {
+          setHistoryItems([]);
+        }
+      }
+    };
+
+    load();
+    const handleUpdate = () => {
+      load();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('history:updated', handleUpdate);
+    }
+
+    return () => {
+      isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('history:updated', handleUpdate);
+      }
+    };
   }, []);
 
   return (
@@ -89,7 +123,9 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
                 >
                   <p className="line-clamp-2 font-medium">{item.title}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {new Date(item.createdAt).toLocaleDateString('ja-JP')}
+                    {item.createdAt
+                      ? new Date(item.createdAt).toLocaleDateString('ja-JP')
+                      : '-'}
                   </p>
                 </Link>
               </li>

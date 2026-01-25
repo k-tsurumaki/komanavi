@@ -63,6 +63,9 @@ export async function GET(_request: NextRequest, context: { params: { historyId:
       if (resultData?.userId !== userId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
+      if (resultData?.historyId && resultData.historyId !== historyId) {
+        return NextResponse.json({ error: 'History/result mismatch' }, { status: 409 });
+      }
       result = {
         id: resultSnap.id,
         ...resultData,

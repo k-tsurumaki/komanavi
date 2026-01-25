@@ -28,6 +28,7 @@ type SaveHistoryRequest = {
   generatedSummary?: string;
   schemaVersion?: number;
   createdAt?: string | number;
+  allowClientCreatedAt?: boolean;
 };
 
 function toTimestamp(input?: string | number): Timestamp | null {
@@ -90,11 +91,15 @@ export async function GET(request: NextRequest) {
     .collection(COLLECTIONS.histories)
     .where('userId', '==', userId)
     .orderBy('createdAt', 'desc')
+    .orderBy('__name__', 'desc')
     .limit(limit);
 
   if (cursorParam) {
-    const cursorMs = Number(cursorParam);
-    if (Number.isFinite(cursorMs)) {
+    const [cursorMsRaw, cursorId] = cursorParam.split(':');
+    const cursorMs = Number(cursorMsRaw);
+    if (Number.isFinite(cursorMs) && cursorId) {
+      query = query.startAfter(Timestamp.fromMillis(cursorMs), cursorId);
+    } else if (Number.isFinite(cursorMs)) {
       query = query.startAfter(Timestamp.fromMillis(cursorMs));
     }
   }
@@ -112,7 +117,10 @@ export async function GET(request: NextRequest) {
 
   const lastDoc = snapshot.docs.at(-1);
   const lastCreatedAt = lastDoc?.data().createdAt;
-  const nextCursor = lastCreatedAt instanceof Timestamp ? lastCreatedAt.toMillis() : null;
+  const nextCursor =
+    lastDoc && lastCreatedAt instanceof Timestamp
+      ? `${lastCreatedAt.toMillis()}:${lastDoc.id}`
+      : null;
 
   return NextResponse.json({ items, nextCursor, limit });
 }
@@ -136,7 +144,13 @@ export async function POST(request: NextRequest) {
   }
 
   const historyId = body.historyId ?? crypto.randomUUID();
-  const createdAt = toTimestamp(body.createdAt) ?? Timestamp.now();
+  const allowClientCreatedAt =
+    body.allowClientCreatedAt &&
+    !!process.env.MIGRATION_TOKEN &&
+    request.headers.get('x-migration-token') === process.env.MIGRATION_TOKEN;
+  const createdAt = allowClientCreatedAt
+    ? toTimestamp(body.createdAt) ?? Timestamp.now()
+    : Timestamp.now();
   const sourceDomain = body.sourceDomain ?? resolveSourceDomain(url);
 
   const db = getAdminFirestore();
@@ -144,6 +158,17 @@ export async function POST(request: NextRequest) {
   const resultRef = db.collection(COLLECTIONS.results).doc(resultId);
   const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultId);
   const mangaRef = db.collection(COLLECTIONS.manga).doc(resultId);
+
+  const existingHistory = await historyRef.get();
+  if (existingHistory.exists) {
+    const historyData = existingHistory.data();
+    if (!historyData?.userId || historyData.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (historyData.resultId && historyData.resultId !== resultId) {
+      return NextResponse.json({ error: 'historyId already linked to another resultId' }, { status: 409 });
+    }
+  }
 
   const existingResult = await resultRef.get();
   if (existingResult.exists) {
