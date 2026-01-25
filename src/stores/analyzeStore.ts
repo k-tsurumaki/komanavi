@@ -101,16 +101,21 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
 
       setResult(data);
       resetCheckedItems(data.checklist);
-      const saved = await saveHistoryFromResult({
-        url,
-        title: data.intermediate?.title || url,
-        result: data,
-      });
-      setLastHistoryId(saved.historyId);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('history:updated'));
-      }
       setStatus('success');
+
+      try {
+        const saved = await saveHistoryFromResult({
+          url,
+          title: data.intermediate?.title || url,
+          result: data,
+        });
+        setLastHistoryId(saved.historyId);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('history:updated'));
+        }
+      } catch (saveError) {
+        console.warn('履歴の保存に失敗しました', saveError);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : '予期しないエラーが発生しました';
       setError(message);
