@@ -43,14 +43,7 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
       try {
         const response = await fetchHistoryList({ limit: SIDEBAR_PAGE_SIZE });
         if (isMounted) {
-          const nextItems = response.items.map((item) => ({
-            id: item.id,
-            url: item.url,
-            title: item.title,
-            createdAt: item.createdAt,
-            resultId: item.resultId,
-          }));
-          setHistoryItems(nextItems);
+          setHistoryItems(response.items);
         }
       } catch {
         if (isMounted) {
