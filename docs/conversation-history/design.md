@@ -20,6 +20,11 @@
 - `conversation_results`
 - `conversation_intermediates`
 
+### ドキュメントIDの方針
+- `conversation_histories`: `historyId` をドキュメントIDとして使用
+- `conversation_results`: `resultId` をドキュメントIDとして使用
+- `conversation_intermediates`: `resultId` をドキュメントIDとして使用
+
 ### conversation_histories
 | フィールド | 型 | 必須 | 説明 | 取得方法 |
 |---|---|---|---|---|
@@ -56,6 +61,7 @@
 	- `limit` (number, 1〜100, 省略時50)
 - レスポンス: `{ items, limit }`
 	- `items`: `createdAt` 降順の履歴配列
+	- `items[i]`: `{ id, url, title, resultId, createdAt }`
 	- `createdAt`: ISO 8601 文字列 or null
 
 - 実装: [src/app/api/history/route.ts](src/app/api/history/route.ts)
@@ -73,10 +79,12 @@
 	- `generatedSummary` (任意)
 	- `intermediate` (任意)
 - 保存ルール:
-	- `historyId` 未指定時はサーバで採番
-	- `resultId` と `historyId` の整合性チェック
-	- 既存リンクがある場合は再利用または競合エラー
-	- `createdAt` はサーバ時刻
+	- `historyId` 未指定時はサーバで採番（UUID）
+	- `resultId` は必須、`resultId` をドキュメントIDとして使用
+	- 既存の `resultId` が別 `historyId` に紐付いている場合は再利用または 409
+	- 既存の `historyId` が別 `resultId` に紐付いている場合は再採番または 409
+	- `intermediate` が無い場合は中間表現ドキュメントは作成しない
+	- `createdAt` はサーバ時刻で毎回更新（履歴・結果・中間表現）
 - レスポンス: `{ historyId, resultId }`
 
 - 実装: [src/app/api/history/route.ts](src/app/api/history/route.ts)
@@ -86,9 +94,10 @@
 
 - 認証: 必須（未認証は 401）
 - レスポンス: `{ history, result, intermediate }`
-	- `history`: null の場合は 404
+	- `history`: 存在しない場合は 404
 	- `result` / `intermediate`: 存在しない場合は null
 	- `createdAt`: ISO 8601 文字列
+	- `history` / `result` / `intermediate` は `id` を含む
 
 - 実装: [src/app/api/history/[historyId]/route.ts](src/app/api/history/[historyId]/route.ts)
 
@@ -138,20 +147,21 @@
 - 全APIで `requireUserId()` により認証必須
 - 各ドキュメントは `userId` で所有チェック
 - `historyId` / `resultId` の不整合は 409 で拒否
+- 既存ドキュメントが別ユーザーの場合は 403
 
 - 実装: 
    - [src/app/api/history/route.ts](src/app/api/history/route.ts)
    - [src/app/api/history/[historyId]/route.ts](src/app/api/history/[historyId]/route.ts), [src/app/api/history/utils.ts](src/app/api/history/utils.ts)
 
 ## 認証設定の補足（auth.config.ts）
-- 既存の `uid` は NextAuth 側でセッションごとに生成される `user.id` に依存しており、ログインのたびに変わるため `userId` と紐付けられない。そのため、安定識別子として `providerAccountId` を採用。
-- `providerAccountId` は認証プロバイダ（Google など）側でユーザーに割り当てられる一意IDで、同一アカウントであればログイン間で不変。
+- OAuth（Googleなど）は `providerAccountId` を安定識別子として採用（プロバイダ側で割り当てられる一意ID）。
+- Credentials（Firebaseメール/パスワード）は `user.id` を安定識別子として採用（Firebase UID）。
 
 - 実装: [src/lib/auth.config.ts](src/lib/auth.config.ts)
 
 ## 現状の仕様上の注意点
 - 一覧APIにページング/カーソルは未実装（`limit` のみ）
-- `createdAt` は保存時に常にサーバ時刻を設定
+- `createdAt` は保存時に常にサーバ時刻を設定（既存ドキュメントも更新される）
 - 履歴一覧の専用ページは削除し、現在は存在しない（サイドバーのみ）
 - ローカルストレージへの保存は現行実装に含まれない
 
