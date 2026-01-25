@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { deleteHistory, fetchHistoryList } from '@/lib/history-api';
 import type { HistoryItem } from '@/lib/types/intermediate';
+import { HistoryItemMenu } from '@/components/HistoryItemMenu';
 
 const PAGE_SIZE = 12;
 
@@ -35,7 +36,6 @@ function HistoryPageContent() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const cursorStackRef = useRef<(string | null)[]>([]);
   const currentCursorRef = useRef<string | null>(null);
 
@@ -76,7 +76,6 @@ function HistoryPageContent() {
     setError(null);
     try {
       await deleteHistory(historyId);
-      setOpenMenuId(null);
       cursorStackRef.current = [];
       currentCursorRef.current = null;
       await loadPage(null);
@@ -139,7 +138,7 @@ function HistoryPageContent() {
             {state.items.map((item) => (
               <div
                 key={item.id}
-                className="relative bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-400"
+                className="group relative bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-400"
               >
                 <Link
                   href={`/result?historyId=${item.id}&url=${encodeURIComponent(item.url)}`}
@@ -152,45 +151,12 @@ function HistoryPageContent() {
                   </p>
                 </Link>
 
-                <div className="absolute right-3 top-3 z-10">
-                  <button
-                    type="button"
-                    aria-haspopup="menu"
-                    aria-expanded={openMenuId === item.id}
-                    onClick={() =>
-                      setOpenMenuId((prev) => (prev === item.id ? null : item.id))
-                    }
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50"
-                  >
-                    <span className="sr-only">メニュー</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      className="h-5 w-5"
-                      fill="currentColor"
-                    >
-                      <circle cx="12" cy="5" r="1.8" />
-                      <circle cx="12" cy="12" r="1.8" />
-                      <circle cx="12" cy="19" r="1.8" />
-                    </svg>
-                  </button>
-                  {openMenuId === item.id && (
-                    <div
-                      role="menu"
-                      className="absolute right-0 mt-2 w-32 rounded-md border border-gray-200 bg-white shadow-lg"
-                    >
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => handleDelete(item.id)}
-                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                        disabled={isLoading}
-                      >
-                        削除
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <HistoryItemMenu
+                  className="absolute right-3 top-3 z-10"
+                  buttonClassName="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                  onDelete={() => handleDelete(item.id)}
+                  disabled={isLoading}
+                />
               </div>
             ))}
           </div>

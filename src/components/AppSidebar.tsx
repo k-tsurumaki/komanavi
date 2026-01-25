@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { fetchHistoryList } from '@/lib/history-api';
+import { deleteHistory, fetchHistoryList } from '@/lib/history-api';
 import type { HistoryItem } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
+import { HistoryItemMenu } from '@/components/HistoryItemMenu';
 
 const SIDEBAR_PAGE_SIZE = 10;
 
@@ -19,6 +20,25 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const router = useRouter();
   const reset = useAnalyzeStore((state) => state.reset);
+
+  const handleDelete = async (historyId: string) => {
+    const confirmed = typeof window === 'undefined'
+      ? false
+      : window.confirm('この履歴を削除しますか？');
+    if (!confirmed) return;
+
+    try {
+      await deleteHistory(historyId);
+      setHistoryItems((prev) => prev.filter((item) => item.id !== historyId));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('history:updated'));
+      }
+    } catch {
+      if (typeof window !== 'undefined') {
+        window.alert('履歴の削除に失敗しました');
+      }
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -117,9 +137,10 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
           <ul className="space-y-2">
             {historyItems.map((item) => (
               <li key={item.id}>
+                <div className="group relative">
                 <Link
                   href={`/result?historyId=${item.id}&url=${encodeURIComponent(item.url)}`}
-                  className="block rounded-lg border border-transparent px-3 py-2 text-sm text-gray-800 hover:border-blue-200 hover:bg-blue-50"
+                  className="block rounded-lg border border-transparent px-3 py-2 pr-10 text-sm text-gray-800 hover:border-blue-200 hover:bg-blue-50"
                 >
                   <p className="line-clamp-2 font-medium">{item.title}</p>
                   <p className="text-xs text-gray-500 mt-1">
@@ -128,6 +149,12 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
                       : '-'}
                   </p>
                 </Link>
+                <HistoryItemMenu
+                  className="absolute right-2 top-2 z-10"
+                  buttonClassName="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                  onDelete={() => handleDelete(item.id)}
+                />
+                </div>
               </li>
             ))}
           </ul>
