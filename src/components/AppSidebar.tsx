@@ -9,7 +9,6 @@ import { useAnalyzeStore } from '@/stores/analyzeStore';
 import { HistoryItemMenu } from '@/components/HistoryItemMenu';
 
 const SIDEBAR_PAGE_SIZE = 10;
-const SIDEBAR_CACHE_KEY = 'history:list:sidebar';
 
 type AppSidebarProps = {
   className?: string;
@@ -30,16 +29,7 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
 
     try {
       await deleteHistory(historyId);
-      setHistoryItems((prev) => {
-        const next = prev.filter((item) => item.id !== historyId);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(
-            SIDEBAR_CACHE_KEY,
-            JSON.stringify({ items: next })
-          );
-        }
-        return next;
-      });
+      setHistoryItems((prev) => prev.filter((item) => item.id !== historyId));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('history:updated'));
       }
@@ -52,27 +42,6 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
 
   useEffect(() => {
     let isMounted = true;
-    if (typeof window !== 'undefined') {
-      const cached = window.sessionStorage.getItem(SIDEBAR_CACHE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached) as { items?: HistoryItem[] };
-          if (Array.isArray(parsed.items)) {
-            setHistoryItems(
-              parsed.items.map((item) => ({
-                id: item.id,
-                url: item.url,
-                title: item.title,
-                createdAt: item.createdAt ?? '',
-                resultId: item.resultId,
-              }))
-            );
-          }
-        } catch {
-          window.sessionStorage.removeItem(SIDEBAR_CACHE_KEY);
-        }
-      }
-    }
     const load = async () => {
       try {
         const response = await fetchHistoryList({ limit: SIDEBAR_PAGE_SIZE });
@@ -85,12 +54,6 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
             resultId: item.resultId,
           }));
           setHistoryItems(nextItems);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(
-              SIDEBAR_CACHE_KEY,
-              JSON.stringify({ items: response.items })
-            );
-          }
         }
       } catch {
         if (isMounted) {
@@ -187,7 +150,7 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
                 </Link>
                 <HistoryItemMenu
                   className="absolute right-2 top-2 z-10"
-                  buttonClassName="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                  buttonClassName="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
                   onDelete={() => handleDelete(item.id)}
                 />
                 </div>
