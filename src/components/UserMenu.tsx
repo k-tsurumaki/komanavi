@@ -76,6 +76,14 @@ export function UserMenu() {
 
           <div className="py-1">
             <Link
+              href="/mypage"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setIsOpen(false)}
+            >
+              Myページ
+            </Link>
+
+            <Link
               href="/history"
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               onClick={() => setIsOpen(false)}
