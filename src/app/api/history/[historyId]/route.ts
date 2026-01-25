@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
 import { auth } from '@/lib/auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 
@@ -13,8 +12,9 @@ const COLLECTIONS = {
 } as const;
 
 function toIsoString(value: unknown): string | null {
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString();
+  if (value && typeof value === 'object' && 'toDate' in value) {
+    const dateValue = (value as { toDate: () => Date }).toDate();
+    return dateValue.toISOString();
   }
   return null;
 }
@@ -24,13 +24,16 @@ async function requireUserId(): Promise<string | null> {
   return session?.user?.id ?? null;
 }
 
-export async function GET(_request: NextRequest, context: { params: { historyId: string } }) {
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ historyId: string }> }
+) {
   const userId = await requireUserId();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { historyId } = context.params;
+  const { historyId } = await context.params;
   const db = getAdminFirestore();
   const historyRef = db.collection(COLLECTIONS.histories).doc(historyId);
   const historySnap = await historyRef.get();
@@ -103,13 +106,16 @@ export async function GET(_request: NextRequest, context: { params: { historyId:
   return NextResponse.json({ history, result, intermediate, manga });
 }
 
-export async function DELETE(_request: NextRequest, context: { params: { historyId: string } }) {
+export async function DELETE(
+  _request: NextRequest,
+  context: { params: Promise<{ historyId: string }> }
+) {
   const userId = await requireUserId();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { historyId } = context.params;
+  const { historyId } = await context.params;
   const db = getAdminFirestore();
   const historyRef = db.collection(COLLECTIONS.histories).doc(historyId);
   const historySnap = await historyRef.get();

@@ -74,102 +74,110 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const historyItems = Array.isArray(body.historyItems) ? body.historyItems : [];
-  const historyResults = Array.isArray(body.historyResults) ? body.historyResults : [];
+  try {
+    const historyItems = Array.isArray(body.historyItems) ? body.historyItems : [];
+    const historyResults = Array.isArray(body.historyResults) ? body.historyResults : [];
 
-  if (historyItems.length === 0) {
-    return NextResponse.json({ migrated: 0 });
-  }
-
-  const resultsByHistoryId = new Map<string, MigrationHistoryResult>();
-  const resultsByResultId = new Map<string, MigrationHistoryResult>();
-  historyResults.forEach((entry) => {
-    resultsByHistoryId.set(entry.historyId, entry);
-    resultsByResultId.set(entry.resultId, entry);
-  });
-
-  const db = getAdminFirestore();
-  let batch = db.batch();
-  let batchCount = 0;
-  let migrated = 0;
-
-  const commitBatch = async () => {
-    if (batchCount === 0) return;
-    await batch.commit();
-    batch = db.batch();
-    batchCount = 0;
-  };
-
-  for (const history of historyItems) {
-    if (!history?.id || !history.url || !history.resultId) {
-      continue;
+    if (historyItems.length === 0) {
+      return NextResponse.json({ migrated: 0 });
     }
 
-    const createdAt = toDateValue(history.createdAt);
-    const sourceDomain = resolveSourceDomain(history.url);
-    const resultEntry =
-      resultsByHistoryId.get(history.id) ?? resultsByResultId.get(history.resultId);
-
-    const historyData = compact({
-      userId,
-      url: history.url,
-      title: history.title || history.url,
-      createdAt,
-      resultId: history.resultId,
-      summary:
-        resultEntry?.result?.generatedSummary?.slice(0, 300) ||
-        resultEntry?.result?.intermediate?.summary?.slice(0, 300),
-      status: resultEntry?.result?.status,
-      sourceDomain,
+    const resultsByHistoryId = new Map<string, MigrationHistoryResult>();
+    const resultsByResultId = new Map<string, MigrationHistoryResult>();
+    historyResults.forEach((entry) => {
+      resultsByHistoryId.set(entry.historyId, entry);
+      resultsByResultId.set(entry.resultId, entry);
     });
 
-    const historyRef = db.collection(COLLECTIONS.histories).doc(history.id);
-    batch.set(historyRef, historyData, { merge: true });
-    batchCount += 1;
+    const db = getAdminFirestore();
+    let batch = db.batch();
+    let batchCount = 0;
+    let migrated = 0;
 
-    if (resultEntry?.result) {
-      const result = resultEntry.result;
-      const resultCreatedAt = toDateValue(resultEntry.createdAt || history.createdAt);
-      const resultRef = db.collection(COLLECTIONS.results).doc(resultEntry.resultId);
-      const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultEntry.resultId);
+    const commitBatch = async () => {
+      if (batchCount === 0) return;
+      await batch.commit();
+      batch = db.batch();
+      batchCount = 0;
+    };
 
-      const resultData = compact({
-        historyId: history.id,
+    for (const history of historyItems) {
+      if (!history?.id || !history.url || !history.resultId) {
+        continue;
+      }
+
+      const createdAt = toDateValue(history.createdAt);
+      const sourceDomain = resolveSourceDomain(history.url);
+      const resultEntry =
+        resultsByHistoryId.get(history.id) ?? resultsByResultId.get(history.resultId);
+
+      const historyData = compact({
         userId,
-        createdAt: resultCreatedAt,
-        checklist: result.checklist,
-        generatedSummary: result.generatedSummary,
-        intermediateRef: result.intermediate ? intermediateRef.path : undefined,
-        schemaVersion: 1,
+        url: history.url,
+        title: history.title || history.url,
+        createdAt,
+        resultId: history.resultId,
+        summary:
+          resultEntry?.result?.generatedSummary?.slice(0, 300) ||
+          resultEntry?.result?.intermediate?.summary?.slice(0, 300),
+        status: resultEntry?.result?.status,
+        sourceDomain,
       });
 
-      batch.set(resultRef, resultData, { merge: true });
+      const historyRef = db.collection(COLLECTIONS.histories).doc(history.id);
+      batch.set(historyRef, historyData, { merge: true });
       batchCount += 1;
 
-      if (result.intermediate) {
-        batch.set(
-          intermediateRef,
-          compact({
-            userId,
-            historyId: history.id,
-            resultId: resultEntry.resultId,
-            createdAt: resultCreatedAt,
-            intermediate: result.intermediate,
-          }),
-          { merge: true }
-        );
+      if (resultEntry?.result) {
+        const result = resultEntry.result;
+        const resultCreatedAt = toDateValue(resultEntry.createdAt || history.createdAt);
+        const resultRef = db.collection(COLLECTIONS.results).doc(resultEntry.resultId);
+        const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultEntry.resultId);
+
+        const resultData = compact({
+          historyId: history.id,
+          userId,
+          createdAt: resultCreatedAt,
+          checklist: result.checklist,
+          generatedSummary: result.generatedSummary,
+          intermediateRef: result.intermediate ? intermediateRef.path : undefined,
+          schemaVersion: 1,
+        });
+
+        batch.set(resultRef, resultData, { merge: true });
         batchCount += 1;
+
+        if (result.intermediate) {
+          batch.set(
+            intermediateRef,
+            compact({
+              userId,
+              historyId: history.id,
+              resultId: resultEntry.resultId,
+              createdAt: resultCreatedAt,
+              intermediate: result.intermediate,
+            }),
+            { merge: true }
+          );
+          batchCount += 1;
+        }
+      }
+
+      migrated += 1;
+
+      if (batchCount >= 400) {
+        await commitBatch();
       }
     }
 
-    migrated += 1;
+    await commitBatch();
 
-    if (batchCount >= 400) {
-      await commitBatch();
-    }
+    return NextResponse.json({ migrated });
+  } catch (error) {
+    console.error('History migration API error:', error);
+    return NextResponse.json(
+      { error: 'Migration failed' },
+      { status: 500 }
+    );
   }
-
-  await commitBatch();
-
-  return NextResponse.json({ migrated });
 }

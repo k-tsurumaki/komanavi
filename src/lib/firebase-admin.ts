@@ -6,6 +6,8 @@ import {
   applicationDefault,
   type App,
 } from "firebase-admin/app";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
@@ -19,8 +21,24 @@ const initializeAdminApp = (): App => {
   // ローカル開発時はサービスアカウントキーを使用
   // Cloud Run ではデフォルト認証情報を使用
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    let serviceAccount: string | Record<string, unknown> = raw;
+
+    try {
+      if (raw.trim().startsWith("{")) {
+        serviceAccount = JSON.parse(raw) as Record<string, unknown>;
+      } else {
+        const resolvedPath = resolve(raw);
+        const fileContent = readFileSync(resolvedPath, "utf8");
+        serviceAccount = JSON.parse(fileContent) as Record<string, unknown>;
+      }
+    } catch (error) {
+      console.error("Failed to load service account credentials:", error);
+      throw error;
+    }
+
     return initializeApp({
-      credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+      credential: cert(serviceAccount as Parameters<typeof cert>[0]),
       projectId: process.env.FIREBASE_PROJECT_ID,
     });
   }
@@ -44,7 +62,8 @@ export const getAdminAuth = (): Auth => {
 };
 
 export const getAdminFirestore = (): Firestore => {
-  return getFirestore(getAdminApp());
+  const databaseId = process.env.FIREBASE_DATABASE_ID;
+  return databaseId ? getFirestore(getAdminApp(), databaseId) : getFirestore(getAdminApp());
 };
 
 // IDトークン検証

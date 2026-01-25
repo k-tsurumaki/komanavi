@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
 import { auth } from '@/lib/auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import type { ChecklistItem, IntermediateRepresentation, MangaResult } from '@/lib/types/intermediate';
@@ -31,23 +30,27 @@ type SaveHistoryRequest = {
   allowClientCreatedAt?: boolean;
 };
 
-function toTimestamp(input?: string | number): Timestamp | null {
+function toDateValue(input?: string | number): Date | null {
   if (input === undefined) return null;
   if (typeof input === 'number' && Number.isFinite(input)) {
-    return Timestamp.fromMillis(input);
+    return new Date(input);
   }
   if (typeof input === 'string') {
     const parsed = Date.parse(input);
     if (!Number.isNaN(parsed)) {
-      return Timestamp.fromMillis(parsed);
+      return new Date(parsed);
     }
   }
   return null;
 }
 
 function toIsoString(value: unknown): string | null {
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString();
+  if (value && typeof value === 'object' && 'toDate' in value) {
+    const dateValue = (value as { toDate: () => Date }).toDate();
+    return dateValue.toISOString();
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
   }
   return null;
 }
@@ -98,14 +101,14 @@ export async function GET(request: NextRequest) {
     const [cursorMsRaw, cursorId] = cursorParam.split(':');
     const cursorMs = Number(cursorMsRaw);
     if (Number.isFinite(cursorMs) && cursorId) {
-      query = query.startAfter(Timestamp.fromMillis(cursorMs), cursorId);
+      query = query.startAfter(new Date(cursorMs), cursorId);
     } else if (Number.isFinite(cursorMs)) {
-      query = query.startAfter(Timestamp.fromMillis(cursorMs));
+      query = query.startAfter(new Date(cursorMs));
     }
   }
 
   const snapshot = await query.get();
-  const items = snapshot.docs.map((doc) => {
+  const items = snapshot.docs.map((doc: any) => {
     const data = doc.data();
     const createdAt = toIsoString(data.createdAt) ?? null;
     return {
@@ -117,10 +120,14 @@ export async function GET(request: NextRequest) {
 
   const lastDoc = snapshot.docs.at(-1);
   const lastCreatedAt = lastDoc?.data().createdAt;
-  const nextCursor =
-    lastDoc && lastCreatedAt instanceof Timestamp
-      ? `${lastCreatedAt.toMillis()}:${lastDoc.id}`
-      : null;
+  let nextCursor: string | null = null;
+  if (lastDoc && lastCreatedAt) {
+    if (typeof lastCreatedAt?.toMillis === 'function') {
+      nextCursor = `${lastCreatedAt.toMillis()}:${lastDoc.id}`;
+    } else if (lastCreatedAt instanceof Date) {
+      nextCursor = `${lastCreatedAt.getTime()}:${lastDoc.id}`;
+    }
+  }
 
   return NextResponse.json({ items, nextCursor, limit });
 }
@@ -143,32 +150,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'resultId, url, title are required' }, { status: 400 });
   }
 
-  const historyId = body.historyId ?? crypto.randomUUID();
+  let historyId = body.historyId ?? crypto.randomUUID();
   const allowClientCreatedAt =
     body.allowClientCreatedAt &&
     !!process.env.MIGRATION_TOKEN &&
     request.headers.get('x-migration-token') === process.env.MIGRATION_TOKEN;
   const createdAt = allowClientCreatedAt
-    ? toTimestamp(body.createdAt) ?? Timestamp.now()
-    : Timestamp.now();
+    ? toDateValue(body.createdAt) ?? new Date()
+    : new Date();
   const sourceDomain = body.sourceDomain ?? resolveSourceDomain(url);
 
   const db = getAdminFirestore();
-  const historyRef = db.collection(COLLECTIONS.histories).doc(historyId);
   const resultRef = db.collection(COLLECTIONS.results).doc(resultId);
   const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultId);
   const mangaRef = db.collection(COLLECTIONS.manga).doc(resultId);
-
-  const existingHistory = await historyRef.get();
-  if (existingHistory.exists) {
-    const historyData = existingHistory.data();
-    if (!historyData?.userId || historyData.userId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    if (historyData.resultId && historyData.resultId !== resultId) {
-      return NextResponse.json({ error: 'historyId already linked to another resultId' }, { status: 409 });
-    }
-  }
 
   const existingResult = await resultRef.get();
   if (existingResult.exists) {
@@ -177,7 +172,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     if (existing?.historyId && existing.historyId !== historyId) {
-      return NextResponse.json({ error: 'resultId already linked to another historyId' }, { status: 409 });
+      if (body.historyId) {
+        return NextResponse.json({ error: 'resultId already linked to another historyId' }, { status: 409 });
+      }
+      historyId = existing.historyId as string;
+    }
+  }
+
+  let historyRef = db.collection(COLLECTIONS.histories).doc(historyId);
+  const existingHistory = await historyRef.get();
+  if (existingHistory.exists) {
+    const historyData = existingHistory.data();
+    if (!historyData?.userId || historyData.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (historyData.resultId && historyData.resultId !== resultId) {
+      if (body.historyId) {
+        return NextResponse.json({ error: 'historyId already linked to another resultId' }, { status: 409 });
+      }
+      historyId = crypto.randomUUID();
+      historyRef = db.collection(COLLECTIONS.histories).doc(historyId);
     }
   }
 

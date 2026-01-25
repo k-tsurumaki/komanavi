@@ -149,7 +149,21 @@ export async function migrateHistory(params: {
   });
 
   if (!response.ok) {
-    throw new Error('履歴の移行に失敗しました');
+    let detail = '';
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data?.error) {
+        detail = data.error;
+      }
+    } catch {
+      try {
+        detail = await response.text();
+      } catch {
+        detail = '';
+      }
+    }
+    const suffix = detail ? ` (${detail})` : '';
+    throw new Error(`履歴の移行に失敗しました${suffix}`);
   }
 
   return (await response.json()) as { migrated: number };
