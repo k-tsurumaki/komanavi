@@ -10,7 +10,6 @@ type HistoryListItem = {
 
 type HistoryListResponse = {
   items: HistoryListItem[];
-  nextCursor: string | null;
   limit: number;
 };
 
@@ -33,13 +32,9 @@ type HistoryDetailResponse = {
 
 export async function fetchHistoryList(params: {
   limit: number;
-  cursor?: string | null;
 }): Promise<HistoryListResponse> {
   const searchParams = new URLSearchParams();
   searchParams.set('limit', String(params.limit));
-  if (params.cursor) {
-    searchParams.set('cursor', params.cursor);
-  }
   const response = await fetch(`/api/history?${searchParams.toString()}`, {
     method: 'GET',
   });

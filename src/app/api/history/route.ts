@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const limitParam = Number(searchParams.get('limit') ?? '50');
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 100) : 50;
-  const cursorParam = searchParams.get('cursor');
 
   const db = getAdminFirestore();
   let query = db
@@ -66,16 +65,6 @@ export async function GET(request: NextRequest) {
     .orderBy('createdAt', 'desc')
     .orderBy('__name__', 'desc')
     .limit(limit);
-
-  if (cursorParam) {
-    const [cursorMsRaw, cursorId] = cursorParam.split(':');
-    const cursorMs = Number(cursorMsRaw);
-    if (Number.isFinite(cursorMs) && cursorId) {
-      query = query.startAfter(new Date(cursorMs), cursorId);
-    } else if (Number.isFinite(cursorMs)) {
-      query = query.startAfter(new Date(cursorMs));
-    }
-  }
 
   const snapshot = await query.get();
   const items = snapshot.docs.map((doc: any) => {
@@ -88,18 +77,7 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  const lastDoc = snapshot.docs.at(-1);
-  const lastCreatedAt = lastDoc?.data().createdAt;
-  let nextCursor: string | null = null;
-  if (lastDoc && lastCreatedAt) {
-    if (typeof lastCreatedAt?.toMillis === 'function') {
-      nextCursor = `${lastCreatedAt.toMillis()}:${lastDoc.id}`;
-    } else if (lastCreatedAt instanceof Date) {
-      nextCursor = `${lastCreatedAt.getTime()}:${lastDoc.id}`;
-    }
-  }
-
-  return NextResponse.json({ items, nextCursor, limit });
+  return NextResponse.json({ items, limit });
 }
 
 export async function POST(request: NextRequest) {
