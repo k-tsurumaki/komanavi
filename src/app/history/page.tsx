@@ -13,6 +13,8 @@ interface HistoryState {
   nextCursor: string | null;
 }
 
+const HISTORY_CACHE_KEY = 'history:list:first';
+
 export default function HistoryPage() {
   return (
     <Suspense
@@ -55,6 +57,15 @@ function HistoryPageContent() {
         })),
         nextCursor: response.nextCursor,
       });
+      if (cursor === null && typeof window !== 'undefined') {
+        window.sessionStorage.setItem(
+          HISTORY_CACHE_KEY,
+          JSON.stringify({
+            items: response.items,
+            nextCursor: response.nextCursor,
+          })
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '履歴の取得に失敗しました');
     } finally {
@@ -63,6 +74,28 @@ function HistoryPageContent() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cached = window.sessionStorage.getItem(HISTORY_CACHE_KEY);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as HistoryState;
+          if (Array.isArray(parsed.items)) {
+            setState({
+              items: parsed.items.map((item) => ({
+                id: item.id,
+                url: item.url,
+                title: item.title,
+                createdAt: item.createdAt ?? '',
+                resultId: item.resultId,
+              })),
+              nextCursor: parsed.nextCursor ?? null,
+            });
+          }
+        } catch {
+          window.sessionStorage.removeItem(HISTORY_CACHE_KEY);
+        }
+      }
+    }
     loadPage(null);
   }, []);
 
