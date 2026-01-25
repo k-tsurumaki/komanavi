@@ -28,20 +28,6 @@ type SaveHistoryRequest = {
   schemaVersion?: number;
 };
 
-function toDateValue(input?: string | number): Date | null {
-  if (input === undefined) return null;
-  if (typeof input === 'number' && Number.isFinite(input)) {
-    return new Date(input);
-  }
-  if (typeof input === 'string') {
-    const parsed = Date.parse(input);
-    if (!Number.isNaN(parsed)) {
-      return new Date(parsed);
-    }
-  }
-  return null;
-}
-
 function toIsoString(value: unknown): string | null {
   if (value && typeof value === 'object' && 'toDate' in value) {
     const dateValue = (value as { toDate: () => Date }).toDate();
