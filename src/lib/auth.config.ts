@@ -8,11 +8,19 @@ export const authConfig: NextAuthConfig = {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      profile: (profile) => ({
+        id: profile.sub ?? profile.id ?? "",
+        name: profile.name,
+        email: profile.email,
+        image: profile.picture,
+      }),
     }),
   ],
   callbacks: {
-    jwt: async ({ token, user }) => {
-      if (user) {
+    jwt: async ({ token, user, account }) => {
+      if (account?.providerAccountId) {
+        token.id = account.providerAccountId;
+      } else if (user?.id) {
         token.id = user.id;
       }
       return token;

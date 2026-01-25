@@ -37,10 +37,17 @@ const initializeAdminApp = (): App => {
       throw error;
     }
 
-    return initializeApp({
-      credential: cert(serviceAccount as Parameters<typeof cert>[0]),
-      projectId: process.env.FIREBASE_PROJECT_ID,
-    });
+    const serviceAccountObj = serviceAccount as Record<string, unknown>;
+    if (typeof serviceAccountObj.project_id === "string" && serviceAccountObj.project_id) {
+      return initializeApp({
+        credential: cert(serviceAccountObj as Parameters<typeof cert>[0]),
+        projectId: process.env.FIREBASE_PROJECT_ID,
+      });
+    }
+
+    console.warn(
+      "GOOGLE_APPLICATION_CREDENTIALS is set but missing project_id. Falling back to application default credentials."
+    );
   }
 
   return initializeApp({
