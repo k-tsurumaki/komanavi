@@ -18,7 +18,7 @@ export default function AnalyzePage() {
       const historyId = useAnalyzeStore.getState().lastHistoryId;
       const encodedUrl = encodeURIComponent(url);
       if (historyId) {
-        router.push(`/result?historyId=${historyId}&url=${encodedUrl}`);
+        router.push(`/result?historyId=${historyId}`);
       } else {
         router.push(`/result?url=${encodedUrl}`);
       }
