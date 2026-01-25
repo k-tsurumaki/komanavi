@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import type { ChecklistItem, IntermediateRepresentation, MangaResult } from '@/lib/types/intermediate';
+import type { ChecklistItem, IntermediateRepresentation } from '@/lib/types/intermediate';
 
 export const runtime = 'nodejs';
 
@@ -9,7 +9,6 @@ const COLLECTIONS = {
   histories: 'conversation_histories',
   results: 'conversation_results',
   intermediates: 'conversation_intermediates',
-  manga: 'conversation_manga',
 } as const;
 
 type SaveHistoryRequest = {
@@ -19,7 +18,6 @@ type SaveHistoryRequest = {
   title: string;
   checklist?: ChecklistItem[];
   intermediate?: IntermediateRepresentation;
-  manga?: MangaResult;
   generatedSummary?: string;
   schemaVersion?: number;
 };
@@ -127,7 +125,6 @@ export async function POST(request: NextRequest) {
   const db = getAdminFirestore();
   const resultRef = db.collection(COLLECTIONS.results).doc(resultId);
   const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultId);
-  const mangaRef = db.collection(COLLECTIONS.manga).doc(resultId);
 
   const existingResult = await resultRef.get();
   if (existingResult.exists) {
@@ -174,7 +171,6 @@ export async function POST(request: NextRequest) {
     checklist: body.checklist,
     generatedSummary: body.generatedSummary,
     intermediateRef: body.intermediate ? intermediateRef.path : undefined,
-    mangaRef: body.manga ? mangaRef.path : undefined,
     schemaVersion: body.schemaVersion ?? 1,
   });
 
@@ -191,20 +187,6 @@ export async function POST(request: NextRequest) {
         resultId,
         createdAt,
         intermediate: body.intermediate,
-      }),
-      { merge: true }
-    );
-  }
-
-  if (body.manga) {
-    batch.set(
-      mangaRef,
-      compact({
-        userId,
-        historyId,
-        resultId,
-        createdAt,
-        manga: body.manga,
       }),
       { merge: true }
     );

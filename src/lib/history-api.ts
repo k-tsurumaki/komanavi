@@ -1,4 +1,4 @@
-import type { AnalyzeResult, ChecklistItem, IntermediateRepresentation, MangaResult } from '@/lib/types/intermediate';
+import type { AnalyzeResult, ChecklistItem, IntermediateRepresentation } from '@/lib/types/intermediate';
 
 type HistoryListItem = {
   id: string;
@@ -28,11 +28,6 @@ type HistoryDetailResponse = {
     createdAt: string | null;
     intermediate: IntermediateRepresentation;
   } | null;
-  manga: {
-    id: string;
-    createdAt: string | null;
-    manga: MangaResult;
-  } | null;
 };
 
 
@@ -60,7 +55,7 @@ export async function fetchHistoryDetail(historyId: string): Promise<HistoryDeta
   });
   if (!response.ok) {
     if (response.status === 404) {
-      return { history: null, result: null, intermediate: null, manga: null };
+      return { history: null, result: null, intermediate: null };
     }
     throw new Error('履歴詳細の取得に失敗しました');
   }
