@@ -39,20 +39,6 @@ type HistoryDetailResponse = {
   } | null;
 };
 
-type MigrationHistoryItem = {
-  id: string;
-  url: string;
-  title: string;
-  createdAt: string;
-  resultId: string;
-};
-
-type MigrationHistoryResult = {
-  historyId: string;
-  resultId: string;
-  createdAt: string;
-  result: AnalyzeResult;
-};
 
 export async function fetchHistoryList(params: {
   limit: number;
@@ -134,37 +120,4 @@ export async function saveHistoryFromResult(params: {
   }
 
   return (await response.json()) as { historyId: string; resultId: string };
-}
-
-export async function migrateHistory(params: {
-  historyItems: MigrationHistoryItem[];
-  historyResults: MigrationHistoryResult[];
-}): Promise<{ migrated: number }> {
-  const response = await fetch('/api/history/migrate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(params),
-  });
-
-  if (!response.ok) {
-    let detail = '';
-    try {
-      const data = (await response.json()) as { error?: string };
-      if (data?.error) {
-        detail = data.error;
-      }
-    } catch {
-      try {
-        detail = await response.text();
-      } catch {
-        detail = '';
-      }
-    }
-    const suffix = detail ? ` (${detail})` : '';
-    throw new Error(`履歴の移行に失敗しました${suffix}`);
-  }
-
-  return (await response.json()) as { migrated: number };
 }

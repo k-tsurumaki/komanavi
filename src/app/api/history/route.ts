@@ -26,8 +26,6 @@ type SaveHistoryRequest = {
   manga?: MangaResult;
   generatedSummary?: string;
   schemaVersion?: number;
-  createdAt?: string | number;
-  allowClientCreatedAt?: boolean;
 };
 
 function toDateValue(input?: string | number): Date | null {
@@ -151,13 +149,7 @@ export async function POST(request: NextRequest) {
   }
 
   let historyId = body.historyId ?? crypto.randomUUID();
-  const allowClientCreatedAt =
-    body.allowClientCreatedAt &&
-    !!process.env.MIGRATION_TOKEN &&
-    request.headers.get('x-migration-token') === process.env.MIGRATION_TOKEN;
-  const createdAt = allowClientCreatedAt
-    ? toDateValue(body.createdAt) ?? new Date()
-    : new Date();
+  const createdAt = new Date();
   const sourceDomain = body.sourceDomain ?? resolveSourceDomain(url);
 
   const db = getAdminFirestore();
