@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import type { ChecklistItem, IntermediateRepresentation } from '@/lib/types/intermediate';
+import { requireUserId, toIsoString } from '@/app/api/history/utils';
 
 export const runtime = 'nodejs';
 
@@ -22,17 +22,6 @@ type SaveHistoryRequest = {
   schemaVersion?: number;
 };
 
-function toIsoString(value: unknown): string | null {
-  if (value && typeof value === 'object' && 'toDate' in value) {
-    const dateValue = (value as { toDate: () => Date }).toDate();
-    return dateValue.toISOString();
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return null;
-}
-
 function compact<T extends Record<string, unknown>>(data: T): T {
   const next = { ...data } as Record<string, unknown>;
   Object.keys(next).forEach((key) => {
@@ -41,11 +30,6 @@ function compact<T extends Record<string, unknown>>(data: T): T {
     }
   });
   return next as T;
-}
-
-async function requireUserId(): Promise<string | null> {
-  const session = await auth();
-  return session?.user?.id ?? null;
 }
 
 export async function GET(request: NextRequest) {
@@ -63,7 +47,6 @@ export async function GET(request: NextRequest) {
     .collection(COLLECTIONS.histories)
     .where('userId', '==', userId)
     .orderBy('createdAt', 'desc')
-    .orderBy('__name__', 'desc')
     .limit(limit);
 
   const snapshot = await query.get();

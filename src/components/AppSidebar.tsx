@@ -30,9 +30,6 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
     try {
       await deleteHistory(historyId);
       setHistoryItems((prev) => prev.filter((item) => item.id !== historyId));
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('history:updated'));
-      }
     } catch {
       if (typeof window !== 'undefined') {
         window.alert('履歴の削除に失敗しました');
@@ -138,7 +135,7 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
               <li key={item.id}>
                 <div className="group relative">
                 <Link
-                  href={`/result?historyId=${item.id}&url=${encodeURIComponent(item.url)}`}
+                  href={`/result?historyId=${item.id}`}
                   className="block rounded-lg border border-transparent px-3 py-2 pr-10 text-sm text-gray-800 hover:border-blue-200 hover:bg-blue-50"
                 >
                   <p className="line-clamp-2 font-medium">{item.title}</p>

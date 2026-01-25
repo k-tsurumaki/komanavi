@@ -125,7 +125,7 @@ function ResultContent() {
     }
   }, [historyId, url, result, status, analyze]);
 
-  if (!url && !historyId) {
+  if (!historyId && !url) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">

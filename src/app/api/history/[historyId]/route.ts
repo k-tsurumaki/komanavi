@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
+import { requireUserId, toIsoString } from '@/app/api/history/utils';
 
 export const runtime = 'nodejs';
 
@@ -9,19 +9,6 @@ const COLLECTIONS = {
   results: 'conversation_results',
   intermediates: 'conversation_intermediates',
 } as const;
-
-function toIsoString(value: unknown): string | null {
-  if (value && typeof value === 'object' && 'toDate' in value) {
-    const dateValue = (value as { toDate: () => Date }).toDate();
-    return dateValue.toISOString();
-  }
-  return null;
-}
-
-async function requireUserId(): Promise<string | null> {
-  const session = await auth();
-  return session?.user?.id ?? null;
-}
 
 export async function GET(
   _request: NextRequest,
