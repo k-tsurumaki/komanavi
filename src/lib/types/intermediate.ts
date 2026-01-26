@@ -163,6 +163,27 @@ export interface PersonalizationAnswer {
 }
 
 // ============================================
+// Google Search Grounding
+// ============================================
+
+/** グラウンディングチャンク */
+export interface GroundingChunk {
+  web?: {
+    uri: string;
+    title: string;
+  };
+}
+
+/** グラウンディングメタデータ */
+export interface GroundingMetadata {
+  webSearchQueries?: string[];
+  groundingChunks?: GroundingChunk[];
+  searchEntryPoint?: {
+    renderedContent: string;
+  };
+}
+
+// ============================================
 // メタデータ
 // ============================================
 
@@ -174,6 +195,7 @@ export interface Metadata {
   cache_expires_at?: string;
   last_modified?: string; // 元ページの最終更新日
   language?: string;
+  groundingMetadata?: GroundingMetadata;
 }
 
 // ============================================
