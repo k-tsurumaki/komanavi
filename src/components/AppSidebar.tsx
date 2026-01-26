@@ -34,7 +34,7 @@ export function AppSidebar({ className, showCloseButton = false, onClose }: AppS
       <div className="p-5 border-b border-gray-100">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <Link href="/" className="text-lg font-semibold text-gray-900">
+            <Link href="/analyze" className="text-lg font-semibold text-gray-900">
               KOMANAVI
             </Link>
             <p className="text-xs text-gray-500 mt-1">行政情報をわかりやすく</p>

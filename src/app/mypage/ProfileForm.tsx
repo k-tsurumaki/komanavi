@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { User } from "next-auth";
 
 interface ProfileFormProps {
@@ -19,6 +20,7 @@ interface UserProfile {
 }
 
 export function ProfileForm({ user }: ProfileFormProps) {
+    const router = useRouter();
     const [profile, setProfile] = useState<UserProfile>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -260,14 +262,23 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         入力された情報は漫画生成のキャラクター設定にのみ使用されます。<br />
                         すべての項目は任意です。
                     </p>
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${saving ? "opacity-75 cursor-not-allowed" : ""
-                            }`}
-                    >
-                        {saving ? "保存中..." : "保存する"}
-                    </button>
+                    <div className="flex gap-3">
+                        <button
+                            type="button"
+                            onClick={() => router.back()}
+                            className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                            戻る
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className={`flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${saving ? "opacity-75 cursor-not-allowed" : ""
+                                }`}
+                        >
+                            {saving ? "保存中..." : "保存する"}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
