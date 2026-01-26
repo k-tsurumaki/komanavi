@@ -28,7 +28,7 @@ export const authConfig: NextAuthConfig = {
       const { pathname } = nextUrl;
 
       // 保護されたルート（認証必須）
-      const protectedRoutes = ["/analyze", "/history", "/result"];
+      const protectedRoutes = ["/analyze", "/history", "/result", "/mypage"];
 
       // 認証ページ
       const authRoutes = ["/login"];
