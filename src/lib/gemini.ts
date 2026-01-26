@@ -5,13 +5,13 @@ import type {
   IntermediateRepresentation,
   ChecklistItem,
   DocumentType,
+  GroundingMetadata,
 } from '@/lib/types/intermediate';
-import type { ScrapedContent } from '@/lib/scraper';
 
 // Vertex AI クライアント初期化
 const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
 const LOCATION = 'global';
-const MODEL_NAME = 'gemini-3-flash-preview';
+const MODEL_NAME = 'gemini-2.5-flash-preview-05-20';
 
 const ai = new GoogleGenAI({
   vertexai: true,
@@ -19,6 +19,13 @@ const ai = new GoogleGenAI({
   location: LOCATION,
   apiVersion: 'v1',
 });
+
+/** Google Search Groundingの結果 */
+export interface GoogleSearchResult {
+  content: string;
+  url: string;
+  groundingMetadata?: GroundingMetadata;
+}
 
 /**
  * プロンプトファイルを読み込む
@@ -39,10 +46,84 @@ function getPrompt(filename: string): string {
 }
 
 /**
+ * Google Searchを使用したURL情報取得のプロンプト
+ */
+const GOOGLE_SEARCH_PROMPT = `
+あなたは行政ドキュメントの情報を取得するアシスタントです。
+
+指定されたURLのページについて、以下の情報を詳しく調べて報告してください：
+
+1. ページのタイトルと概要
+2. 対象者・条件
+3. 手続きの流れ・ステップ
+4. 必要な書類
+5. 期限・締め切り
+6. 金額・費用
+7. 問い合わせ先
+8. 注意事項
+
+できるだけ詳細に、原文に忠実に情報を抽出してください。
+`;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GenerateContentResponse = any;
+
+/**
  * Vertex AI レスポンスからテキストを抽出
  */
 function extractText(response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }): string {
   return response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/**
+ * レスポンスからGroundingMetadataを抽出
+ */
+function extractGroundingMetadata(response: GenerateContentResponse): GroundingMetadata | undefined {
+  const candidate = response.candidates?.[0];
+  if (!candidate?.groundingMetadata) {
+    return undefined;
+  }
+
+  const gm = candidate.groundingMetadata;
+  return {
+    webSearchQueries: gm.webSearchQueries,
+    groundingChunks: gm.groundingChunks?.map((chunk: { web?: { uri: string; title: string } }) => ({
+      web: chunk.web ? { uri: chunk.web.uri, title: chunk.web.title } : undefined,
+    })),
+    searchEntryPoint: gm.searchEntryPoint
+      ? { renderedContent: gm.searchEntryPoint.renderedContent }
+      : undefined,
+  };
+}
+
+/**
+ * Google Search Groundingを使用してURL情報を取得
+ */
+export async function fetchWithGoogleSearch(url: string): Promise<GoogleSearchResult> {
+  const prompt = `${GOOGLE_SEARCH_PROMPT}\n\n対象URL: ${url}`;
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 1.0, // Google推奨設定
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const content = extractText(result);
+    const groundingMetadata = extractGroundingMetadata(result);
+
+    return {
+      content,
+      url,
+      groundingMetadata,
+    };
+  } catch (error) {
+    console.error('Google Search Grounding error:', error);
+    throw error;
+  }
 }
 
 /**
@@ -127,18 +208,17 @@ function parseJSON<T>(text: string): T | null {
 }
 
 /**
- * 中間表現を生成
+ * 中間表現を生成（Google Search Groundingの結果から）
  */
 export async function generateIntermediateRepresentation(
-  content: ScrapedContent
+  searchResult: GoogleSearchResult
 ): Promise<IntermediateRepresentation | null> {
   const pageContent = `
 # ページ情報
-- URL: ${content.url}
-- タイトル: ${content.title}
+- URL: ${searchResult.url}
 
-# ページ内容
-${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${s.content}`).join('\n\n') : content.mainContent}
+# 取得した情報
+${searchResult.content}
 `;
 
   try {
@@ -172,14 +252,13 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
     const sources = parseJSON<IntermediateRepresentation['sources']>(sourcesText) || [];
 
     return {
-      title: intermediateData.title || content.title,
+      title: intermediateData.title || '',
       summary: intermediateData.summary || '',
       documentType,
       metadata: {
-        source_url: content.url,
-        page_title: content.title,
-        fetched_at: content.metadata.fetchedAt,
-        last_modified: content.metadata.lastModified,
+        source_url: searchResult.url,
+        fetched_at: new Date().toISOString(),
+        groundingMetadata: searchResult.groundingMetadata,
       },
       keyPoints: intermediateData.keyPoints,
       target: intermediateData.target,

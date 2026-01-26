@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scrapeUrl } from '@/lib/scraper';
 import {
+  fetchWithGoogleSearch,
   generateIntermediateRepresentation,
   generateChecklist,
   generateSimpleSummary,
@@ -71,22 +71,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(cached);
     }
 
-    // スクレイピング
-    const scrapeResult = await scrapeUrl(url);
+    // Google Search Groundingで情報取得
+    const searchResult = await fetchWithGoogleSearch(url);
 
-    if (!scrapeResult.success) {
+    if (!searchResult.content) {
       return NextResponse.json(
         {
           id: crypto.randomUUID(),
           status: 'error',
-          error: scrapeResult.error.message,
+          error: 'ページ情報の取得に失敗しました',
         } satisfies Partial<AnalyzeResult>,
         { status: 400 }
       );
     }
 
     // 中間表現生成（Vertex AI使用）
-    const intermediate = await generateIntermediateRepresentation(scrapeResult.data);
+    const intermediate = await generateIntermediateRepresentation(searchResult);
 
     if (!intermediate) {
       return NextResponse.json(
