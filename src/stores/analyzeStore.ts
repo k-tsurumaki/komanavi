@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { AnalyzeResult, AnalyzeStatus, ChecklistItem, HistoryItem } from '@/lib/types/intermediate';
-import { saveHistoryItem, saveHistoryResult } from '@/lib/storage';
+import type { AnalyzeResult, AnalyzeStatus, ChecklistItem } from '@/lib/types/intermediate';
+import { saveHistoryFromResult } from '@/lib/history-api';
 
 interface AnalyzeState {
   // 入力URL
@@ -27,6 +27,10 @@ interface AnalyzeState {
   // 解析実行
   analyze: (url: string) => Promise<void>;
 
+  // 直近の履歴ID
+  lastHistoryId: string | null;
+  setLastHistoryId: (historyId: string | null) => void;
+
   // リセット
   reset: () => void;
 }
@@ -37,6 +41,7 @@ const initialState = {
   result: null,
   error: null,
   checkedItems: {},
+  lastHistoryId: null,
 };
 
 export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
@@ -46,6 +51,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   setStatus: (status) => set({ status }),
   setResult: (result) => set({ result }),
   setError: (error) => set({ error }),
+  setLastHistoryId: (historyId) => set({ lastHistoryId: historyId }),
 
   toggleCheckedItem: (id) =>
     set((state) => ({
@@ -67,7 +73,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
     }),
 
   analyze: async (url) => {
-    const { setUrl, setStatus, setResult, setError, resetCheckedItems } = get();
+    const { setUrl, setStatus, setResult, setError, resetCheckedItems, setLastHistoryId } = get();
 
     setUrl(url);
     setStatus('loading');
@@ -95,21 +101,21 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
 
       setResult(data);
       resetCheckedItems(data.checklist);
-      const historyItem: HistoryItem = {
-        id: crypto.randomUUID(),
-        url,
-        title: data.intermediate?.title || url,
-        createdAt: new Date().toISOString(),
-        resultId: data.id,
-      };
-      saveHistoryItem(historyItem);
-      saveHistoryResult({
-        historyId: historyItem.id,
-        resultId: data.id,
-        createdAt: historyItem.createdAt,
-        result: data,
-      });
       setStatus('success');
+
+      try {
+        const saved = await saveHistoryFromResult({
+          url,
+          title: data.intermediate?.title || url,
+          result: data,
+        });
+        setLastHistoryId(saved.historyId);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('history:updated'));
+        }
+      } catch (saveError) {
+        console.warn('履歴の保存に失敗しました', saveError);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : '予期しないエラーが発生しました';
       setError(message);

@@ -330,16 +330,6 @@ export interface HistoryItem {
   id: string;
   url: string;
   title: string;
-  createdAt: string;
+  createdAt: string | null;
   resultId: string;
-}
-
-/** フィードバックアイテム */
-export interface FeedbackItem {
-  id: string;
-  url: string;
-  resultId: string;
-  rating: 'accurate' | 'inaccurate';
-  comment?: string;
-  createdAt: string;
 }

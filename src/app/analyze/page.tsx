@@ -15,8 +15,13 @@ export default function AnalyzePage() {
   useEffect(() => {
     if (status === 'success' && redirectRequestedRef.current) {
       const url = useAnalyzeStore.getState().url;
+      const historyId = useAnalyzeStore.getState().lastHistoryId;
       const encodedUrl = encodeURIComponent(url);
-      router.push(`/result?url=${encodedUrl}`);
+      if (historyId) {
+        router.push(`/result?historyId=${historyId}`);
+      } else {
+        router.push(`/result?url=${encodedUrl}`);
+      }
     }
   }, [status, router]);
 

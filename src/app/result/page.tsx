@@ -9,8 +9,7 @@ import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
 import { GoogleSearchAttribution } from '@/components/GoogleSearchAttribution';
 import { MangaViewer } from '@/components/MangaViewer';
-import { FeedbackSection } from '@/components/FeedbackSection';
-import { loadHistoryDetail } from '@/lib/storage';
+import { fetchHistoryDetail } from '@/lib/history-api';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -75,27 +74,49 @@ function ResultContent() {
   useEffect(() => {
     if (!historyId) return;
     if (lastLoadedHistoryId.current === historyId) return;
-    const detail = loadHistoryDetail(historyId);
-    if (!detail.item) {
-      setError('履歴が見つかりませんでした');
-      setStatus('error');
-      lastLoadedHistoryId.current = historyId;
-      return;
-    }
-    setUrl(detail.item.url);
-    if (detail.result) {
-      setResult(detail.result);
-      resetCheckedItems(detail.result.checklist);
-      setStatus('success');
-      setError(null);
-      lastLoadedHistoryId.current = historyId;
-      return;
-    }
-    if (status === 'idle' && !result) {
-      analyze(detail.item.url);
-      lastLoadedHistoryId.current = historyId;
-    }
-  }, [historyId, analyze, resetCheckedItems, result, setError, setResult, setStatus, setUrl, status]);
+
+    const loadDetail = async () => {
+      try {
+        const detail = await fetchHistoryDetail(historyId);
+        if (!detail.history) {
+          setError('履歴が見つかりませんでした');
+          setStatus('error');
+          lastLoadedHistoryId.current = historyId;
+          return;
+        }
+
+        setUrl(detail.history.url);
+
+        if (detail.result && detail.intermediate) {
+          const mergedResult = {
+            id: detail.result.id,
+            intermediate: detail.intermediate.intermediate,
+            generatedSummary:
+              detail.result.generatedSummary || detail.intermediate.intermediate.summary || '',
+            checklist: detail.result.checklist || [],
+            status: 'success' as const,
+          };
+          setResult(mergedResult);
+          resetCheckedItems(mergedResult.checklist);
+          setStatus('success');
+          setError(null);
+          lastLoadedHistoryId.current = historyId;
+          return;
+        }
+
+        if (status === 'idle' && !result) {
+          analyze(detail.history.url);
+          lastLoadedHistoryId.current = historyId;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '履歴の取得に失敗しました');
+        setStatus('error');
+        lastLoadedHistoryId.current = historyId;
+      }
+    };
+
+    loadDetail();
+  }, [historyId, analyze, resetCheckedItems, setError, setResult, setStatus, setUrl]);
 
   // URLパラメータがあり、まだ解析結果がない場合は解析を実行
   useEffect(() => {
@@ -105,7 +126,7 @@ function ResultContent() {
     }
   }, [historyId, url, result, status, analyze]);
 
-  if (!url && !historyId) {
+  if (!historyId && !url) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
@@ -221,7 +242,6 @@ function ResultContent() {
       </div>
 
       {/* フィードバックセクション */}
-      <FeedbackSection url={intermediate.metadata.source_url} resultId={result.id} />
     </div>
   );
 }
