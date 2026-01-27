@@ -87,7 +87,7 @@ export function AppShell({ children }: AppShellProps) {
               )}
             </div>
             <h1 className="text-lg font-bold text-blue-600">
-              <Link href="/">KOMANAVI</Link>
+              <Link href="/analyze">KOMANAVI</Link>
             </h1>
             <UserMenu />
           </div>

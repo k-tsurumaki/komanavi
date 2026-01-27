@@ -74,6 +74,16 @@ export function UserMenu() {
             <p className="text-sm text-gray-500 truncate">{user?.email}</p>
           </div>
 
+          <div className="py-1">
+            <Link
+              href="/mypage"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setIsOpen(false)}
+            >
+              Myページ
+            </Link>
+          </div>
+
           <div className="border-t border-gray-100 py-1">
             <button
               type="button"
