@@ -73,7 +73,6 @@ export function UserMenu() {
             </p>
             <p className="text-sm text-gray-500 truncate">{user?.email}</p>
           </div>
-
           <div className="py-1">
             <Link
               href="/mypage"
@@ -83,7 +82,6 @@ export function UserMenu() {
               Myページ
             </Link>
           </div>
-
           <div className="border-t border-gray-100 py-1">
             <button
               type="button"
