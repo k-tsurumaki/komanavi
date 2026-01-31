@@ -71,13 +71,16 @@ app.get("/health", (_req: Request, res: Response) => {
   res.send("OK");
 });
 
+// HTTPステータスコード
+const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
+
 /**
  * エラーがリトライ可能かどうかを判定
  */
 function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     // レート制限エラー
-    if ((error as { status?: number }).status === 429) {
+    if ((error as { status?: number }).status === HTTP_STATUS_TOO_MANY_REQUESTS) {
       return true;
     }
     // ネットワークエラー

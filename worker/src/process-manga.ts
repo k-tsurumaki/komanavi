@@ -7,10 +7,21 @@ import {
 import { uploadMangaImageAndGetUrl } from "./cloud-storage.js";
 import type { MangaRequest, MangaResult, MangaPanel } from "./types.js";
 
+// HTTPステータスコード
+const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
+
 const MAX_EDGE = 1200;
 const MODEL_ID = "gemini-3-pro-image-preview";
-const PROJECT_ID = process.env.GCP_PROJECT_ID ?? "zenn-ai-agent-hackathon-vol4";
-const LOCATION = process.env.GCP_LOCATION ?? "global";
+const PROJECT_ID = process.env.GCP_PROJECT_ID;
+const LOCATION = process.env.GCP_LOCATION;
+
+if (!PROJECT_ID) {
+  throw new Error("GCP_PROJECT_ID environment variable is required");
+}
+
+if (!LOCATION) {
+  throw new Error("GCP_LOCATION environment variable is required");
+}
 
 const ai = new GoogleGenAI({
   vertexai: true,
@@ -193,12 +204,12 @@ async function generateMangaImage(
     } catch (error) {
       lastError = error;
       const status = (error as { status?: number })?.status;
-      if (status !== 429 || attempt >= maxAttempts - 1) {
+      if (status !== HTTP_STATUS_TOO_MANY_REQUESTS || attempt >= maxAttempts - 1) {
         throw error;
       }
       const delayMs = 1000 * Math.pow(2, attempt);
       console.log(
-        `[Worker] Rate limited, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxAttempts})`
+        `[Worker] レート制限、リトライ: ${delayMs}ms後 (試行 ${attempt + 1}/${maxAttempts})`
       );
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
@@ -284,12 +295,12 @@ export async function processManga(
     await updateMangaJobResult(jobId, finalResult, storageUrl);
     console.log(`[Worker] Job ${jobId}: Completed successfully`);
   } catch (error) {
-    console.error(`[Worker] Job ${jobId}: Processing error:`, error);
+    console.error(`[Worker] ジョブ ${jobId}: 処理エラー:`, error);
 
     const status = (error as { status?: number })?.status;
-    const errorCode = status === 429 ? "rate_limited" : "api_error";
+    const errorCode = status === HTTP_STATUS_TOO_MANY_REQUESTS ? "rate_limited" : "api_error";
     const errorMessage =
-      status === 429
+      status === HTTP_STATUS_TOO_MANY_REQUESTS
         ? "現在アクセスが集中しています。時間をおいて再度お試しください。"
         : "漫画生成中にエラーが発生しました";
 

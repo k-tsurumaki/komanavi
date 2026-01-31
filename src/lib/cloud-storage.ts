@@ -1,11 +1,19 @@
 import { Storage } from "@google-cloud/storage";
 
-const BUCKET_NAME = process.env.GCS_MANGA_BUCKET ?? "komanavi-manga-images";
+const BUCKET_NAME = process.env.GCS_MANGA_BUCKET;
 const SIGNED_URL_TTL_MINUTES = parseInt(
   process.env.GCS_SIGNED_URL_TTL_MINUTES ?? "60",
   10
 );
-const PROJECT_ID = process.env.GCP_PROJECT_ID ?? "zenn-ai-agent-hackathon-vol4";
+const PROJECT_ID = process.env.GCP_PROJECT_ID;
+
+if (!BUCKET_NAME) {
+  throw new Error("GCS_MANGA_BUCKET environment variable is required");
+}
+
+if (!PROJECT_ID) {
+  throw new Error("GCP_PROJECT_ID environment variable is required");
+}
 
 // Storage クライアントを初期化
 // 認証の優先順位:
@@ -35,6 +43,9 @@ export async function uploadMangaImage(
   base64Data: string,
   metadata: Omit<MangaImageMetadata, "userId">
 ): Promise<string> {
+  if (!BUCKET_NAME) {
+    throw new Error("GCS_MANGA_BUCKET is not configured");
+  }
   const bucket = storage.bucket(BUCKET_NAME);
 
   // Base64 Data URLからバイナリに変換
@@ -82,6 +93,9 @@ export async function uploadMangaImage(
  * @returns 署名付きURL
  */
 export async function getSignedUrl(objectPath: string): Promise<string> {
+  if (!BUCKET_NAME) {
+    throw new Error("GCS_MANGA_BUCKET is not configured");
+  }
   const bucket = storage.bucket(BUCKET_NAME);
   const file = bucket.file(objectPath);
 

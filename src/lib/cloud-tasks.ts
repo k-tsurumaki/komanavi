@@ -5,10 +5,30 @@
 import { CloudTasksClient, protos } from "@google-cloud/tasks";
 import type { MangaRequest } from "./types/intermediate";
 
-const PROJECT_ID = process.env.GCP_PROJECT_ID ?? "zenn-ai-agent-hackathon-vol4";
-const LOCATION = process.env.CLOUD_TASKS_LOCATION ?? "asia-northeast1";
-const QUEUE_NAME = process.env.CLOUD_TASKS_QUEUE ?? "manga-generation";
+// gRPC ステータスコード
+const GRPC_STATUS_ALREADY_EXISTS = 6;
+
+const PROJECT_ID = process.env.GCP_PROJECT_ID;
+const LOCATION = process.env.CLOUD_TASKS_LOCATION;
+const QUEUE_NAME = process.env.CLOUD_TASKS_QUEUE;
 const WORKER_URL = process.env.MANGA_WORKER_URL;
+const SERVICE_ACCOUNT_EMAIL = process.env.CLOUD_RUN_SERVICE_ACCOUNT;
+
+if (!PROJECT_ID) {
+  throw new Error("GCP_PROJECT_ID environment variable is required");
+}
+
+if (!LOCATION) {
+  throw new Error("CLOUD_TASKS_LOCATION environment variable is required");
+}
+
+if (!QUEUE_NAME) {
+  throw new Error("CLOUD_TASKS_QUEUE environment variable is required");
+}
+
+if (!SERVICE_ACCOUNT_EMAIL) {
+  throw new Error("CLOUD_RUN_SERVICE_ACCOUNT environment variable is required");
+}
 
 // Cloud Tasks クライアントを遅延初期化
 let tasksClient: CloudTasksClient | null = null;
@@ -45,6 +65,10 @@ export async function enqueueMangaTask(
     throw new Error("MANGA_WORKER_URL environment variable is not set");
   }
 
+  if (!PROJECT_ID || !LOCATION || !QUEUE_NAME) {
+    throw new Error("Cloud Tasks configuration is incomplete");
+  }
+
   const client = getTasksClient();
   const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
 
@@ -65,7 +89,7 @@ export async function enqueueMangaTask(
       body: Buffer.from(JSON.stringify(payload)).toString("base64"),
       // OIDC トークンで Worker サービスを認証
       oidcToken: {
-        serviceAccountEmail: `komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com`,
+        serviceAccountEmail: SERVICE_ACCOUNT_EMAIL,
         audience: WORKER_URL,
       },
     },
@@ -75,12 +99,12 @@ export async function enqueueMangaTask(
 
   try {
     const [response] = await client.createTask({ parent, task });
-    console.log(`[Cloud Tasks] Task created: ${response.name}`);
+    console.log(`[Cloud Tasks] タスク作成: ${response.name}`);
     return response.name ?? jobId;
   } catch (error) {
     // 同じ名前のタスクが既に存在する場合は無視
-    if ((error as { code?: number }).code === 6) {
-      console.log(`[Cloud Tasks] Task already exists: ${jobId}`);
+    if ((error as { code?: number }).code === GRPC_STATUS_ALREADY_EXISTS) {
+      console.log(`[Cloud Tasks] タスク既存: ${jobId}`);
       return `${parent}/tasks/${jobId}`;
     }
     throw error;
