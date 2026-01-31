@@ -103,8 +103,14 @@ async function hasActiveJob(clientId: string): Promise<boolean> {
 
 export async function POST(request: NextRequest) {
   try {
-    // 認証検証（オプショナル：認証済みなら Cloud Storage に保存）
+    // 認証検証（必須）
     const userId = await extractUserId();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '認証が必要です', errorCode: 'unauthorized' },
+        { status: 401 }
+      );
+    }
 
     const body: MangaRequest = await request.json();
 
@@ -128,12 +134,12 @@ export async function POST(request: NextRequest) {
     const jobId = crypto.randomUUID();
 
     // Firestore にジョブを作成
-    await createMangaJob(jobId, body, userId ?? undefined, clientId);
+    await createMangaJob(jobId, body, userId, clientId);
 
     // Cloud Tasks にタスクをエンキュー
     if (isCloudTasksEnabled()) {
       try {
-        await enqueueMangaTask(jobId, body, userId ?? undefined);
+        await enqueueMangaTask(jobId, body, userId);
         console.log(`[Manga API] Task enqueued: ${jobId}`);
       } catch (enqueueError) {
         console.error('[Manga API] Failed to enqueue task:', enqueueError);

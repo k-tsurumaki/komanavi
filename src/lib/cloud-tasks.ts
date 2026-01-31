@@ -46,7 +46,7 @@ function getTasksClient(): CloudTasksClient {
 interface MangaTaskPayload {
   jobId: string;
   request: MangaRequest;
-  userId?: string;
+  userId: string;
 }
 
 /**
@@ -54,12 +54,12 @@ interface MangaTaskPayload {
  *
  * @param jobId ジョブID（Firestore のドキュメントID）
  * @param request 漫画生成リクエスト
- * @param userId 認証済みユーザーID（オプション）
+ * @param userId 認証済みユーザーID
  */
 export async function enqueueMangaTask(
   jobId: string,
   request: MangaRequest,
-  userId?: string
+  userId: string
 ): Promise<string> {
   if (!WORKER_URL) {
     throw new Error("MANGA_WORKER_URL environment variable is not set");

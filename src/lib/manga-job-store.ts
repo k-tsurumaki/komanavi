@@ -19,7 +19,7 @@ export interface MangaJobDocument {
   id: string;
   status: MangaJobStatus;
   progress: number;
-  userId?: string;
+  userId: string;
   clientId: string;
   request: MangaRequest;
   result?: MangaResult;
@@ -37,7 +37,7 @@ export interface MangaJobResponse {
   id: string;
   status: MangaJobStatus;
   progress: number;
-  userId?: string;
+  userId: string;
   clientId: string;
   request: MangaRequest;
   result?: MangaResult;
@@ -65,7 +65,7 @@ function toResponse(doc: MangaJobDocument): MangaJobResponse {
 export async function createMangaJob(
   jobId: string,
   request: MangaRequest,
-  userId: string | undefined,
+  userId: string,
   clientId: string
 ): Promise<void> {
   const db = getAdminFirestore();
@@ -75,15 +75,12 @@ export async function createMangaJob(
     id: jobId,
     status: "queued",
     progress: 0,
+    userId,
     clientId,
     request,
     createdAt: now,
     updatedAt: now,
   };
-
-  if (userId) {
-    jobDoc.userId = userId;
-  }
 
   await db.collection(COLLECTION_NAME).doc(jobId).set(jobDoc);
 }

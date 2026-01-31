@@ -9,7 +9,7 @@ app.use(express.json());
 interface ProcessRequest {
   jobId: string;
   request: MangaRequest;
-  userId?: string;
+  userId: string;
 }
 
 /**
@@ -32,8 +32,8 @@ app.post("/process", async (req: Request, res: Response) => {
     title: request?.title,
   });
 
-  if (!jobId || !request) {
-    console.error("[Worker] Invalid request: missing jobId or request");
+  if (!jobId || !request || !userId) {
+    console.error("[Worker] Invalid request: missing required fields");
     res.status(400).json({ success: false, error: "Missing required fields" });
     return;
   }

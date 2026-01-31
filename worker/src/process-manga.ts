@@ -226,11 +226,11 @@ async function generateMangaImage(
 export async function processManga(
   jobId: string,
   request: MangaRequest,
-  userId?: string
+  userId: string
 ): Promise<void> {
   console.log(`[Worker] Starting job ${jobId}`, {
     title: request.title,
-    hasUserId: !!userId,
+    userId,
   });
 
   try {
@@ -252,38 +252,25 @@ export async function processManga(
     // 5. ステータス更新: processing (70%)
     await updateMangaJobStatus(jobId, "processing", 70);
 
-    // 6. Cloud Storage へアップロード（認証済みユーザーのみ）
-    let finalImageUrls = imageUrls;
-    let storageUrl: string | undefined;
+    // 6. Cloud Storage へアップロード
+    console.log(`[Worker] Job ${jobId}: Uploading to Cloud Storage...`);
+    await updateMangaJobStatus(jobId, "processing", 85);
 
-    if (userId && imageUrls.length > 0) {
-      console.log(`[Worker] Job ${jobId}: Uploading to Cloud Storage...`);
-      await updateMangaJobStatus(jobId, "processing", 85);
-
-      try {
-        const uploadResult = await uploadMangaImageAndGetUrl(
-          userId,
-          imageUrls[0],
-          {
-            sourceUrl: request.url,
-            title: request.title,
-            generatedAt: new Date().toISOString(),
-          }
-        );
-
-        finalImageUrls = [uploadResult.signedUrl];
-        storageUrl = uploadResult.storageUrl;
-        console.log(
-          `[Worker] Job ${jobId}: Uploaded to ${uploadResult.storageUrl}`
-        );
-      } catch (uploadError) {
-        // アップロード失敗時は Base64 Data URL をそのまま使用
-        console.error(
-          `[Worker] Job ${jobId}: Cloud Storage upload failed, using fallback:`,
-          uploadError
-        );
+    const uploadResult = await uploadMangaImageAndGetUrl(
+      userId,
+      imageUrls[0],
+      {
+        sourceUrl: request.url,
+        title: request.title,
+        generatedAt: new Date().toISOString(),
       }
-    }
+    );
+
+    const finalImageUrls = [uploadResult.signedUrl];
+    const storageUrl = uploadResult.storageUrl;
+    console.log(
+      `[Worker] Job ${jobId}: Uploaded to ${uploadResult.storageUrl}`
+    );
 
     // 7. 完了
     const finalResult: MangaResult = {

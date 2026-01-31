@@ -46,7 +46,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --max-instances 5 \
   --no-allow-unauthenticated \
   --service-account "$SERVICE_ACCOUNT" \
-  --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID}"
+  --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanavi,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60"
 
 # 5. サービス URL 取得
 echo ""
