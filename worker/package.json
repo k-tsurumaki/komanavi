@@ -1,0 +1,26 @@
+{
+  "name": "komanavi-worker",
+  "version": "1.0.0",
+  "description": "Manga generation worker for KOMANAVI",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "npx tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.7.0",
+    "@google/genai": "^1.0.0",
+    "express": "^4.21.2",
+    "firebase-admin": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

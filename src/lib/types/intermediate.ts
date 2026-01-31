@@ -286,6 +286,7 @@ export interface MangaResult {
   title: string;
   panels: MangaPanel[];
   imageUrls?: string[];
+  storageUrl?: string;
   meta?: {
     panelCount: number;
     generatedAt: string;

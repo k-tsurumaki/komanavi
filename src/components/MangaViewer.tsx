@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import type {
   MangaJobStatusResponse,
   MangaRequest,
@@ -16,7 +19,7 @@ interface MangaViewerProps {
 
 const USAGE_KEY = 'komanavi-manga-usage';
 const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 60000;
+const POLL_TIMEOUT_MS = 600000;
 
 interface MangaUsageState {
   date: string;
@@ -63,6 +66,34 @@ function buildRequest(props: MangaViewerProps): MangaRequest {
     summary: props.summary,
     keyPoints: props.keyPoints,
   };
+}
+
+async function getIdToken(): Promise<string | null> {
+  try {
+    // Firebase Auth の初期化を待つ
+    const currentUser = await new Promise<User | null>((resolve) => {
+      // 既にログイン済みの場合はすぐに返す
+      if (auth.currentUser) {
+        resolve(auth.currentUser);
+        return;
+      }
+      // 初期化完了を待つ
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        unsubscribe();
+        resolve(user);
+      });
+      // タイムアウト（2秒）
+      setTimeout(() => resolve(null), 2000);
+    });
+
+    if (!currentUser) {
+      return null;
+    }
+    return await currentUser.getIdToken();
+  } catch (error) {
+    console.error('Failed to get ID token:', error);
+    return null;
+  }
 }
 
 function getErrorMessage(errorCode?: MangaJobStatusResponse['errorCode'], fallback?: string) {
@@ -163,6 +194,7 @@ function renderManga(result: MangaResult): string {
 }
 
 export function MangaViewer(props: MangaViewerProps) {
+  const { data: session } = useSession();
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
@@ -171,6 +203,7 @@ export function MangaViewer(props: MangaViewerProps) {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const isPollingRef = useRef(false);
+  const isLoggedIn = !!session;
 
   const canGenerateMessage = useMemo(() => {
     const usage = loadUsage();
@@ -278,9 +311,17 @@ export function MangaViewer(props: MangaViewerProps) {
     }
 
     try {
+      // 認証トークンを取得（ログイン済みの場合のみ）
+      const idToken = await getIdToken();
+
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+      }
+
       const response = await fetch('/api/manga', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(buildRequest(props)),
       });
 
@@ -336,10 +377,32 @@ export function MangaViewer(props: MangaViewerProps) {
             className="w-full border border-gray-200 rounded-lg"
           />
           <div className="flex flex-wrap items-center gap-3">
-            <a
-              href={imageUrl}
-              download={`${props.title}-manga.png`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 visited:text-blue-700 transition"
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  // 署名付きURLの場合はfetchしてBlobに変換
+                  if (imageUrl.startsWith('http')) {
+                    const response = await fetch(imageUrl, { cache: 'no-store' });
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = `${props.title}-manga.png`;
+                    link.click();
+                    URL.revokeObjectURL(blobUrl);
+                  } else {
+                    // Base64 Data URLの場合はそのまま
+                    const link = document.createElement('a');
+                    link.href = imageUrl;
+                    link.download = `${props.title}-manga.png`;
+                    link.click();
+                  }
+                } catch (err) {
+                  console.error('Download failed:', err);
+                }
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition"
             >
               <svg
                 aria-hidden="true"
@@ -356,7 +419,7 @@ export function MangaViewer(props: MangaViewerProps) {
                 <path d="M5 21h14" />
               </svg>
               画像をダウンロード
-            </a>
+            </button>
             <button
               type="button"
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -424,7 +487,11 @@ export function MangaViewer(props: MangaViewerProps) {
           )}
 
           {!error && !isPolling && !canGenerateMessage && (
-            <div className="text-sm text-gray-500">生成失敗時はテキスト要約を表示します。</div>
+            <div className="text-sm text-gray-500">
+              {isLoggedIn
+                ? '生成失敗時はテキスト要約を表示します。'
+                : 'ログインすると生成した漫画が履歴に保存されます。'}
+            </div>
           )}
         </div>
       )}
