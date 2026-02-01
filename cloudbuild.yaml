@@ -1,11 +1,12 @@
-# Cloud Build 設定ファイル（メインアプリ: komanavi）
+# Cloud Build 設定ファイル（統合版: メインアプリ + Worker）
 # dev ブランチへの push 時に自動デプロイ
 
 steps:
   # ============================================
-  # Step 1: Docker イメージビルド（Firebase build args 付き）
+  # Step 1: メインアプリ Docker イメージビルド（並列実行）
   # ============================================
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-main'
     args:
       - 'build'
       - '--build-arg'
@@ -19,24 +20,62 @@ steps:
       - '-t'
       - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:latest'
       - '.'
+    waitFor: ['-']
 
   # ============================================
-  # Step 2: Artifact Registry へ push
+  # Step 2: Worker Docker イメージビルド（並列実行）
   # ============================================
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-worker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi-worker:${COMMIT_SHA}'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi-worker:latest'
+      - '.'
+    dir: 'worker'
+    waitFor: ['-']
+
+  # ============================================
+  # Step 3: メインアプリ Artifact Registry へ push
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-main-sha'
     args:
       - 'push'
       - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:${COMMIT_SHA}'
+    waitFor: ['build-main']
 
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-main-latest'
     args:
       - 'push'
       - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:latest'
+    waitFor: ['build-main']
 
   # ============================================
-  # Step 3: Cloud Run デプロイ
+  # Step 4: Worker Artifact Registry へ push
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-worker-sha'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi-worker:${COMMIT_SHA}'
+    waitFor: ['build-worker']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-worker-latest'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi-worker:latest'
+    waitFor: ['build-worker']
+
+  # ============================================
+  # Step 5: メインアプリ Cloud Run デプロイ
   # ============================================
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-main'
     entrypoint: gcloud
     args:
       - 'run'
@@ -55,6 +94,40 @@ steps:
       - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanabi,AUTH_URL=https://komanavi-30981781876.asia-northeast1.run.app,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60,CLOUD_TASKS_QUEUE=manga-generation,CLOUD_TASKS_LOCATION=asia-northeast1,CLOUD_RUN_SERVICE_ACCOUNT=komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com,MANGA_WORKER_URL=https://komanavi-worker-30981781876.asia-northeast1.run.app/process'
       - '--set-secrets'
       - 'AUTH_SECRET=auth-secret:latest,AUTH_GOOGLE_ID=auth-google-id:latest,AUTH_GOOGLE_SECRET=auth-google-secret:latest'
+    waitFor: ['push-main-sha']
+
+  # ============================================
+  # Step 6: Worker Cloud Run デプロイ
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-worker'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'komanavi-worker'
+      - '--image'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi-worker:${COMMIT_SHA}'
+      - '--region'
+      - 'asia-northeast1'
+      - '--platform'
+      - 'managed'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '600'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '5'
+      - '--no-allow-unauthenticated'
+      - '--service-account'
+      - 'komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com'
+      - '--set-env-vars'
+      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanabi,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60'
+    waitFor: ['push-worker-sha']
 
 # ============================================
 # イメージを Artifact Registry に登録
@@ -62,6 +135,8 @@ steps:
 images:
   - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:${COMMIT_SHA}'
   - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:latest'
+  - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi-worker:${COMMIT_SHA}'
+  - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi-worker:latest'
 
 # ============================================
 # オプション設定

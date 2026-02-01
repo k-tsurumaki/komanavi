@@ -22,8 +22,10 @@ dev ブランチへの push/merge 時に以下の2つのサービスが自動デ
 
 | サービス名 | Cloud Build 設定ファイル | 説明 |
 |-----------|----------------------|------|
-| **komanavi** | `/cloudbuild.yaml` | メインアプリケーション |
-| **komanavi-worker** | `/worker/cloudbuild.yaml` | 漫画生成 Worker サービス |
+| **komanavi** | `/cloudbuild.yaml`（統合版） | メインアプリケーション |
+| **komanavi-worker** | `/cloudbuild.yaml`（統合版） | 漫画生成 Worker サービス |
+
+**1つの統合cloudbuild.yamlで両方のサービスを並列ビルド・デプロイします。**
 
 ### アーキテクチャ
 
@@ -128,13 +130,46 @@ gcloud projects add-iam-policy-binding zenn-ai-agent-hackathon-vol4 \
   --role="roles/artifactregistry.writer"
 ```
 
-### 1-3. 権限付与の確認
+### 1-3. カスタム Cloud Build サービスアカウントを作成（推奨）
+
+GCP Consoleでトリガー作成時にサービスアカウントを選択できるよう、カスタムサービスアカウントを作成します。
 
 ```bash
-# Cloud Build サービスアカウントの権限を確認
+# サービスアカウントを作成
+gcloud iam service-accounts create komanavi-cloud-build \
+  --display-name="KOMANAVI Cloud Build Service Account" \
+  --description="Cloud Buildトリガーで使用するカスタムサービスアカウント" \
+  --project=zenn-ai-agent-hackathon-vol4
+
+# 必要な権限を付与
+gcloud projects add-iam-policy-binding zenn-ai-agent-hackathon-vol4 \
+  --member="serviceAccount:komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com" \
+  --role="roles/cloudbuild.builds.builder"
+
+gcloud projects add-iam-policy-binding zenn-ai-agent-hackathon-vol4 \
+  --member="serviceAccount:komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding zenn-ai-agent-hackathon-vol4 \
+  --member="serviceAccount:komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+
+gcloud projects add-iam-policy-binding zenn-ai-agent-hackathon-vol4 \
+  --member="serviceAccount:komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding zenn-ai-agent-hackathon-vol4 \
+  --member="serviceAccount:komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+### 1-4. 権限付与の確認
+
+```bash
+# カスタムサービスアカウントの権限を確認
 gcloud projects get-iam-policy zenn-ai-agent-hackathon-vol4 \
   --flatten="bindings[].members" \
-  --filter="bindings.members:serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --filter="bindings.members:serviceAccount:komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com" \
   --format="table(bindings.role)"
 ```
 
@@ -164,31 +199,21 @@ roles/secretmanager.secretAccessor
 4. GitHub アカウントで認証し、リポジトリへのアクセスを許可
 5. リポジトリ `komanabi` を選択
 
-#### A-2. メインアプリ用トリガーを作成
+#### A-2. トリガーを作成
 
 | 項目 | 設定値 |
 |------|-------|
 | **名前** | `deploy-komanavi-dev` |
-| **説明** | `dev ブランチへの push 時にメインアプリをデプロイ` |
+| **説明** | `dev ブランチへの push 時にメインアプリと Worker をデプロイ` |
 | **イベント** | ブランチに push |
 | **ソース** | GitHub リポジトリ `komanabi` |
 | **ブランチ** | `^dev$`（正規表現） |
 | **ビルド構成** | Cloud Build 構成ファイル（yaml または json） |
-| **Cloud Build 構成ファイルの場所** | `/cloudbuild.yaml` |
-| **置換変数** | `_FIREBASE_API_KEY` = `AIzaSyC29gGNXK7v-mJdcUHRPu8oMDuFYmfeaVA` |
+| **Cloud Build 構成ファイルの場所** | `cloudbuild.yaml` |
+| **サービスアカウント** | `komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com` |
+| **置換変数**（オプション） | `_FIREBASE_API_KEY` = `AIzaSyC29gGNXK7v-mJdcUHRPu8oMDuFYmfeaVA` |
 
-#### A-3. Worker 用トリガーを作成
-
-| 項目 | 設定値 |
-|------|-------|
-| **名前** | `deploy-komanavi-worker-dev` |
-| **説明** | `dev ブランチへの push 時に Worker をデプロイ` |
-| **イベント** | ブランチに push |
-| **ソース** | GitHub リポジトリ `komanabi` |
-| **ブランチ** | `^dev$` |
-| **ビルド構成** | Cloud Build 構成ファイル（yaml または json） |
-| **Cloud Build 構成ファイルの場所** | `/worker/cloudbuild.yaml` |
-| **置換変数** | なし |
+**注意**: 置換変数はcloudbuild.yamlにデフォルト値が設定されているため、トリガー作成時に設定しなくても動作します。
 
 ### オプション B: gcloud CLI で作成（GitHub 接続済みの場合）
 
@@ -201,32 +226,22 @@ GitHub との接続が完了している場合、CLI でトリガーを作成で
 gcloud builds repositories list --project=zenn-ai-agent-hackathon-vol4
 ```
 
-#### B-2. メインアプリ用トリガーを作成
+#### B-2. トリガーを作成
 
 ```bash
 gcloud builds triggers create github \
   --name=deploy-komanavi-dev \
-  --description="dev ブランチへの push 時にメインアプリをデプロイ" \
+  --description="dev ブランチへの push 時にメインアプリと Worker をデプロイ" \
   --repo-name=komanabi \
   --repo-owner=<GitHub ユーザー名> \
   --branch-pattern=^dev$ \
   --build-config=cloudbuild.yaml \
+  --service-account=projects/zenn-ai-agent-hackathon-vol4/serviceAccounts/komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com \
   --substitutions=_FIREBASE_API_KEY=AIzaSyC29gGNXK7v-mJdcUHRPu8oMDuFYmfeaVA \
   --project=zenn-ai-agent-hackathon-vol4
 ```
 
-#### B-3. Worker 用トリガーを作成
-
-```bash
-gcloud builds triggers create github \
-  --name=deploy-komanavi-worker-dev \
-  --description="dev ブランチへの push 時に Worker をデプロイ" \
-  --repo-name=komanabi \
-  --repo-owner=<GitHub ユーザー名> \
-  --branch-pattern=^dev$ \
-  --build-config=worker/cloudbuild.yaml \
-  --project=zenn-ai-agent-hackathon-vol4
-```
+**注意**: `--substitutions`はオプションです（cloudbuild.yamlにデフォルト値があるため）。
 
 ### トリガー作成の確認
 
@@ -237,10 +252,11 @@ gcloud builds triggers list --project=zenn-ai-agent-hackathon-vol4
 
 期待される出力：
 ```
-NAME                         CREATE_TIME                STATUS
-deploy-komanavi-dev          2026-02-01T...             ENABLED
-deploy-komanavi-worker-dev   2026-02-01T...             ENABLED
+NAME                 CREATE_TIME                STATUS
+deploy-komanavi-dev  2026-02-01T...             ENABLED
 ```
+
+**1つのトリガーで、メインアプリとWorkerの両方が自動デプロイされます。**
 
 ---
 
@@ -251,13 +267,8 @@ deploy-komanavi-worker-dev   2026-02-01T...             ENABLED
 初回は手動でトリガーを実行してビルドが成功することを確認します。
 
 ```bash
-# メインアプリのトリガーを手動実行
+# トリガーを手動実行（メインアプリ + Worker の両方がデプロイされます）
 gcloud builds triggers run deploy-komanavi-dev \
-  --branch=dev \
-  --project=zenn-ai-agent-hackathon-vol4
-
-# Worker のトリガーを手動実行
-gcloud builds triggers run deploy-komanavi-worker-dev \
   --branch=dev \
   --project=zenn-ai-agent-hackathon-vol4
 ```
