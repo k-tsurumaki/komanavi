@@ -11,7 +11,7 @@ import type {
 // Vertex AI クライアント初期化
 const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
 const LOCATION = 'global';
-const MODEL_NAME = 'gemini-2.5-flash-preview-05-20';
+const MODEL_NAME = 'gemini-3-flash-preview';
 
 const ai = new GoogleGenAI({
   vertexai: true,

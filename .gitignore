@@ -44,3 +44,7 @@ next-env.d.ts
 # others
 scripts/test-google-auth.html
 .serena/*
+
+#claude code
+.claude
+.agents
