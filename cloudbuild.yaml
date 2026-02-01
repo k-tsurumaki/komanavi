@@ -24,7 +24,7 @@ steps:
       - '--build-arg'
       - 'FIREBASE_PROJECT_ID=${PROJECT_ID}'
       - '--build-arg'
-      - 'FIREBASE_DATABASE_ID=komanabi'
+      - 'FIREBASE_DATABASE_ID=komanavi'
       - '--build-arg'
       - 'GCS_MANGA_BUCKET=komanavi-manga-images'
       - '--build-arg'
@@ -113,7 +113,7 @@ steps:
       - '--service-account'
       - 'komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com'
       - '--set-env-vars'
-      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanabi,AUTH_URL=https://komanavi-30981781876.asia-northeast1.run.app,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60,CLOUD_TASKS_QUEUE=manga-generation,CLOUD_TASKS_LOCATION=asia-northeast1,CLOUD_RUN_SERVICE_ACCOUNT=komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com,MANGA_WORKER_URL=https://komanavi-worker-30981781876.asia-northeast1.run.app/process'
+      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanavi,AUTH_URL=https://komanavi-30981781876.asia-northeast1.run.app,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60,CLOUD_TASKS_QUEUE=manga-generation,CLOUD_TASKS_LOCATION=asia-northeast1,CLOUD_RUN_SERVICE_ACCOUNT=komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com,MANGA_WORKER_URL=https://komanavi-worker-30981781876.asia-northeast1.run.app/process'
       - '--set-secrets'
       - 'AUTH_SECRET=auth-secret:latest,AUTH_GOOGLE_ID=auth-google-id:latest,AUTH_GOOGLE_SECRET=auth-google-secret:latest'
     waitFor: ['push-main-sha']
@@ -148,7 +148,7 @@ steps:
       - '--service-account'
       - 'komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com'
       - '--set-env-vars'
-      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanabi,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60'
+      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanavi,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60'
     waitFor: ['push-worker-sha']
 
 # ============================================

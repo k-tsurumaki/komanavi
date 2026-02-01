@@ -57,7 +57,7 @@ steps:
       - '--service-account'
       - 'komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com'
       - '--set-env-vars'
-      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanabi,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60'
+      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanavi,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60'
 
 # ============================================
 # イメージを Artifact Registry に登録
