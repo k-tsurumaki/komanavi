@@ -26,7 +26,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 本番用依存関係のみインストール
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # ビルド済みファイルをコピー
 COPY --from=builder /app/dist ./dist/
