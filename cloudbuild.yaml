@@ -1,0 +1,81 @@
+# Cloud Build 設定ファイル（メインアプリ: komanavi）
+# dev ブランチへの push 時に自動デプロイ
+
+steps:
+  # ============================================
+  # Step 1: Docker イメージビルド（Firebase build args 付き）
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_API_KEY=${_FIREBASE_API_KEY}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=zenn-ai-agent-hackathon-vol4.firebaseapp.com'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_PROJECT_ID=zenn-ai-agent-hackathon-vol4'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:${COMMIT_SHA}'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:latest'
+      - '.'
+
+  # ============================================
+  # Step 2: Artifact Registry へ push
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:${COMMIT_SHA}'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:latest'
+
+  # ============================================
+  # Step 3: Cloud Run デプロイ
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'komanavi'
+      - '--image'
+      - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:${COMMIT_SHA}'
+      - '--region'
+      - 'asia-northeast1'
+      - '--allow-unauthenticated'
+      - '--platform'
+      - 'managed'
+      - '--service-account'
+      - 'komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com'
+      - '--set-env-vars'
+      - 'GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=global,FIREBASE_PROJECT_ID=${PROJECT_ID},FIREBASE_DATABASE_ID=komanabi,AUTH_URL=https://komanavi-30981781876.asia-northeast1.run.app,GCS_MANGA_BUCKET=komanavi-manga-images,GCS_SIGNED_URL_TTL_MINUTES=60,CLOUD_TASKS_QUEUE=manga-generation,CLOUD_TASKS_LOCATION=asia-northeast1,CLOUD_RUN_SERVICE_ACCOUNT=komanavi-cloud-run@${PROJECT_ID}.iam.gserviceaccount.com,MANGA_WORKER_URL=https://komanavi-worker-30981781876.asia-northeast1.run.app/process'
+      - '--set-secrets'
+      - 'AUTH_SECRET=auth-secret:latest,AUTH_GOOGLE_ID=auth-google-id:latest,AUTH_GOOGLE_SECRET=auth-google-secret:latest'
+
+# ============================================
+# イメージを Artifact Registry に登録
+# ============================================
+images:
+  - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:${COMMIT_SHA}'
+  - 'asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/komanavi:latest'
+
+# ============================================
+# オプション設定
+# ============================================
+options:
+  # ビルドマシンのスペック（高速化のため）
+  machineType: 'E2_HIGHCPU_8'
+  # ビルドログの保存先
+  logging: CLOUD_LOGGING_ONLY
+  # タイムアウト（デフォルト: 10分、最大: 24時間）
+  timeout: '1200s'
+
+# ============================================
+# 置換変数（トリガー設定で指定）
+# ============================================
+substitutions:
+  _FIREBASE_API_KEY: 'AIzaSyC29gGNXK7v-mJdcUHRPu8oMDuFYmfeaVA'
