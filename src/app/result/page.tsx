@@ -311,11 +311,35 @@ function ResultContent() {
 
       {/* 深掘りチャット */}
       {!isGenerating && (
-        <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+        <div className="relative rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
+          <div className="absolute right-6 top-6">
+            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
+              <button
+                type="button"
+                onClick={() => setChatMode('deepDive')}
+                className={`px-3 py-1 rounded-full transition ${
+                  chatMode === 'deepDive'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500'
+                }`}
+              >
+                深掘り
+              </button>
+              <button
+                type="button"
+                onClick={handleAdvanceToIntent}
+                className={`px-3 py-1 rounded-full transition ${
+                  chatMode === 'intent' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                意図入力
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-5 pr-24">
             {chatMode === 'deepDive' && (
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                   <span aria-hidden="true">💬</span>
                   深掘りチャット
                 </div>
@@ -327,7 +351,7 @@ function ResultContent() {
             )}
             {chatMode === 'intent' && (
               <div className="max-w-xl">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                   <span aria-hidden="true">🎯</span>
                   意図入力
                 </div>
@@ -337,30 +361,6 @@ function ResultContent() {
                 </p>
               </div>
             )}
-            <div className="ml-auto">
-              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
-                <button
-                  type="button"
-                  onClick={() => setChatMode('deepDive')}
-                  className={`px-3 py-1 rounded-full transition ${
-                    chatMode === 'deepDive'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500'
-                  }`}
-                >
-                  深掘り
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAdvanceToIntent}
-                  className={`px-3 py-1 rounded-full transition ${
-                    chatMode === 'intent' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
-                  }`}
-                >
-                  意図入力
-                </button>
-              </div>
-            </div>
           </div>
 
           {chatMode === 'deepDive' && (
@@ -392,10 +392,14 @@ function ResultContent() {
               <div className="relative">
                 <textarea
                   value={deepDiveInput}
-                  onChange={(event) => setDeepDiveInput(event.target.value)}
+                  onChange={(event) => {
+                    setDeepDiveInput(event.target.value);
+                    event.currentTarget.style.height = 'auto';
+                    event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
+                  }}
                   rows={3}
                   placeholder="例: 対象条件をもう少し詳しく知りたい"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -431,18 +435,22 @@ function ResultContent() {
           {chatMode === 'intent' && (
             <div className="space-y-4">
               <div className="relative">
-                <input
-                  type="text"
+                <textarea
                   value={intentInput}
-                  onChange={(event) => setIntentInput(event.target.value)}
+                  onChange={(event) => {
+                    setIntentInput(event.target.value);
+                    event.currentTarget.style.height = 'auto';
+                    event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
+                  }}
+                  rows={3}
                   placeholder="例: 私が対象かどうかと申請方法を知りたい"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleConfirmIntent}
                   disabled={!intentInput.trim()}
-                  className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+                  className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
                   aria-label="意図を確定"
                 >
                   <svg
