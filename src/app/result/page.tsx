@@ -362,7 +362,7 @@ function ResultContent() {
             {chatMode === 'deepDive' && (
               <div>
                 <h3 className="text-lg font-bold">深掘りチャット</h3>
-                <p className="text-sm text-gray-600">ページ概要から気になる点を質問できます。</p>
+                <p className="text-sm text-gray-600">平易化されたWebページから気になる点を深掘りできます。</p>
               </div>
             )}
             {chatMode === 'intent' && (
@@ -396,9 +396,6 @@ function ResultContent() {
           {chatMode === 'deepDive' && (
             <>
               <div className="space-y-4 mb-4">
-                {messages.length === 0 && (
-                  <p className="text-sm text-gray-500">質問を入力して深掘りを始めてください。</p>
-                )}
                 {messages.map((message, index) => (
                   <div
                     key={`${message.role}-${index}`}
