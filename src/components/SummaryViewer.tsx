@@ -34,7 +34,7 @@ export function SummaryViewer({
         <div className="mb-6 space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <span aria-hidden="true">✨</span>
                 かんたん結論
               </div>
@@ -46,14 +46,14 @@ export function SummaryViewer({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-700 mb-3 flex items-center gap-2">
                 <span aria-hidden="true">👥</span>
                 対象者
               </h3>
               <p className="text-slate-800 leading-relaxed">{overview.targetAudience}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-700 mb-3 flex items-center gap-2">
                 <span aria-hidden="true">🎯</span>
                 目的
               </h3>
@@ -62,7 +62,7 @@ export function SummaryViewer({
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-700 mb-3 flex items-center gap-2">
               <span aria-hidden="true">✅</span>
               重要ポイント
             </h3>
@@ -83,7 +83,7 @@ export function SummaryViewer({
           </div>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-5">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-amber-800 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-900 mb-3 flex items-center gap-2">
               <span aria-hidden="true">⚠️</span>
               注意点
             </h3>

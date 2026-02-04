@@ -107,6 +107,17 @@ function ResultContent() {
     }
   }, [historyId, url, result, status, analyze]);
 
+  const intermediate = result?.intermediate;
+  const summaryText = result?.generatedSummary || intermediate?.summary || '';
+  const overview = result?.overview;
+
+  useEffect(() => {
+    if (!result?.id) return;
+    setChatMode('deepDive');
+    setIsGenerating(false);
+    setIntentInput('');
+  }, [result?.id]);
+
   if (!historyId && !url) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -167,15 +178,7 @@ function ResultContent() {
     );
   }
 
-  const { intermediate, checklist } = result;
-  const summaryText = result.generatedSummary || intermediate.summary || '';
-  const overview = result.overview;
-
-  useEffect(() => {
-    setChatMode('deepDive');
-    setIsGenerating(false);
-    setIntentInput('');
-  }, [result?.id]);
+  const { checklist } = result;
 
   const handleSendDeepDive = async () => {
     if (!deepDiveInput.trim() || isDeepDiveLoading) return;
@@ -308,39 +311,55 @@ function ResultContent() {
 
       {/* 深掘りチャット */}
       {!isGenerating && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
             {chatMode === 'deepDive' && (
               <div>
-                <h3 className="text-lg font-bold">深掘りチャット</h3>
-                <p className="text-sm text-gray-600">平易化されたWebページから気になる点を深掘りできます。</p>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <span aria-hidden="true">💬</span>
+                  深掘りチャット
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mt-2">気になる点を深掘り</h3>
+                <p className="text-sm text-slate-600">
+                  「ここが分からない」をAIエージェントに質問して解消しましょう。
+                </p>
               </div>
             )}
             {chatMode === 'intent' && (
               <div className="max-w-xl">
-                <h3 className="text-lg font-bold">知りたいことを一文で</h3>
-                <p className="text-sm text-gray-600">
-                  深掘りの要点を踏まえて、最終的に実施したいことを入力してください。
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <span aria-hidden="true">🎯</span>
+                  意図入力
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mt-2">最終的に実現したいことを一文で</h3>
+                <p className="text-sm text-slate-600">
+                  実現したいことを入力すると、具体的なチェックリストと漫画が提供されます。
                 </p>
               </div>
             )}
             <div className="ml-auto">
-              <select
-                id="chat-mode"
-                value={chatMode}
-                onChange={(event) => {
-                  const next = event.target.value as 'deepDive' | 'intent';
-                  if (next === 'intent') {
-                    handleAdvanceToIntent();
-                  } else {
-                    setChatMode('deepDive');
-                  }
-                }}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              >
-                <option value="deepDive">深掘り</option>
-                <option value="intent">意図入力</option>
-              </select>
+              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setChatMode('deepDive')}
+                  className={`px-3 py-1 rounded-full transition ${
+                    chatMode === 'deepDive'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  深掘り
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAdvanceToIntent}
+                  className={`px-3 py-1 rounded-full transition ${
+                    chatMode === 'intent' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                  }`}
+                >
+                  意図入力
+                </button>
+              </div>
             </div>
           </div>
 
@@ -350,13 +369,13 @@ function ResultContent() {
                 {messages.map((message, index) => (
                   <div
                     key={`${message.role}-${index}`}
-                    className={`rounded-lg px-4 py-3 ${
+                    className={`rounded-xl px-4 py-3 border ${
                       message.role === 'user'
-                        ? 'bg-blue-50 border border-blue-200 text-blue-900'
-                        : 'bg-gray-50 border border-gray-200 text-gray-800'
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-slate-50 border-slate-200 text-slate-800'
                     }`}
                   >
-                    <p className="text-sm font-semibold mb-1">
+                    <p className="text-xs font-semibold mb-1 tracking-wide">
                       {message.role === 'user' ? 'あなた' : 'AI'}
                     </p>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
@@ -370,21 +389,40 @@ function ResultContent() {
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
                 <textarea
                   value={deepDiveInput}
                   onChange={(event) => setDeepDiveInput(event.target.value)}
                   rows={3}
-                  placeholder="例: この制度の対象者の条件をもう少し詳しく知りたい"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  placeholder="例: 対象条件をもう少し詳しく知りたい"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleSendDeepDive}
                   disabled={isDeepDiveLoading || !deepDiveInput.trim()}
-                  className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+                  aria-label="送信"
                 >
-                  {isDeepDiveLoading ? '送信中...' : '送信'}
+                  {isDeepDiveLoading ? (
+                    <span className="inline-flex h-5 w-5 items-center justify-center">
+                      <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </>
@@ -392,21 +430,34 @@ function ResultContent() {
 
           {chatMode === 'intent' && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
                 <input
                   type="text"
                   value={intentInput}
                   onChange={(event) => setIntentInput(event.target.value)}
                   placeholder="例: 私が対象かどうかと申請方法を知りたい"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleConfirmIntent}
                   disabled={!intentInput.trim()}
-                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+                  aria-label="意図を確定"
                 >
-                  意図を確定
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
                 </button>
               </div>
             </div>
