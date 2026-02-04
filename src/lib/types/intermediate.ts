@@ -249,21 +249,58 @@ export interface ChecklistItem {
   priority?: 'high' | 'medium' | 'low';
 }
 
+/** ページ概要（構造化） */
+export interface Overview {
+  conclusion: string;
+  targetAudience: string;
+  purpose: string;
+  topics: string[];
+  cautions: string[];
+}
+
 /** 解析結果 */
 export interface AnalyzeResult {
   id: string;
   intermediate: IntermediateRepresentation;
   generatedSummary: string;
+  overview?: Overview;
   checklist: ChecklistItem[];
   status: 'success' | 'error';
   error?: string;
 }
 
-/** 解析リクエスト */
-export interface AnalyzeRequest {
-  url: string;
-  personalization?: PersonalizationAnswer[];
+/** 深掘りチャット用メッセージ */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
+
+/** 深掘りリクエスト */
+export interface DeepDiveRequest {
+  mode: 'deepDive';
+  summary: string;
+  messages: ChatMessage[];
+  focus?: string;
+  deepDiveSummary?: string;
+  summaryOnly?: boolean;
+}
+
+/** 深掘りレスポンス */
+export interface DeepDiveResponse {
+  status: 'success' | 'error';
+  answer?: string;
+  summary?: string;
+  error?: string;
+}
+
+/** 解析リクエスト */
+export type AnalyzeRequest =
+  | {
+      url: string;
+      personalization?: PersonalizationAnswer[];
+      mode?: 'default';
+    }
+  | DeepDiveRequest;
 
 /** 解析ステータス */
 export type AnalyzeStatus = 'idle' | 'loading' | 'success' | 'error';

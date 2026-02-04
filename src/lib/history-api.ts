@@ -3,6 +3,7 @@ import type {
   ChecklistItem,
   HistoryItem,
   IntermediateRepresentation,
+  Overview,
 } from '@/lib/types/intermediate';
 
 type HistoryListItem = HistoryItem;
@@ -19,6 +20,7 @@ type HistoryDetailResponse = {
     createdAt: string | null;
     checklist?: ChecklistItem[];
     generatedSummary?: string;
+    overview?: Overview;
     schemaVersion?: number;
   } | null;
   intermediate: {
@@ -77,6 +79,7 @@ export async function saveHistoryFromResult(params: {
     title,
     checklist: result.checklist,
     generatedSummary: result.generatedSummary,
+    overview: result.overview,
     intermediate: result.intermediate,
   };
 

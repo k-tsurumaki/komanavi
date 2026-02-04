@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AnalyzeResult, AnalyzeStatus, ChecklistItem } from '@/lib/types/intermediate';
+import type { AnalyzeResult, AnalyzeStatus, ChecklistItem, ChatMessage } from '@/lib/types/intermediate';
 import { saveHistoryFromResult } from '@/lib/history-api';
 
 interface AnalyzeState {
@@ -31,6 +31,24 @@ interface AnalyzeState {
   lastHistoryId: string | null;
   setLastHistoryId: (historyId: string | null) => void;
 
+  // 深掘りチャット
+  messages: ChatMessage[];
+  setMessages: (messages: ChatMessage[]) => void;
+  addMessage: (message: ChatMessage) => void;
+
+  // 意図入力
+  intent: string;
+  setIntent: (intent: string) => void;
+
+  // 深掘り対象
+  focus: string;
+  setFocus: (focus: string) => void;
+
+  // 深掘り要約
+  deepDiveSummary: string;
+  setDeepDiveSummary: (summary: string) => void;
+  resetDeepDiveState: () => void;
+
   // リセット
   reset: () => void;
 }
@@ -42,6 +60,10 @@ const initialState = {
   error: null,
   checkedItems: {},
   lastHistoryId: null,
+  messages: [] as ChatMessage[],
+  intent: '',
+  focus: '',
+  deepDiveSummary: '',
 };
 
 export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
@@ -52,6 +74,18 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   setResult: (result) => set({ result }),
   setError: (error) => set({ error }),
   setLastHistoryId: (historyId) => set({ lastHistoryId: historyId }),
+  setMessages: (messages) => set({ messages }),
+  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
+  setIntent: (intent) => set({ intent }),
+  setFocus: (focus) => set({ focus }),
+  setDeepDiveSummary: (summary) => set({ deepDiveSummary: summary }),
+  resetDeepDiveState: () =>
+    set({
+      messages: [],
+      intent: '',
+      focus: '',
+      deepDiveSummary: '',
+    }),
 
   toggleCheckedItem: (id) =>
     set((state) => ({
@@ -102,6 +136,12 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       setResult(data);
       resetCheckedItems(data.checklist);
       setStatus('success');
+      set({
+        messages: [],
+        intent: '',
+        focus: '',
+        deepDiveSummary: '',
+      });
 
       try {
         const saved = await saveHistoryFromResult({

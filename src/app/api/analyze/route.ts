@@ -4,8 +4,10 @@ import {
   generateIntermediateRepresentation,
   generateChecklist,
   generateSimpleSummary,
+  generateOverview,
+  generateDeepDiveResponse,
 } from '@/lib/gemini';
-import type { AnalyzeResult, AnalyzeRequest } from '@/lib/types/intermediate';
+import type { AnalyzeResult, AnalyzeRequest, DeepDiveResponse } from '@/lib/types/intermediate';
 
 // インメモリキャッシュ（開発用）
 const cache = new Map<string, { result: AnalyzeResult; expiresAt: number }>();
@@ -56,6 +58,36 @@ function saveToCache(url: string, result: AnalyzeResult): void {
 export async function POST(request: NextRequest) {
   try {
     const body: AnalyzeRequest = await request.json();
+    if (body.mode === 'deepDive') {
+      if (!body.summary) {
+        return NextResponse.json(
+          { status: 'error', error: 'summaryが指定されていません' } satisfies DeepDiveResponse,
+          { status: 400 }
+        );
+      }
+
+      const response = await generateDeepDiveResponse({
+        summary: body.summary,
+        messages: body.messages || [],
+        focus: body.focus,
+        deepDiveSummary: body.deepDiveSummary,
+        summaryOnly: body.summaryOnly,
+      });
+
+      if (!response) {
+        return NextResponse.json(
+          { status: 'error', error: '深掘り回答の生成に失敗しました' } satisfies DeepDiveResponse,
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        status: 'success',
+        answer: response.answer,
+        summary: response.summary,
+      } satisfies DeepDiveResponse);
+    }
+
     const { url } = body;
 
     if (!url) {
@@ -105,10 +137,14 @@ export async function POST(request: NextRequest) {
     // 要約生成
     const generatedSummary = await generateSimpleSummary(intermediate);
 
+    // 概要（構造化）生成
+    const overview = await generateOverview(intermediate);
+
     const result: AnalyzeResult = {
       id: crypto.randomUUID(),
       intermediate,
       generatedSummary,
+      overview: overview || undefined,
       checklist,
       status: 'success',
     };

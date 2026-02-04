@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
@@ -27,9 +27,28 @@ function ResultContent() {
     setUrl,
     resetCheckedItems,
     reset,
-  } =
-    useAnalyzeStore();
+    messages,
+    setMessages,
+    addMessage,
+    focus,
+    setFocus,
+    intent,
+    setIntent,
+    deepDiveSummary,
+    setDeepDiveSummary,
+    resetDeepDiveState,
+  } = useAnalyzeStore();
   const lastLoadedHistoryId = useRef<string | null>(null);
+  const [deepDiveInput, setDeepDiveInput] = useState('');
+  const [intentInput, setIntentInput] = useState('');
+  const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
+  const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
+  const focusCandidates = useMemo(() => {
+    if (!result?.intermediate?.keyPoints) return [];
+    return result.intermediate.keyPoints.map((point) => point.text).filter(Boolean);
+  }, [result?.intermediate?.keyPoints]);
 
   const handleDownload = () => {
     if (!result || !result.intermediate) return;
@@ -93,6 +112,7 @@ function ResultContent() {
             intermediate: detail.intermediate.intermediate,
             generatedSummary:
               detail.result.generatedSummary || detail.intermediate.intermediate.summary || '',
+            overview: detail.result.overview,
             checklist: detail.result.checklist || [],
             status: 'success' as const,
           };
@@ -100,6 +120,7 @@ function ResultContent() {
           resetCheckedItems(mergedResult.checklist);
           setStatus('success');
           setError(null);
+          resetDeepDiveState();
           lastLoadedHistoryId.current = historyId;
           return;
         }
@@ -187,6 +208,118 @@ function ResultContent() {
   }
 
   const { intermediate, checklist } = result;
+  const summaryText = result.generatedSummary || intermediate.summary || '';
+  const overview = result.overview;
+
+  useEffect(() => {
+    setChatMode('deepDive');
+    setIsGenerating(false);
+    setIntentInput('');
+  }, [result?.id]);
+
+  const handleSendDeepDive = async () => {
+    if (!deepDiveInput.trim() || isDeepDiveLoading) return;
+    setDeepDiveError(null);
+    setIsDeepDiveLoading(true);
+
+    const nextMessages = [...messages, { role: 'user', content: deepDiveInput.trim() }];
+    addMessage({ role: 'user', content: deepDiveInput.trim() });
+    setDeepDiveInput('');
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'deepDive',
+          summary: summaryText,
+          messages: nextMessages,
+          focus: focus || undefined,
+          deepDiveSummary: deepDiveSummary || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '深掘りに失敗しました');
+      }
+
+      const data = (await response.json()) as {
+        status: 'success' | 'error';
+        answer?: string;
+        summary?: string;
+        error?: string;
+      };
+
+      if (data.status === 'error') {
+        throw new Error(data.error || '深掘りに失敗しました');
+      }
+
+      if (data.answer) {
+        addMessage({ role: 'assistant', content: data.answer });
+      }
+
+      const updatedMessages = data.answer
+        ? [...nextMessages, { role: 'assistant', content: data.answer }]
+        : nextMessages;
+
+      const latestSummary = data.summary || deepDiveSummary;
+      if (data.summary) {
+        setDeepDiveSummary(data.summary);
+      }
+
+      if (updatedMessages.length > 20) {
+        const overflowCount = updatedMessages.length - 20;
+        const overflowMessages = updatedMessages.slice(0, overflowCount);
+
+        try {
+          const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mode: 'deepDive',
+              summary: summaryText,
+              messages: overflowMessages,
+              focus: focus || undefined,
+              deepDiveSummary: latestSummary || undefined,
+              summaryOnly: true,
+            }),
+          });
+
+          if (response.ok) {
+            const summaryData = (await response.json()) as {
+              status: 'success' | 'error';
+              summary?: string;
+            };
+            if (summaryData.status === 'success' && summaryData.summary) {
+              setDeepDiveSummary(summaryData.summary);
+            }
+          }
+        } catch {
+          // 要約失敗時は既存のdeepDiveSummaryを保持
+        }
+
+        setMessages(updatedMessages.slice(overflowCount));
+      } else {
+        setMessages(updatedMessages);
+      }
+    } catch (err) {
+      setDeepDiveError(err instanceof Error ? err.message : '深掘りに失敗しました');
+    } finally {
+      setIsDeepDiveLoading(false);
+    }
+  };
+
+  const handleAdvanceToIntent = () => {
+    setChatMode('intent');
+  };
+
+  const handleConfirmIntent = () => {
+    if (!intentInput.trim()) return;
+    setIntent(intentInput.trim());
+    setIsGenerating(true);
+  };
+
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -215,31 +348,161 @@ function ResultContent() {
         fetchedAt={intermediate.metadata.fetched_at}
       />
 
-      {/* 要約表示 */}
-      <SummaryViewer data={intermediate} />
-
-      {/* チェックリスト */}
-      <div className="mb-6">
-        <ChecklistViewer items={checklist} />
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <h3 className="text-lg font-bold">1分でわかる！平易化されたWebページ</h3>
       </div>
 
-      {/* 漫画ビューア（Phase 2） */}
-      <MangaViewer
-        url={intermediate.metadata.source_url}
-        title={intermediate.title}
-        summary={intermediate.summary}
-        keyPoints={intermediate.keyPoints?.map((point) => point.text)}
-      />
+      {/* 既存要約表示 */}
+      <SummaryViewer data={intermediate} overview={overview} hideDetails />
 
-      {/* Google Search 引用表示 */}
-      {intermediate.metadata.groundingMetadata && (
-        <GoogleSearchAttribution groundingMetadata={intermediate.metadata.groundingMetadata} />
+      {/* 深掘りチャット */}
+      {!isGenerating && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            {chatMode === 'deepDive' && (
+              <div>
+                <h3 className="text-lg font-bold">深掘りチャット</h3>
+                <p className="text-sm text-gray-600">ページ概要から気になる点を質問できます。</p>
+              </div>
+            )}
+            {chatMode === 'intent' && (
+              <div className="max-w-xl">
+                <h3 className="text-lg font-bold">知りたいことを一文で</h3>
+                <p className="text-sm text-gray-600">
+                  深掘りの要点を踏まえて、最終的に実施したいことを入力してください。
+                </p>
+              </div>
+            )}
+            <div className="ml-auto">
+              <select
+                id="chat-mode"
+                value={chatMode}
+                onChange={(event) => {
+                  const next = event.target.value as 'deepDive' | 'intent';
+                  if (next === 'intent') {
+                    handleAdvanceToIntent();
+                  } else {
+                    setChatMode('deepDive');
+                  }
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="deepDive">深掘り</option>
+                <option value="intent">意図入力</option>
+              </select>
+            </div>
+          </div>
+
+          {chatMode === 'deepDive' && (
+            <>
+              <div className="space-y-4 mb-4">
+                {messages.length === 0 && (
+                  <p className="text-sm text-gray-500">質問を入力して深掘りを始めてください。</p>
+                )}
+                {messages.map((message, index) => (
+                  <div
+                    key={`${message.role}-${index}`}
+                    className={`rounded-lg px-4 py-3 ${
+                      message.role === 'user'
+                        ? 'bg-blue-50 border border-blue-200 text-blue-900'
+                        : 'bg-gray-50 border border-gray-200 text-gray-800'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold mb-1">
+                      {message.role === 'user' ? 'あなた' : 'AI'}
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                  </div>
+                ))}
+              </div>
+
+              {deepDiveError && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {deepDiveError}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <textarea
+                  value={deepDiveInput}
+                  onChange={(event) => setDeepDiveInput(event.target.value)}
+                  rows={3}
+                  placeholder="例: この制度の対象者の条件をもう少し詳しく知りたい"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendDeepDive}
+                  disabled={isDeepDiveLoading || !deepDiveInput.trim()}
+                  className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isDeepDiveLoading ? '送信中...' : '送信'}
+                </button>
+              </div>
+            </>
+          )}
+
+          {chatMode === 'intent' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={intentInput}
+                  onChange={(event) => setIntentInput(event.target.value)}
+                  placeholder="例: 私が対象かどうかと申請方法を知りたい"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleConfirmIntent}
+                  disabled={!intentInput.trim()}
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  意図を確定
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* 根拠表示 */}
-      <div className="mb-6">
-        <SourceReference sources={intermediate.sources} />
-      </div>
+      {/* 回答生成開始 */}
+      {isGenerating && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+          <h3 className="text-lg font-bold mb-2">回答を作成中</h3>
+          <p className="text-sm text-gray-700">意図: {intent}</p>
+          <p className="text-sm text-gray-500 mt-3">
+            回答生成フェーズは準備中です。今後ここで回答が表示されます。
+          </p>
+        </div>
+      )}
+
+      {isGenerating && (
+        <>
+          {/* チェックリスト */}
+          <div className="mb-6">
+            <ChecklistViewer items={checklist} />
+          </div>
+
+          {/* 漫画ビューア（Phase 2） */}
+          <MangaViewer
+            url={intermediate.metadata.source_url}
+            title={intermediate.title}
+            summary={intermediate.summary}
+            keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+          />
+
+          {/* Google Search 引用表示 */}
+          {intermediate.metadata.groundingMetadata && (
+            <GoogleSearchAttribution groundingMetadata={intermediate.metadata.groundingMetadata} />
+          )}
+
+          {/* 根拠表示 */}
+          <div className="mb-6">
+            <SourceReference sources={intermediate.sources} />
+          </div>
+        </>
+      )}
 
       {/* フィードバックセクション */}
     </div>

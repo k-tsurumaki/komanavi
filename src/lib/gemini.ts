@@ -6,6 +6,8 @@ import type {
   ChecklistItem,
   DocumentType,
   GroundingMetadata,
+  ChatMessage,
+  Overview,
 } from '@/lib/types/intermediate';
 
 // Vertex AI クライアント初期化
@@ -320,5 +322,85 @@ export async function generateSimpleSummary(
   } catch (error) {
     console.error('Summary generation error:', error);
     return '';
+  }
+}
+
+/**
+ * 構造化されたページ概要を生成
+ */
+export async function generateOverview(
+  intermediate: IntermediateRepresentation
+): Promise<Overview | null> {
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: getPrompt('overview.txt') + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2),
+            },
+          ],
+        },
+      ],
+    });
+    const text = extractText(result);
+    const overview = parseJSON<Overview>(text);
+    if (!overview) {
+      return null;
+    }
+    return {
+      conclusion: overview.conclusion || '',
+      targetAudience: overview.targetAudience || '',
+      purpose: overview.purpose || '',
+      topics: Array.isArray(overview.topics) ? overview.topics : [],
+      cautions: Array.isArray(overview.cautions) ? overview.cautions : [],
+    };
+  } catch (error) {
+    console.error('Overview generation error:', error);
+    return null;
+  }
+}
+
+/**
+ * 深掘り回答と要点要約を生成
+ */
+export async function generateDeepDiveResponse(params: {
+  summary: string;
+  messages: ChatMessage[];
+  focus?: string;
+  deepDiveSummary?: string;
+  summaryOnly?: boolean;
+}): Promise<{ answer: string; summary: string } | null> {
+  const payload = JSON.stringify(
+    {
+      summary: params.summary,
+      deepDiveSummary: params.deepDiveSummary || '',
+      focus: params.focus || '',
+      messages: params.messages || [],
+      summaryOnly: Boolean(params.summaryOnly),
+    },
+    null,
+    2
+  );
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [{ role: 'user', parts: [{ text: getPrompt('deep-dive.txt') + '\n\n---\n\n' + payload }] }],
+    });
+    const text = extractText(result);
+    const data = parseJSON<{ answer?: string; summary?: string }>(text);
+    if (!data?.summary) {
+      return null;
+    }
+    return {
+      answer: data.answer || '',
+      summary: data.summary,
+    };
+  } catch (error) {
+    console.error('Deep dive generation error:', error);
+    return null;
   }
 }
