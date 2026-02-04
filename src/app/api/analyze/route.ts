@@ -6,6 +6,7 @@ import {
   generateSimpleSummary,
   generateOverview,
   generateDeepDiveResponse,
+  generateIntentAnswer,
 } from '@/lib/gemini';
 import type {
   AnalyzeResult,
@@ -176,10 +177,16 @@ export async function POST(request: NextRequest) {
     // 概要（構造化）生成
     const overview = await generateOverview(intermediate);
 
+    // 意図ベース回答生成（意図がある場合のみ）
+    const intentAnswer = userIntent
+      ? await generateIntentAnswer(intermediate, userIntent, personalizationInput)
+      : '';
+
     const result: AnalyzeResult = {
       id: crypto.randomUUID(),
       intermediate,
       generatedSummary,
+      intentAnswer: intentAnswer || undefined,
       overview: overview || undefined,
       checklist,
       personalization: {

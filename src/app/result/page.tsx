@@ -39,14 +39,18 @@ function ResultContent() {
     resetDeepDiveState,
   } = useAnalyzeStore();
   const lastLoadedHistoryId = useRef<string | null>(null);
+  const isNavigatingToAnalyzeRef = useRef(false);
+  const handledResultIdRef = useRef<string | null>(null);
   const [deepDiveInput, setDeepDiveInput] = useState('');
   const [intentInput, setIntentInput] = useState('');
   const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
   const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isIntentGenerating, setIsIntentGenerating] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
 
   const handleBackToHome = () => {
+    isNavigatingToAnalyzeRef.current = true;
     reset();
   };
 
@@ -102,6 +106,7 @@ function ResultContent() {
   // URLパラメータがあり、まだ解析結果がない場合は解析を実行
   useEffect(() => {
     if (historyId) return;
+    if (isNavigatingToAnalyzeRef.current) return;
     if (url && !result && status === 'idle') {
       analyze(url);
     }
@@ -112,11 +117,18 @@ function ResultContent() {
   const overview = result?.overview;
 
   useEffect(() => {
-    if (!result?.id) return;
+    if (!result?.id || handledResultIdRef.current === result.id) return;
+    handledResultIdRef.current = result.id;
     setChatMode('deepDive');
+    if (isIntentGenerating) {
+      setIsGenerating(true);
+      setIsIntentGenerating(false);
+      setIntentInput('');
+      return;
+    }
     setIsGenerating(false);
     setIntentInput('');
-  }, [result?.id]);
+  }, [result?.id, isIntentGenerating]);
 
   if (!historyId && !url) {
     return (
@@ -135,8 +147,8 @@ function ResultContent() {
     );
   }
 
-  // ローディング中
-  if (status === 'loading') {
+  // ローディング中（意図入力の再解析中は画面を維持）
+  if (status === 'loading' && !isIntentGenerating) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-center py-12">
@@ -279,8 +291,15 @@ function ResultContent() {
 
   const handleConfirmIntent = () => {
     if (!intentInput.trim()) return;
-    setIntent(intentInput.trim());
+    const trimmedIntent = intentInput.trim();
+    setIntent(trimmedIntent);
     setIsGenerating(true);
+    setIsIntentGenerating(true);
+
+    const targetUrl = url || result?.intermediate?.metadata.source_url;
+    if (targetUrl) {
+      analyze(targetUrl, trimmedIntent);
+    }
   };
 
 
@@ -310,8 +329,7 @@ function ResultContent() {
       <SummaryViewer data={intermediate} overview={overview} hideDetails />
 
       {/* 深掘りチャット */}
-      {!isGenerating && (
-        <div className="relative rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
+      <div className="relative rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
           <div className="absolute right-6 top-6">
             <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
               <button
@@ -453,34 +471,44 @@ function ResultContent() {
                   className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
                   aria-label="意図を確定"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
+                  {isIntentGenerating ? (
+                    <span className="inline-flex h-5 w-5 items-center justify-center">
+                      <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
           )}
         </div>
-      )}
 
       {/* 回答生成開始 */}
       {isGenerating && (
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h3 className="text-lg font-bold mb-2">回答を作成中</h3>
-          <p className="text-sm text-gray-700">意図: {intent}</p>
-          <p className="text-sm text-gray-500 mt-3">
-            回答生成フェーズは準備中です。今後ここで回答が表示されます。
-          </p>
+          <h3 className="text-lg font-bold mb-2">回答</h3>
+          {result.intentAnswer ? (
+            <div className="mt-4 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
+              {result.intentAnswer}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 mt-3">
+              回答生成フェーズは準備中です。今後ここで回答が表示されます。
+            </p>
+          )}
         </div>
       )}
 

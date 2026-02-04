@@ -418,6 +418,49 @@ export async function generateOverview(
 }
 
 /**
+ * 意図ベースの回答を生成
+ */
+export async function generateIntentAnswer(
+  intermediate: IntermediateRepresentation,
+  userIntent: string,
+  personalization?: PersonalizationInput
+): Promise<string> {
+  const personalizationContext = buildPersonalizationContext(personalization);
+  const payload = JSON.stringify(
+    {
+      userIntent,
+      intermediate,
+    },
+    null,
+    2
+  );
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                getPrompt('intent-answer.txt') +
+                personalizationContext +
+                '\n\n---\n\n' +
+                payload,
+            },
+          ],
+        },
+      ],
+    });
+    return extractText(result);
+  } catch (error) {
+    console.error('Intent answer generation error:', error);
+    return '';
+  }
+}
+
+/**
  * 深掘り回答と要点要約を生成
  */
 export async function generateDeepDiveResponse(params: {

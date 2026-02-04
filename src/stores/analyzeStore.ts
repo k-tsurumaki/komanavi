@@ -25,7 +25,7 @@ interface AnalyzeState {
   resetCheckedItems: (items: ChecklistItem[]) => void;
 
   // 解析実行
-  analyze: (url: string) => Promise<void>;
+  analyze: (url: string, userIntent?: string) => Promise<void>;
 
   // 直近の履歴ID
   lastHistoryId: string | null;
@@ -106,7 +106,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       ),
     }),
 
-  analyze: async (url) => {
+  analyze: async (url, userIntent) => {
     const { setUrl, setStatus, setResult, setError, resetCheckedItems, setLastHistoryId } = get();
 
     setUrl(url);
@@ -119,7 +119,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, userIntent }),
       });
 
       if (!response.ok) {
