@@ -17,7 +17,6 @@ export function SummaryViewer({
   hideDetails = false,
 }: SummaryViewerProps) {
   const allPoints = overview?.topics ?? [];
-  const highlightTopics = allPoints.slice(0, 3);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur mb-6">
@@ -70,8 +69,10 @@ export function SummaryViewer({
             {allPoints.length > 0 ? (
               <div className="space-y-3">
                 {allPoints.map((topic, index) => (
-                  <div key={index} className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-                    <span className="mt-0.5 text-emerald-600" aria-hidden="true">●</span>
+                  <div key={index} className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-3">
+                    <span className="mt-0.5 inline-flex h-6 min-w-[2.25rem] items-center justify-center rounded-full border border-slate-300 bg-white text-[11px] font-semibold text-slate-700 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
                     <p className="text-slate-800 leading-relaxed">{topic}</p>
                   </div>
                 ))}
@@ -89,8 +90,11 @@ export function SummaryViewer({
             {overview.cautions.length > 0 ? (
               <div className="space-y-3">
                 {overview.cautions.map((caution, index) => (
-                  <div key={index} className="rounded-lg bg-white/80 px-3 py-3 text-slate-800">
-                    {caution}
+                  <div key={index} className="flex gap-3 rounded-lg border border-amber-100 bg-white/90 px-4 py-3 text-slate-800">
+                    <span className="mt-0.5 inline-flex h-6 min-w-[2.25rem] items-center justify-center rounded-full border border-amber-200 bg-white text-[11px] font-semibold text-amber-700 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="leading-relaxed">{caution}</span>
                   </div>
                 ))}
               </div>
@@ -113,7 +117,7 @@ export function SummaryViewer({
               <h3 className="text-lg font-bold mb-3 text-slate-900">ポイント</h3>
               <ul className="space-y-4">
                 {data.keyPoints.map((point) => (
-                  <li key={point.id} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
+                  <li key={point.id} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-4">
                     <span
                       className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-sm ${
                         point.importance === 'high'
@@ -143,8 +147,10 @@ export function SummaryViewer({
               {data.target.conditions && data.target.conditions.length > 0 && (
                 <ul className="space-y-2 text-slate-700">
                   {data.target.conditions.map((condition, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <span className="mt-1 text-slate-500" aria-hidden="true">🔹</span>
+                    <li key={index} className="flex items-start gap-2 rounded-md bg-slate-50 px-3 py-2">
+                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">
+                        ●
+                      </span>
                       <span>{condition}</span>
                     </li>
                   ))}
@@ -155,8 +161,10 @@ export function SummaryViewer({
                   <p className="text-sm font-medium text-slate-600 mb-1">例外・注意事項</p>
                   <ul className="space-y-2 text-slate-600 text-sm">
                     {data.target.exceptions.map((exception, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <span className="mt-1 text-slate-500" aria-hidden="true">🔹</span>
+                      <li key={index} className="flex items-start gap-2 rounded-md bg-white px-3 py-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">
+                          ●
+                        </span>
                         <span>{exception}</span>
                       </li>
                     ))}
@@ -212,8 +220,10 @@ export function SummaryViewer({
                     <h4 className="font-medium mb-2 text-slate-800">必要な書類</h4>
                     <ul className="space-y-2 text-slate-700">
                       {data.procedure.required_documents.map((doc, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <span className="mt-1 text-slate-500" aria-hidden="true">📄</span>
+                        <li key={index} className="flex items-start gap-2 rounded-md bg-white px-3 py-2">
+                          <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+                            📄
+                          </span>
                           <span>{doc}</span>
                         </li>
                       ))}
@@ -259,8 +269,10 @@ export function SummaryViewer({
               <h4 className="font-medium text-amber-800 mb-2">⚠️ 注意事項</h4>
               <ul className="space-y-2 text-amber-700">
                 {data.warnings.map((warning, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="mt-1 text-amber-500" aria-hidden="true">⚠️</span>
+                  <li key={index} className="flex items-start gap-2 rounded-md bg-white/80 px-3 py-2">
+                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-700">
+                      ⚠️
+                    </span>
                     <span>{warning}</span>
                   </li>
                 ))}
