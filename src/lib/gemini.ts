@@ -6,6 +6,7 @@ import type {
   ChecklistItem,
   DocumentType,
   GroundingMetadata,
+  PersonalizationInput,
 } from '@/lib/types/intermediate';
 
 // Vertex AI クライアント初期化
@@ -80,6 +81,13 @@ function extractText(response: { candidates?: Array<{ content?: { parts?: Array<
  */
 function extractGroundingMetadata(response: GenerateContentResponse): GroundingMetadata | undefined {
   const candidate = response.candidates?.[0];
+
+  // デバッグ: groundingMetadata の存在確認
+  console.log('[DEBUG] Grounding metadata available:', !!candidate?.groundingMetadata);
+  if (candidate?.groundingMetadata) {
+    console.log('[DEBUG] Grounding metadata keys:', Object.keys(candidate.groundingMetadata));
+  }
+
   if (!candidate?.groundingMetadata) {
     return undefined;
   }
@@ -208,6 +216,47 @@ function parseJSON<T>(text: string): T | null {
 }
 
 /**
+ * パーソナライズ情報をプロンプトに追加するためのテキストを生成
+ */
+function buildPersonalizationContext(personalization?: PersonalizationInput): string {
+  if (!personalization) {
+    console.log('[DEBUG] buildPersonalizationContext: No personalization input');
+    return '';
+  }
+
+  const lines: string[] = [];
+  lines.push('\n## ユーザー情報（パーソナライズ用）');
+  lines.push(`- ユーザーの意図: ${personalization.userIntent}`);
+
+  if (personalization.userProfile) {
+    const profile = personalization.userProfile;
+    if (profile.age !== undefined) {
+      lines.push(`- 年齢: ${profile.age}歳`);
+    }
+    if (profile.gender) {
+      lines.push(`- 性別: ${profile.gender}`);
+    }
+    if (profile.occupation) {
+      lines.push(`- 職業: ${profile.occupation}`);
+    }
+    if (profile.isJapaneseNational !== undefined) {
+      lines.push(`- 国籍: ${profile.isJapaneseNational ? '日本' : '外国籍'}`);
+    }
+    if (profile.location) {
+      lines.push(`- 居住地: ${profile.location}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('上記のユーザー情報を考慮して、このユーザーに最適化された内容を生成してください。');
+  lines.push('特にユーザーの意図に合わせて、必要な情報を強調し、不要な情報は省略してください。');
+
+  const result = lines.join('\n');
+  console.log('[DEBUG] buildPersonalizationContext result:\n', result);
+  return result;
+}
+
+/**
  * 中間表現を生成（Google Search Groundingの結果から）
  */
 export async function generateIntermediateRepresentation(
@@ -279,14 +328,16 @@ ${searchResult.content}
  * チェックリストを生成
  */
 export async function generateChecklist(
-  intermediate: IntermediateRepresentation
+  intermediate: IntermediateRepresentation,
+  personalization?: PersonalizationInput
 ): Promise<ChecklistItem[]> {
   const context = JSON.stringify(intermediate, null, 2);
+  const personalizationContext = buildPersonalizationContext(personalization);
 
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('checklist.txt') + '\n\n---\n\n' + context }] }],
+      contents: [{ role: 'user', parts: [{ text: getPrompt('checklist.txt') + personalizationContext + '\n\n---\n\n' + context }] }],
     });
     const text = extractText(result);
     const items = parseJSON<Omit<ChecklistItem, 'completed'>[]>(text);
@@ -309,12 +360,15 @@ export async function generateChecklist(
  * やさしい要約を生成（Markdown形式）
  */
 export async function generateSimpleSummary(
-  intermediate: IntermediateRepresentation
+  intermediate: IntermediateRepresentation,
+  personalization?: PersonalizationInput
 ): Promise<string> {
+  const personalizationContext = buildPersonalizationContext(personalization);
+
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('simple-summary.txt') + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2) }] }],
+      contents: [{ role: 'user', parts: [{ text: getPrompt('simple-summary.txt') + personalizationContext + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2) }] }],
     });
     return extractText(result);
   } catch (error) {
