@@ -17,84 +17,92 @@ export function SummaryViewer({
   hideDetails = false,
 }: SummaryViewerProps) {
   const allPoints = overview?.topics ?? [];
+  const highlightTopics = allPoints.slice(0, 3);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+    <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur mb-6">
       {/* タイトル */}
-      {showTitle && <h2 className="text-2xl font-bold mb-4">{data.title}</h2>}
+      {showTitle && (
+        <div className="mb-5">
+          <h2 className="text-2xl font-bold text-slate-900 leading-tight tracking-tight">
+            {data.title}
+          </h2>
+        </div>
+      )}
 
       {/* ページ概要 */}
       {overview ? (
         <div className="mb-6 space-y-6">
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-5">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                <span aria-hidden="true">⏱️</span>
-                1分でわかる
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <span aria-hidden="true">✨</span>
+                かんたん結論
               </div>
-              <div className="text-xs text-gray-500">要点サマリー</div>
             </div>
-            <p className="mt-4 text-lg font-semibold text-gray-900 leading-relaxed">
+            <p className="mt-4 text-lg font-semibold text-slate-900 leading-relaxed">
               {overview.conclusion}
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-              <h3 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
                 <span aria-hidden="true">👥</span>
                 対象者
               </h3>
-              <p className="text-gray-800 leading-relaxed">{overview.targetAudience}</p>
+              <p className="text-slate-800 leading-relaxed">{overview.targetAudience}</p>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
                 <span aria-hidden="true">🎯</span>
                 目的
               </h3>
-              <p className="text-gray-800 leading-relaxed">{overview.purpose}</p>
+              <p className="text-slate-800 leading-relaxed">{overview.purpose}</p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
               <span aria-hidden="true">✅</span>
-              ポイント
+              重要ポイント
             </h3>
             {allPoints.length > 0 ? (
               <div className="space-y-3">
                 {allPoints.map((topic, index) => (
-                  <div key={index} className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
-                    <span className="mt-0.5 text-green-600" aria-hidden="true">●</span>
-                    <p className="text-gray-800 leading-relaxed">{topic}</p>
+                  <div key={index} className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                    <span className="mt-0.5 text-emerald-600" aria-hidden="true">●</span>
+                    <p className="text-slate-800 leading-relaxed">{topic}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-700">特になし</p>
+              <p className="text-slate-600">特になし</p>
             )}
           </div>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-5">
-            <h3 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-amber-800 mb-3 flex items-center gap-2">
               <span aria-hidden="true">⚠️</span>
-              気をつけること
+              注意点
             </h3>
             {overview.cautions.length > 0 ? (
               <div className="space-y-3">
                 {overview.cautions.map((caution, index) => (
-                  <div key={index} className="rounded-lg bg-white/70 px-3 py-3 text-gray-800">
+                  <div key={index} className="rounded-lg bg-white/80 px-3 py-3 text-slate-800">
                     {caution}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-700">特になし</p>
+              <p className="text-slate-600">特になし</p>
             )}
           </div>
         </div>
       ) : (
-        <p className="text-lg text-gray-700 mb-6 leading-relaxed">{data.summary}</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 mb-6">
+          <p className="text-lg text-slate-700 leading-relaxed">{data.summary}</p>
+        </div>
       )}
 
       {!hideDetails && (
@@ -102,23 +110,23 @@ export function SummaryViewer({
           {/* キーポイント */}
           {data.keyPoints && data.keyPoints.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-lg font-bold mb-3">ポイント</h3>
+              <h3 className="text-lg font-bold mb-3 text-slate-900">ポイント</h3>
               <ul className="space-y-4">
                 {data.keyPoints.map((point) => (
-                  <li key={point.id} className="flex items-start gap-4">
+                  <li key={point.id} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
                     <span
-                      className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-bold ${
+                      className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-sm ${
                         point.importance === 'high'
-                          ? 'bg-red-500'
+                          ? 'bg-rose-500'
                           : point.importance === 'medium'
-                            ? 'bg-yellow-500'
-                            : 'bg-gray-400'
+                            ? 'bg-amber-500'
+                            : 'bg-slate-400'
                       }`}
                       aria-label={`重要度: ${point.importance}`}
                     >
                       !
                     </span>
-                    <span className="text-gray-900 text-lg leading-relaxed">{point.text}</span>
+                    <span className="text-slate-900 text-lg leading-relaxed">{point.text}</span>
                   </li>
                 ))}
               </ul>
@@ -128,27 +136,27 @@ export function SummaryViewer({
           {/* 対象者 */}
           {data.target && (
             <div className="mb-6">
-              <h3 className="text-lg font-bold mb-3">対象となる方</h3>
+              <h3 className="text-lg font-bold mb-3 text-slate-900">対象となる方</h3>
               {data.target.eligibility_summary && (
-                <p className="text-gray-700 mb-2">{data.target.eligibility_summary}</p>
+                <p className="text-slate-700 mb-2">{data.target.eligibility_summary}</p>
               )}
               {data.target.conditions && data.target.conditions.length > 0 && (
-                <ul className="space-y-2 text-gray-700">
+                <ul className="space-y-2 text-slate-700">
                   {data.target.conditions.map((condition, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <span className="mt-1 text-gray-500" aria-hidden="true">🔹</span>
+                      <span className="mt-1 text-slate-500" aria-hidden="true">🔹</span>
                       <span>{condition}</span>
                     </li>
                   ))}
                 </ul>
               )}
               {data.target.exceptions && data.target.exceptions.length > 0 && (
-                <div className="mt-3 p-3 bg-gray-50 rounded">
-                  <p className="text-sm font-medium text-gray-600 mb-1">例外・注意事項</p>
-                  <ul className="space-y-2 text-gray-600 text-sm">
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-sm font-medium text-slate-600 mb-1">例外・注意事項</p>
+                  <ul className="space-y-2 text-slate-600 text-sm">
                     {data.target.exceptions.map((exception, index) => (
                       <li key={index} className="flex items-start gap-2">
-                        <span className="mt-1 text-gray-500" aria-hidden="true">🔹</span>
+                        <span className="mt-1 text-slate-500" aria-hidden="true">🔹</span>
                         <span>{exception}</span>
                       </li>
                     ))}
@@ -161,13 +169,13 @@ export function SummaryViewer({
           {/* 給付内容 */}
           {data.benefits && (
             <div className="mb-6">
-              <h3 className="text-lg font-bold mb-3">給付・支援内容</h3>
-              <p className="text-gray-700 mb-2">{data.benefits.description}</p>
+              <h3 className="text-lg font-bold mb-3 text-slate-900">給付・支援内容</h3>
+              <p className="text-slate-700 mb-2">{data.benefits.description}</p>
               {data.benefits.amount && (
-                <p className="text-xl font-bold text-blue-600">{data.benefits.amount}</p>
+                <p className="text-xl font-bold text-slate-900">{data.benefits.amount}</p>
               )}
               {data.benefits.frequency && (
-                <p className="text-gray-600 text-sm mt-1">{data.benefits.frequency}</p>
+                <p className="text-slate-500 text-sm mt-1">{data.benefits.frequency}</p>
               )}
             </div>
           )}
@@ -175,21 +183,21 @@ export function SummaryViewer({
           {/* 手続き */}
           {data.procedure && (
             <div className="mb-6">
-              <h3 className="text-lg font-bold mb-3">手続きの流れ</h3>
+              <h3 className="text-lg font-bold mb-3 text-slate-900">手続きの流れ</h3>
               {data.procedure.steps && data.procedure.steps.length > 0 && (
                 <ol className="space-y-3">
                   {data.procedure.steps.map((step) => (
-                    <li key={step.order} className="flex gap-3">
-                      <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
+                    <li key={step.order} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                      <span className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">
                         {step.order}
                       </span>
                       <div>
-                        <p className="font-medium text-gray-800">{step.action}</p>
+                        <p className="font-medium text-slate-800">{step.action}</p>
                         {step.details && (
-                          <p className="text-gray-600 text-sm mt-1">{step.details}</p>
+                          <p className="text-slate-600 text-sm mt-1">{step.details}</p>
                         )}
                         {step.note && (
-                          <p className="text-blue-600 text-sm mt-1">💡 {step.note}</p>
+                          <p className="text-emerald-700 text-sm mt-1">💡 {step.note}</p>
                         )}
                       </div>
                     </li>
@@ -200,12 +208,12 @@ export function SummaryViewer({
               {/* 必要書類 */}
               {data.procedure.required_documents &&
                 data.procedure.required_documents.length > 0 && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-medium mb-2">必要な書類</h4>
-                    <ul className="space-y-2 text-gray-700">
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="font-medium mb-2 text-slate-800">必要な書類</h4>
+                    <ul className="space-y-2 text-slate-700">
                       {data.procedure.required_documents.map((doc, index) => (
                         <li key={index} className="flex items-start gap-2">
-                          <span className="mt-1 text-blue-500" aria-hidden="true">📄</span>
+                          <span className="mt-1 text-slate-500" aria-hidden="true">📄</span>
                           <span>{doc}</span>
                         </li>
                       ))}
@@ -215,8 +223,8 @@ export function SummaryViewer({
 
               {/* 期限 */}
               {data.procedure.deadline && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                  <p className="text-red-700 font-medium">
+                <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                  <p className="text-rose-700 font-medium">
                     📅 期限: {data.procedure.deadline}
                   </p>
                 </div>
@@ -226,26 +234,28 @@ export function SummaryViewer({
 
           {/* 連絡先 */}
           {data.contact && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h3 className="text-lg font-bold mb-2">お問い合わせ</h3>
+            <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="text-lg font-bold mb-2 text-slate-900">お問い合わせ</h3>
               {data.contact.department && (
-                <p className="text-gray-700">{data.contact.department}</p>
+                <p className="text-slate-700">{data.contact.department}</p>
               )}
               {data.contact.phone && (
-                <p className="text-gray-700">
+                <p className="text-slate-700">
                   電話:{' '}
-                  <a href={`tel:${data.contact.phone}`} className="text-blue-600">
+                  <a href={`tel:${data.contact.phone}`} className="text-slate-900 font-semibold">
                     {data.contact.phone}
                   </a>
                 </p>
               )}
-              {data.contact.hours && <p className="text-gray-600 text-sm">{data.contact.hours}</p>}
+              {data.contact.hours && (
+                <p className="text-slate-500 text-sm">{data.contact.hours}</p>
+              )}
             </div>
           )}
 
           {/* 注意事項 */}
           {data.warnings && data.warnings.length > 0 && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
               <h4 className="font-medium text-amber-800 mb-2">⚠️ 注意事項</h4>
               <ul className="space-y-2 text-amber-700">
                 {data.warnings.map((warning, index) => (
