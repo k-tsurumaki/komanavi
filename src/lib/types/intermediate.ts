@@ -162,6 +162,21 @@ export interface PersonalizationAnswer {
   answer: string | string[] | boolean;
 }
 
+/** ユーザプロフィール（パーソナライズ用に正規化された形式） */
+export interface NormalizedUserProfile {
+  age?: number;
+  gender?: string;
+  occupation?: string;
+  isJapaneseNational?: boolean;
+  location?: string;
+}
+
+/** パーソナライズ入力（LLM生成時に使用） */
+export interface PersonalizationInput {
+  userIntent: string;
+  userProfile?: NormalizedUserProfile;
+}
+
 // ============================================
 // Google Search Grounding
 // ============================================
@@ -258,6 +273,12 @@ export interface Overview {
   cautions: string[];
 }
 
+/** 適用されたパーソナライズ情報 */
+export interface AppliedPersonalization {
+  appliedIntent: string;
+  appliedProfile?: NormalizedUserProfile;
+}
+
 /** 解析結果 */
 export interface AnalyzeResult {
   id: string;
@@ -265,6 +286,7 @@ export interface AnalyzeResult {
   generatedSummary: string;
   overview?: Overview;
   checklist: ChecklistItem[];
+  personalization?: AppliedPersonalization;
   status: 'success' | 'error';
   error?: string;
 }
@@ -297,6 +319,7 @@ export interface DeepDiveResponse {
 export type AnalyzeRequest =
   | {
       url: string;
+      userIntent?: string;
       personalization?: PersonalizationAnswer[];
       mode?: 'default';
     }
