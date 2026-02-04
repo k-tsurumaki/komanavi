@@ -16,6 +16,8 @@ export function SummaryViewer({
   showTitle = true,
   hideDetails = false,
 }: SummaryViewerProps) {
+  const allPoints = overview?.topics ?? [];
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
       {/* タイトル */}
@@ -23,37 +25,48 @@ export function SummaryViewer({
 
       {/* ページ概要 */}
       {overview ? (
-        <div className="mb-6 grid gap-4">
-          <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-            <h3 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-2">
-              <span aria-hidden="true">👥</span>
-              対象者
-            </h3>
-            <p className="text-gray-800 leading-relaxed">{overview.targetAudience}</p>
+        <div className="mb-6 space-y-6">
+          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                <span aria-hidden="true">⏱️</span>
+                1分でわかる
+              </div>
+              <div className="text-xs text-gray-500">要点サマリー</div>
+            </div>
+            <p className="mt-4 text-lg font-semibold text-gray-900 leading-relaxed">
+              {overview.conclusion}
+            </p>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
-              <span aria-hidden="true">🎯</span>
-              目的
-            </h3>
-            <div className="space-y-2 text-gray-800">
-              <p className="leading-relaxed">{overview.purpose}</p>
-              <p className="leading-relaxed text-gray-700">{overview.conclusion}</p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+              <h3 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                <span aria-hidden="true">👥</span>
+                対象者
+              </h3>
+              <p className="text-gray-800 leading-relaxed">{overview.targetAudience}</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
+                <span aria-hidden="true">🎯</span>
+                目的
+              </h3>
+              <p className="text-gray-800 leading-relaxed">{overview.purpose}</p>
             </div>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
+
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
               <span aria-hidden="true">✅</span>
               ポイント
             </h3>
-            {overview.topics.length > 0 ? (
-              <div className="grid gap-2">
-                {overview.topics.map((topic, index) => (
-                  <div
-                    key={index}
-                    className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-800"
-                  >
-                    {topic}
+            {allPoints.length > 0 ? (
+              <div className="space-y-3">
+                {allPoints.map((topic, index) => (
+                  <div key={index} className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+                    <span className="mt-0.5 text-green-600" aria-hidden="true">●</span>
+                    <p className="text-gray-800 leading-relaxed">{topic}</p>
                   </div>
                 ))}
               </div>
@@ -61,15 +74,16 @@ export function SummaryViewer({
               <p className="text-gray-700">特になし</p>
             )}
           </div>
-          <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-            <h3 className="text-sm font-semibold text-amber-800 mb-2 flex items-center gap-2">
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-5">
+            <h3 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
               <span aria-hidden="true">⚠️</span>
               気をつけること
             </h3>
             {overview.cautions.length > 0 ? (
-              <div className="grid gap-2">
+              <div className="space-y-3">
                 {overview.cautions.map((caution, index) => (
-                  <div key={index} className="rounded-lg bg-white/70 px-3 py-2 text-gray-800">
+                  <div key={index} className="rounded-lg bg-white/70 px-3 py-3 text-gray-800">
                     {caution}
                   </div>
                 ))}

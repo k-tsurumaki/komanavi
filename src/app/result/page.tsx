@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
@@ -45,46 +45,6 @@ function ResultContent() {
   const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
-  const focusCandidates = useMemo(() => {
-    if (!result?.intermediate?.keyPoints) return [];
-    return result.intermediate.keyPoints.map((point) => point.text).filter(Boolean);
-  }, [result?.intermediate?.keyPoints]);
-
-  const handleDownload = () => {
-    if (!result || !result.intermediate) return;
-    const { intermediate, checklist } = result;
-    const lines: string[] = [];
-    lines.push(`# ${intermediate.title}`);
-    lines.push('');
-    lines.push(`- 元URL: ${intermediate.metadata.source_url}`);
-    lines.push(`- 取得日時: ${intermediate.metadata.fetched_at}`);
-    lines.push('');
-    lines.push('## 要約');
-    lines.push(intermediate.summary || result.generatedSummary || '');
-    lines.push('');
-    if (intermediate.keyPoints && intermediate.keyPoints.length > 0) {
-      lines.push('## ポイント');
-      intermediate.keyPoints.forEach((point) => {
-        lines.push(`- ${point.text}`);
-      });
-      lines.push('');
-    }
-    if (checklist && checklist.length > 0) {
-      lines.push('## やることチェックリスト');
-      checklist.forEach((item) => {
-        lines.push(`- [ ] ${item.text}`);
-      });
-      lines.push('');
-    }
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
-    const blobUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = blobUrl;
-    anchor.download = `${intermediate.title || 'summary'}.md`;
-    anchor.click();
-    URL.revokeObjectURL(blobUrl);
-  };
 
   const handleBackToHome = () => {
     reset();
@@ -323,6 +283,11 @@ function ResultContent() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* 免責バナー */}
+      <DisclaimerBanner
+        sourceUrl={intermediate.metadata.source_url}
+        fetchedAt={intermediate.metadata.fetched_at}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <Link
           href="/analyze"
@@ -332,22 +297,8 @@ function ResultContent() {
           <span aria-hidden="true">←</span>
           新しいURLを解析
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            結果をダウンロード
-          </button>
-        </div>
+        <div className="flex flex-wrap items-center gap-2" />
       </div>
-      {/* 免責バナー */}
-      <DisclaimerBanner
-        sourceUrl={intermediate.metadata.source_url}
-        fetchedAt={intermediate.metadata.fetched_at}
-      />
-
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h3 className="text-lg font-bold">1分でわかる！平易化されたWebページ</h3>
       </div>
