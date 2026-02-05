@@ -48,6 +48,7 @@ function ResultContent() {
   const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isIntentGenerating, setIsIntentGenerating] = useState(false);
+  const [isIntentLocked, setIsIntentLocked] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
 
   const handleBackToHome = () => {
@@ -126,11 +127,11 @@ function ResultContent() {
     if (isIntentGenerating) {
       setIsGenerating(true);
       setIsIntentGenerating(false);
-      setIntentInput('');
+      setIsIntentLocked(true);
       return;
     }
     setIsGenerating(false);
-    setIntentInput('');
+    setIsIntentLocked(false);
   }, [result?.id, isIntentGenerating]);
 
   if (!historyId && !url) {
@@ -299,6 +300,7 @@ function ResultContent() {
     setIntent(trimmedIntent);
     setIsGenerating(true);
     setIsIntentGenerating(true);
+    setIsIntentLocked(true);
 
     const targetUrl = url || result?.intermediate?.metadata.source_url;
     if (targetUrl) {
@@ -333,7 +335,7 @@ function ResultContent() {
       <SummaryViewer data={intermediate} overview={overview} hideDetails />
 
       {/* 深掘りチャット */}
-      <div className="relative rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
+        <div className="group relative rounded-2xl border border-slate-200 bg-white/90 px-6 pt-6 pb-2 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
           <div className="absolute right-6 top-6">
             <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
               <button
@@ -455,7 +457,7 @@ function ResultContent() {
           )}
 
           {chatMode === 'intent' && (
-            <div className="space-y-4">
+            <div className="space-y-0">
               <div className="relative">
                 <textarea
                   value={intentInput}
@@ -466,13 +468,13 @@ function ResultContent() {
                   }}
                   rows={3}
                   placeholder="例: 私が対象かどうかと申請方法を知りたい"
-                  disabled={isGenerating}
+                  disabled={isIntentGenerating || isIntentLocked}
                   className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                 />
                 <button
                   type="button"
                   onClick={handleConfirmIntent}
-                  disabled={isGenerating || !intentInput.trim()}
+                  disabled={isIntentGenerating || isIntentLocked || !intentInput.trim()}
                   className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
                   aria-label="意図を確定"
                 >
@@ -497,6 +499,18 @@ function ResultContent() {
                   )}
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsIntentLocked(false)}
+                className="-mt-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+                aria-label="意図を編集"
+                disabled={isIntentGenerating}
+              >
+                <span className="text-base" aria-hidden="true">
+                  ✎
+                </span>
+                メッセージを編集する
+              </button>
             </div>
           )}
         </div>
@@ -510,7 +524,7 @@ function ResultContent() {
             </span>
             <h3 className="text-lg font-bold">回答</h3>
           </div>
-          {result.intentAnswer ? (
+          {!isIntentGenerating && result.intentAnswer ? (
             <div className="mt-4 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
               {result.intentAnswer}
             </div>
