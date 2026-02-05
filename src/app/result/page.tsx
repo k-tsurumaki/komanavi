@@ -41,6 +41,7 @@ function ResultContent() {
   const lastLoadedHistoryId = useRef<string | null>(null);
   const isNavigatingToAnalyzeRef = useRef(false);
   const handledResultIdRef = useRef<string | null>(null);
+  const autoAnalyzeTriggeredRef = useRef(false);
   const [deepDiveInput, setDeepDiveInput] = useState('');
   const [intentInput, setIntentInput] = useState('');
   const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
@@ -107,7 +108,9 @@ function ResultContent() {
   useEffect(() => {
     if (historyId) return;
     if (isNavigatingToAnalyzeRef.current) return;
+    if (autoAnalyzeTriggeredRef.current) return;
     if (url && !result && status === 'idle') {
+      autoAnalyzeTriggeredRef.current = true;
       analyze(url);
     }
   }, [historyId, url, result, status, analyze]);
@@ -363,7 +366,7 @@ function ResultContent() {
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mt-2">気になる点を深掘り</h3>
                 <p className="text-sm text-slate-600">
-                  「ここが分からない」をAIエージェントに質問して解消しましょう。
+                  「ここが分からない」をAIアシスタントに質問して解消しましょう。
                 </p>
               </div>
             )}
@@ -389,12 +392,12 @@ function ResultContent() {
                     key={`${message.role}-${index}`}
                     className={`rounded-xl px-4 py-3 border ${
                       message.role === 'user'
-                        ? 'bg-slate-900 text-white border-slate-900'
+                        ? 'bg-slate-50 border-slate-200 text-slate-800'
                         : 'bg-slate-50 border-slate-200 text-slate-800'
                     }`}
                   >
                     <p className="text-xs font-semibold mb-1 tracking-wide">
-                      {message.role === 'user' ? 'あなた' : 'AI'}
+                      {message.role === 'user' ? 'あなた' : 'AIアシスタント'}
                     </p>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
                   </div>
@@ -499,7 +502,12 @@ function ResultContent() {
       {/* 回答生成開始 */}
       {isGenerating && (
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h3 className="text-lg font-bold mb-2">回答</h3>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xl" aria-hidden="true">
+              ✨
+            </span>
+            <h3 className="text-lg font-bold">回答</h3>
+          </div>
           {result.intentAnswer ? (
             <div className="mt-4 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
               {result.intentAnswer}
@@ -512,7 +520,7 @@ function ResultContent() {
         </div>
       )}
 
-      {isGenerating && (
+      {isGenerating && !isIntentGenerating && (
         <>
           {/* チェックリスト */}
           <div className="mb-6">

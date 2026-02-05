@@ -35,7 +35,7 @@ export function SummaryViewer({
           <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span aria-hidden="true">✨</span>
+                <span aria-hidden="true">📌</span>
                 かんたん結論
               </div>
             </div>
@@ -54,7 +54,7 @@ export function SummaryViewer({
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-5">
               <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-700 mb-3 flex items-center gap-2">
-                <span aria-hidden="true">🎯</span>
+                <span aria-hidden="true">🧭</span>
                 目的
               </h3>
               <p className="text-slate-800 leading-relaxed">{overview.purpose}</p>
