@@ -514,7 +514,7 @@ function ResultContent() {
             </div>
           ) : (
             <p className="text-sm text-gray-500 mt-3">
-              回答生成フェーズは準備中です。今後ここで回答が表示されます。
+              回答を生成中です。しばらくお待ちください。
             </p>
           )}
         </div>
