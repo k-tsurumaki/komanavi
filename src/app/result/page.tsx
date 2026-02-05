@@ -295,6 +295,7 @@ function ResultContent() {
   const handleConfirmIntent = () => {
     if (!intentInput.trim()) return;
     const trimmedIntent = intentInput.trim();
+    setIntentInput(trimmedIntent);
     setIntent(trimmedIntent);
     setIsGenerating(true);
     setIsIntentGenerating(true);
@@ -465,12 +466,13 @@ function ResultContent() {
                   }}
                   rows={3}
                   placeholder="例: 私が対象かどうかと申請方法を知りたい"
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
+                  disabled={isGenerating}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                 />
                 <button
                   type="button"
                   onClick={handleConfirmIntent}
-                  disabled={!intentInput.trim()}
+                  disabled={isGenerating || !intentInput.trim()}
                   className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
                   aria-label="意図を確定"
                 >
