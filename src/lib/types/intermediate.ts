@@ -271,6 +271,16 @@ export interface OverviewCriticalFact {
   reason: string;
 }
 
+export type OverviewBlockId =
+  | 'conclusion'
+  | 'targetAudience'
+  | 'achievableOutcomes'
+  | 'criticalFacts'
+  | 'cautions'
+  | 'contactInfo';
+
+export type OverviewEvidenceByBlock = Partial<Record<OverviewBlockId, string[]>>;
+
 export interface Overview {
   conclusion: string;
   targetAudience: string;
@@ -278,6 +288,7 @@ export interface Overview {
   topics: string[];
   cautions: string[];
   criticalFacts?: OverviewCriticalFact[];
+  evidenceByBlock?: OverviewEvidenceByBlock;
 }
 
 /** 適用されたパーソナライズ情報 */

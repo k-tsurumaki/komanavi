@@ -8,6 +8,8 @@ import type {
   GroundingMetadata,
   ChatMessage,
   Overview,
+  OverviewBlockId,
+  OverviewEvidenceByBlock,
   PersonalizationInput,
 } from '@/lib/types/intermediate';
 
@@ -385,6 +387,116 @@ export async function generateSimpleSummary(
 export async function generateOverview(
   intermediate: IntermediateRepresentation
 ): Promise<Overview | null> {
+  const overviewBlockIds: OverviewBlockId[] = [
+    'conclusion',
+    'targetAudience',
+    'achievableOutcomes',
+    'criticalFacts',
+    'cautions',
+    'contactInfo',
+  ];
+
+  const normalizeUrl = (value: unknown): string => {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return '';
+      }
+      url.hash = '';
+      const normalized = url.toString();
+      return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+    } catch {
+      return '';
+    }
+  };
+
+  const allowedEvidenceUrlByKey = new Map<string, string>();
+  const pushAllowedEvidenceUrl = (url?: string) => {
+    const normalized = normalizeUrl(url);
+    if (!normalized || allowedEvidenceUrlByKey.has(normalized)) {
+      return;
+    }
+    allowedEvidenceUrlByKey.set(normalized, normalized);
+  };
+
+  pushAllowedEvidenceUrl(intermediate.metadata.source_url);
+  for (const chunk of intermediate.metadata.groundingMetadata?.groundingChunks ?? []) {
+    pushAllowedEvidenceUrl(chunk.web?.uri);
+  }
+  for (const link of intermediate.relatedLinks ?? []) {
+    pushAllowedEvidenceUrl(link.url);
+  }
+  pushAllowedEvidenceUrl(intermediate.contact?.website);
+
+  const allowedEvidenceUrls = Array.from(allowedEvidenceUrlByKey.values());
+
+  const normalizeEvidenceByBlock = (value: unknown): OverviewEvidenceByBlock => {
+    if (!value || typeof value !== 'object') {
+      return {};
+    }
+
+    const objectValue = value as Record<string, unknown>;
+    const normalized: OverviewEvidenceByBlock = {};
+
+    for (const blockId of overviewBlockIds) {
+      const blockUrls = objectValue[blockId];
+      if (!Array.isArray(blockUrls)) {
+        continue;
+      }
+
+      const deduped = new Set<string>();
+      for (const blockUrl of blockUrls) {
+        const normalizedUrl = normalizeUrl(blockUrl);
+        if (!normalizedUrl) {
+          continue;
+        }
+        const allowedUrl = allowedEvidenceUrlByKey.get(normalizedUrl);
+        if (!allowedUrl || deduped.has(allowedUrl)) {
+          continue;
+        }
+        deduped.add(allowedUrl);
+      }
+
+      const normalizedUrls = Array.from(deduped).slice(0, 3);
+      if (normalizedUrls.length > 0) {
+        normalized[blockId] = normalizedUrls;
+      }
+    }
+
+    return normalized;
+  };
+
+  const buildFallbackEvidenceByBlock = (): OverviewEvidenceByBlock => {
+    if (allowedEvidenceUrls.length === 0) {
+      return {};
+    }
+
+    const primaryEvidence = allowedEvidenceUrls.slice(0, 2);
+    const detailedEvidence = allowedEvidenceUrls.slice(0, 3);
+    const contactEvidence = allowedEvidenceUrls
+      .filter((url) => /(contact|inquiry|faq|madoguchi|sodan|toiawase)/i.test(url))
+      .slice(0, 2);
+
+    const fallback: OverviewEvidenceByBlock = {
+      conclusion: primaryEvidence,
+      targetAudience: primaryEvidence,
+      achievableOutcomes: detailedEvidence,
+      criticalFacts: detailedEvidence,
+      cautions: primaryEvidence,
+      contactInfo: contactEvidence.length > 0 ? contactEvidence : primaryEvidence,
+    };
+
+    return fallback;
+  };
+
   const normalizeSentence = (value: unknown, maxLength: number): string => {
     if (typeof value !== 'string') {
       return '';
@@ -515,6 +627,7 @@ export async function generateOverview(
       ...(intermediate.target?.exceptions ?? []),
     ];
     const fallbackCriticalFacts = buildFallbackCriticalFacts();
+    const fallbackEvidenceByBlock = buildFallbackEvidenceByBlock();
 
     return {
       conclusion: fallbackConclusion,
@@ -525,6 +638,7 @@ export async function generateOverview(
         (caution) => !hasContactKeyword(caution)
       ),
       criticalFacts: fallbackCriticalFacts,
+      evidenceByBlock: fallbackEvidenceByBlock,
     };
   };
 
@@ -556,6 +670,8 @@ export async function generateOverview(
     const normalizedCriticalFacts = normalizeCriticalFacts(overview.criticalFacts, 5).filter(
       (row) => !hasContactKeyword(`${row.item} ${row.value}`)
     );
+    const normalizedEvidenceByBlock = normalizeEvidenceByBlock(overview.evidenceByBlock);
+    const fallbackEvidenceByBlock = fallback.evidenceByBlock ?? {};
 
     return {
       conclusion: normalizeSentence(overview.conclusion, 90) || fallback.conclusion,
@@ -567,6 +683,10 @@ export async function generateOverview(
         normalizedCriticalFacts.length > 0
           ? normalizedCriticalFacts
           : (fallback.criticalFacts ?? []),
+      evidenceByBlock:
+        Object.keys(normalizedEvidenceByBlock).length > 0
+          ? normalizedEvidenceByBlock
+          : fallbackEvidenceByBlock,
     };
   } catch (error) {
     console.error('Overview generation error:', error);

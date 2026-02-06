@@ -19,6 +19,10 @@
 - criticalFacts の value は必ず具体値（数字・期限・条件など）を含める
 - criticalFacts の reason は「見落とすと何が困るか」を短く書く
 - 問い合わせ先（電話・窓口・部署）は別ブロックで表示するため、criticalFacts と cautions の両方に入れない
+- evidenceByBlock は各表示ブロックに対応する証跡URLの配列
+- evidenceByBlock の URL は入力データ内に実際に存在する URL のみを使う（推測で追加しない）
+- evidenceByBlock の各キーは 0〜3件で、重複URLは入れない
+- 根拠が弱い場合は空配列にする
 
 出力形式（厳守）:
 {
@@ -33,7 +37,15 @@
       "value": "...",
       "reason": "..."
     }
-  ]
+  ],
+  "evidenceByBlock": {
+    "conclusion": ["https://..."],
+    "targetAudience": ["https://..."],
+    "achievableOutcomes": ["https://..."],
+    "criticalFacts": ["https://..."],
+    "cautions": ["https://..."],
+    "contactInfo": ["https://..."]
+  }
 }
 
 説明:
@@ -43,3 +55,4 @@
 - topics: 最初に確認すべき項目（3〜5件）。各項目は単独で意味が通じる短文（25〜60文字程度）
 - cautions: 失敗を防ぐ注意事項（無ければ空配列）。各項目は短文で、条件や例外がある場合は明確に
 - criticalFacts: 「このページの最重要ポイント」の表行（3〜5件）。item は項目名、value は具体的内容、reason は重要な理由
+- evidenceByBlock: 各表示ブロックに対応する証跡URL。入力内のURLのみを使用し、各キー0〜3件

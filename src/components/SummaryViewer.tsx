@@ -1,7 +1,11 @@
 
 'use client';
 
-import type { IntermediateRepresentation, Overview } from '@/lib/types/intermediate';
+import type {
+  IntermediateRepresentation,
+  Overview,
+  OverviewBlockId,
+} from '@/lib/types/intermediate';
 
 interface SummaryViewerProps {
   data: IntermediateRepresentation;
@@ -33,6 +37,26 @@ export function SummaryViewer({
   const requiredDocuments = (data.procedure?.required_documents ?? [])
     .map((doc) => doc.trim())
     .filter(Boolean);
+  const normalizeEvidenceUrl = (value?: string): string => {
+    if (!value) {
+      return '';
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return '';
+      }
+      url.hash = '';
+      const normalized = url.toString();
+      return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+    } catch {
+      return '';
+    }
+  };
 
   const contactDetails: Array<{ label: string; value: string; href?: string }> = [];
   const seenContacts = new Set<string>();
@@ -65,6 +89,100 @@ export function SummaryViewer({
   pushContactDetail('Webサイト', data.contact?.website, data.contact?.website);
   pushContactDetail('手続き窓口', data.procedure?.contact);
   pushContactDetail('窓口場所', data.procedure?.location);
+
+  const knownEvidenceUrls = new Set<string>();
+  const pushKnownEvidenceUrl = (value?: string) => {
+    const normalized = normalizeEvidenceUrl(value);
+    if (normalized) {
+      knownEvidenceUrls.add(normalized);
+    }
+  };
+
+  pushKnownEvidenceUrl(data.metadata.source_url);
+  for (const chunk of data.metadata.groundingMetadata?.groundingChunks ?? []) {
+    pushKnownEvidenceUrl(chunk.web?.uri);
+  }
+  for (const relatedLink of data.relatedLinks ?? []) {
+    pushKnownEvidenceUrl(relatedLink.url);
+  }
+  pushKnownEvidenceUrl(data.contact?.website);
+
+  const sourceEvidenceUrl = normalizeEvidenceUrl(data.metadata.source_url);
+  const evidenceUrlPool = Array.from(knownEvidenceUrls);
+  const evidenceUrlPoolWithoutSource = sourceEvidenceUrl
+    ? evidenceUrlPool.filter((url) => url !== sourceEvidenceUrl)
+    : evidenceUrlPool;
+  const fallbackEvidenceByBlock: Partial<Record<OverviewBlockId, string[]>> =
+    evidenceUrlPoolWithoutSource.length > 0
+      ? {
+          conclusion: evidenceUrlPoolWithoutSource.slice(0, 2),
+          targetAudience: evidenceUrlPoolWithoutSource.slice(0, 2),
+          achievableOutcomes: evidenceUrlPoolWithoutSource.slice(0, 3),
+          criticalFacts: evidenceUrlPoolWithoutSource.slice(0, 3),
+          cautions: evidenceUrlPoolWithoutSource.slice(0, 2),
+          contactInfo: evidenceUrlPoolWithoutSource.slice(0, 2),
+        }
+      : {};
+
+  const overviewEvidenceByBlock = overview?.evidenceByBlock ?? {};
+  const getBlockEvidenceUrls = (blockId: OverviewBlockId): string[] => {
+    const mappedUrls = overviewEvidenceByBlock[blockId];
+    const candidateUrls =
+      mappedUrls && mappedUrls.length > 0 ? mappedUrls : (fallbackEvidenceByBlock[blockId] ?? []);
+
+    const deduped = new Set<string>();
+    for (const candidateUrl of candidateUrls) {
+      const normalized = normalizeEvidenceUrl(candidateUrl);
+      if (!normalized) {
+        continue;
+      }
+      if (knownEvidenceUrls.size > 0 && !knownEvidenceUrls.has(normalized)) {
+        continue;
+      }
+      deduped.add(normalized);
+      if (deduped.size >= 3) {
+        break;
+      }
+    }
+
+    const normalizedCandidates = Array.from(deduped);
+    const nonSourceCandidates = sourceEvidenceUrl
+      ? normalizedCandidates.filter((url) => url !== sourceEvidenceUrl)
+      : normalizedCandidates;
+
+    if (nonSourceCandidates.length > 0) {
+      return nonSourceCandidates.slice(0, 3);
+    }
+
+    return [];
+  };
+
+  const renderEvidenceUrls = (blockId: OverviewBlockId) => {
+    const urls = getBlockEvidenceUrls(blockId);
+    if (urls.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="mt-4 border-t border-slate-200 pt-3">
+        <p className="text-xs font-semibold text-slate-500">証跡URL</p>
+        <ul className="mt-2 space-y-1.5">
+          {urls.map((url, index) => (
+            <li key={`${blockId}-${index}`}>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-600 underline underline-offset-2 break-all hover:text-slate-900"
+              >
+                {url}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
 
   const fallbackFactCandidates = [
     ...(data.keyPoints ?? []).map((point) => point.text),
@@ -158,6 +276,7 @@ export function SummaryViewer({
             <p className="mt-3 text-lg font-semibold leading-relaxed text-slate-900 sm:text-xl">
               {conclusionText}
             </p>
+            {renderEvidenceUrls('conclusion')}
           </section>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -167,6 +286,7 @@ export function SummaryViewer({
                 だれ向けの情報か
               </h3>
               <p className="mt-3 text-[15px] leading-relaxed text-slate-900">{audienceText}</p>
+              {renderEvidenceUrls('targetAudience')}
             </section>
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -183,6 +303,7 @@ export function SummaryViewer({
                   </li>
                 ))}
               </ul>
+              {renderEvidenceUrls('achievableOutcomes')}
             </section>
           </div>
 
@@ -215,6 +336,7 @@ export function SummaryViewer({
                   </tbody>
                 </table>
               </div>
+              {renderEvidenceUrls('criticalFacts')}
             </section>
           )}
 
@@ -240,6 +362,7 @@ export function SummaryViewer({
             ) : (
               <p className="mt-3 text-sm text-slate-600">特になし</p>
             )}
+            {renderEvidenceUrls('cautions')}
           </section>
 
           {contactDetails.length > 0 && (
@@ -284,6 +407,7 @@ export function SummaryViewer({
                   </tbody>
                 </table>
               </div>
+              {renderEvidenceUrls('contactInfo')}
             </section>
           )}
         </div>
