@@ -134,147 +134,159 @@ export function SummaryViewer({
     achievableOutcomes.length > 0
       ? achievableOutcomes.slice(0, 3)
       : ['このページの要点を短時間で把握できる'];
+  const conclusionText = overview?.conclusion || data.summary;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur mb-6">
+    <div className="mb-6 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_16px_44px_rgba(15,23,42,0.10)]">
       {/* タイトル */}
       {showTitle && (
-        <div className="mb-5">
-          <h2 className="text-2xl font-bold text-slate-900 leading-tight tracking-tight">
+        <div className="mb-6 border-b border-slate-200/70 pb-4">
+          <h2 className="text-2xl font-bold text-slate-900 leading-tight tracking-tight sm:text-[1.75rem]">
             {data.title}
           </h2>
         </div>
       )}
 
       {/* ページ概要 */}
-      <div className="mb-6 space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-6 rounded-[24px] border border-slate-200/80 bg-slate-50 p-5 sm:p-6">
+        <div className="space-y-4 sm:space-y-5">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.06)] sm:p-6">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <span aria-hidden="true">📌</span>
               30秒で把握
             </div>
-          </div>
-          <p className="mt-4 text-lg font-semibold text-slate-900 leading-relaxed">
-            {overview?.conclusion || data.summary}
-          </p>
-        </div>
+            <p className="mt-3 text-lg font-semibold leading-relaxed text-slate-900 sm:text-xl">
+              {conclusionText}
+            </p>
+          </section>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-700 mb-3 flex items-center gap-2">
-              <span aria-hidden="true">👥</span>
-              だれ向けの情報か
-            </h3>
-            <p className="text-slate-800 leading-relaxed">{audienceText}</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span aria-hidden="true">👥</span>
+                だれ向けの情報か
+              </h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-slate-900">{audienceText}</p>
+            </section>
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span aria-hidden="true">🧭</span>
+                このページで実現できること
+              </h3>
+              <ul className="mt-3 space-y-2">
+                {compactAchievableOutcomes.map((outcome, index) => (
+                  <li key={`${outcome}-${index}`} className="flex gap-2 text-[15px] leading-relaxed text-slate-900">
+                    <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-bold text-emerald-700">
+                      ✓
+                    </span>
+                    <span>{outcome}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-700 mb-3 flex items-center gap-2">
-              <span aria-hidden="true">🧭</span>
-              このページで実現できること
-            </h3>
-            <ul className="space-y-2 text-slate-800 text-sm">
-              {compactAchievableOutcomes.map((outcome, index) => (
-                <li key={`${outcome}-${index}`} className="flex gap-2">
-                  <span className="text-slate-400" aria-hidden="true">
-                    •
-                  </span>
-                  <span>{outcome}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
 
-        {criticalFacts.length > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-700 mb-3 flex items-center gap-2">
-              <span aria-hidden="true">🔎</span>
-              このページの最重要ポイント
-            </h3>
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="min-w-full text-sm text-slate-800">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold text-slate-700">項目</th>
-                    <th className="px-3 py-2 text-left font-semibold text-slate-700">内容</th>
-                    <th className="px-3 py-2 text-left font-semibold text-slate-700">なぜ重要か</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {criticalFacts.map((fact, index) => (
-                    <tr key={`${fact.item}-${index}`} className="border-t border-slate-200 align-top">
-                      <td className="px-3 py-2 font-medium text-slate-900">{fact.item}</td>
-                      <td className="px-3 py-2">{fact.value}</td>
-                      <td className="px-3 py-2 text-slate-700">{fact.reason}</td>
+          {criticalFacts.length > 0 && (
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span aria-hidden="true">🔎</span>
+                このページの最重要ポイント
+              </h3>
+              <div className="mt-3 overflow-x-auto rounded-xl">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-700">
+                    <tr className="border-b border-slate-200">
+                      <th className="w-[20%] px-3 py-2 text-left font-semibold">項目</th>
+                      <th className="w-[45%] px-3 py-2 text-left font-semibold">内容</th>
+                      <th className="w-[35%] px-3 py-2 text-left font-semibold">なぜ重要か</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {criticalFacts.map((fact, index) => (
+                      <tr
+                        key={`${fact.item}-${index}`}
+                        className={`align-top text-slate-800 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                      >
+                        <td className="px-3 py-2.5 font-semibold text-slate-900">{fact.item}</td>
+                        <td className="px-3 py-2.5 leading-relaxed">{fact.value}</td>
+                        <td className="px-3 py-2.5 leading-relaxed text-slate-700">{fact.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-900 mb-3 flex items-center gap-2">
-            <span aria-hidden="true">⚠️</span>
-            先に知っておく注意点
-          </h3>
-          {compactCautions.length > 0 ? (
-            <div className="space-y-3">
-              {compactCautions.map((caution, index) => (
-                <div
-                  key={`${caution}-${index}`}
-                  className="rounded-lg border border-amber-100 bg-white/90 px-4 py-3 text-sm text-slate-800 leading-relaxed"
-                >
-                  {caution}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-600">特になし</p>
+          <section className="rounded-2xl border border-amber-200/80 bg-amber-50 p-5 shadow-[0_6px_18px_rgba(146,64,14,0.08)]">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+              <span aria-hidden="true">⚠️</span>
+              先に知っておく注意点
+            </h3>
+            {compactCautions.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {compactCautions.map((caution, index) => (
+                  <div
+                    key={`${caution}-${index}`}
+                    className="grid grid-cols-[auto,1fr] items-start gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 text-sm text-slate-800"
+                  >
+                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-900">
+                      {index + 1}
+                    </span>
+                    <span className="leading-relaxed">{caution}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-slate-600">特になし</p>
+            )}
+          </section>
+
+          {contactDetails.length > 0 && (
+            <section className="rounded-2xl border border-sky-200/80 bg-sky-50 p-5 shadow-[0_6px_18px_rgba(3,105,161,0.10)]">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-sky-900">
+                <span aria-hidden="true">📞</span>
+                問い合わせ情報
+              </h3>
+              <div className="mt-3 overflow-x-auto rounded-xl border border-sky-200 bg-white">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-sky-50 text-slate-700">
+                    <tr>
+                      <th className="w-[32%] px-3 py-2 text-left font-semibold">項目</th>
+                      <th className="px-3 py-2 text-left font-semibold">内容</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contactDetails.map((detail, index) => (
+                      <tr
+                        key={`${detail.label}-${index}`}
+                        className={`border-t border-sky-100 align-top text-slate-800 ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-sky-50/40'
+                        }`}
+                      >
+                        <td className="px-3 py-2.5 font-semibold text-slate-900">{detail.label}</td>
+                        <td className="px-3 py-2.5">
+                          {detail.href ? (
+                            <a
+                              href={detail.href}
+                              target={detail.href.startsWith('http') ? '_blank' : undefined}
+                              rel={detail.href.startsWith('http') ? 'noreferrer noopener' : undefined}
+                              className="text-sky-700 underline underline-offset-2 break-all hover:text-sky-800"
+                            >
+                              {detail.value}
+                            </a>
+                          ) : (
+                            <span className="break-words">{detail.value}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           )}
         </div>
-
-        {contactDetails.length > 0 && (
-          <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-sky-900 mb-3 flex items-center gap-2">
-              <span aria-hidden="true">📞</span>
-              問い合わせ情報
-            </h3>
-            <div className="overflow-x-auto rounded-lg border border-sky-200 bg-white">
-              <table className="min-w-full text-sm text-slate-800">
-                <thead className="bg-sky-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold text-slate-700">項目</th>
-                    <th className="px-3 py-2 text-left font-semibold text-slate-700">内容</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contactDetails.map((detail, index) => (
-                    <tr key={`${detail.label}-${index}`} className="border-t border-sky-100 align-top">
-                      <td className="px-3 py-2 font-medium text-slate-900">{detail.label}</td>
-                      <td className="px-3 py-2">
-                        {detail.href ? (
-                          <a
-                            href={detail.href}
-                            target={detail.href.startsWith('http') ? '_blank' : undefined}
-                            rel={detail.href.startsWith('http') ? 'noreferrer noopener' : undefined}
-                            className="text-sky-700 underline underline-offset-2 break-all"
-                          >
-                            {detail.value}
-                          </a>
-                        ) : (
-                          <span className="break-words">{detail.value}</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
 
       {!hideDetails && (
@@ -285,7 +297,7 @@ export function SummaryViewer({
               <h3 className="text-lg font-bold mb-3 text-slate-900">ポイント</h3>
               <ul className="space-y-4">
                 {data.keyPoints.map((point) => (
-                  <li key={point.id} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-4">
+                  <li key={point.id} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
                     <span
                       className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-sm ${
                         point.importance === 'high'
