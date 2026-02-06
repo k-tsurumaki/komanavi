@@ -57,6 +57,14 @@ export function SummaryViewer({
       return '';
     }
   };
+  const getHostnameLabel = (url: string): string => {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname.replace(/^www\./i, '');
+    } catch {
+      return url;
+    }
+  };
 
   const contactDetails: Array<{ label: string; value: string; href?: string }> = [];
   const seenContacts = new Set<string>();
@@ -91,21 +99,31 @@ export function SummaryViewer({
   pushContactDetail('窓口場所', data.procedure?.location);
 
   const knownEvidenceUrls = new Set<string>();
-  const pushKnownEvidenceUrl = (value?: string) => {
+  const evidenceTitleByUrl = new Map<string, string>();
+  const registerEvidenceUrl = (value?: string, title?: string) => {
     const normalized = normalizeEvidenceUrl(value);
     if (normalized) {
       knownEvidenceUrls.add(normalized);
+      const normalizedTitle = title?.trim();
+      if (normalizedTitle) {
+        evidenceTitleByUrl.set(normalized, normalizedTitle);
+      } else if (!evidenceTitleByUrl.has(normalized)) {
+        evidenceTitleByUrl.set(normalized, getHostnameLabel(normalized));
+      }
     }
   };
 
-  pushKnownEvidenceUrl(data.metadata.source_url);
+  registerEvidenceUrl(data.metadata.source_url, data.metadata.page_title || data.title);
   for (const chunk of data.metadata.groundingMetadata?.groundingChunks ?? []) {
-    pushKnownEvidenceUrl(chunk.web?.uri);
+    registerEvidenceUrl(chunk.web?.uri, chunk.web?.title);
   }
   for (const relatedLink of data.relatedLinks ?? []) {
-    pushKnownEvidenceUrl(relatedLink.url);
+    registerEvidenceUrl(relatedLink.url, relatedLink.title);
   }
-  pushKnownEvidenceUrl(data.contact?.website);
+  registerEvidenceUrl(
+    data.contact?.website,
+    data.contact?.department ? `${data.contact.department} の案内ページ` : undefined
+  );
 
   const sourceEvidenceUrl = normalizeEvidenceUrl(data.metadata.source_url);
   const evidenceUrlPool = Array.from(knownEvidenceUrls);
@@ -173,9 +191,9 @@ export function SummaryViewer({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-slate-600 underline underline-offset-2 break-all hover:text-slate-900"
+                className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-900"
               >
-                {url}
+                {evidenceTitleByUrl.get(url) || getHostnameLabel(url)}
               </a>
             </li>
           ))}
