@@ -265,12 +265,19 @@ export interface ChecklistItem {
 }
 
 /** ページ概要（構造化） */
+export interface OverviewCriticalFact {
+  item: string;
+  value: string;
+  reason: string;
+}
+
 export interface Overview {
   conclusion: string;
   targetAudience: string;
   purpose: string;
   topics: string[];
   cautions: string[];
+  criticalFacts?: OverviewCriticalFact[];
 }
 
 /** 適用されたパーソナライズ情報 */

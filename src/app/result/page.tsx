@@ -10,6 +10,7 @@ import { SourceReference } from '@/components/SourceReference';
 import { GoogleSearchAttribution } from '@/components/GoogleSearchAttribution';
 import { MangaViewer } from '@/components/MangaViewer';
 import { fetchHistoryDetail } from '@/lib/history-api';
+import type { ChatMessage } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -116,13 +117,6 @@ function ResultContent() {
     }
   }, [historyId, url, result, status, analyze]);
 
-  const intermediate = result?.intermediate;
-  const summaryText = result?.generatedSummary || intermediate?.summary || '';
-  const overview = result?.overview;
-  const intentAnswerLines = result?.intentAnswer
-    ? result.intentAnswer.split('\n').map((line) => line.trim()).filter(Boolean)
-    : [];
-
   useEffect(() => {
     if (!result?.id || handledResultIdRef.current === result.id) return;
     handledResultIdRef.current = result.id;
@@ -197,6 +191,12 @@ function ResultContent() {
     );
   }
 
+  const intermediate = result.intermediate;
+  const summaryText = result.generatedSummary || intermediate.summary || '';
+  const overview = result.overview;
+  const intentAnswerLines = result.intentAnswer
+    ? result.intentAnswer.split('\n').map((line) => line.trim()).filter(Boolean)
+    : [];
   const { checklist } = result;
 
   const handleSendDeepDive = async () => {
@@ -204,7 +204,10 @@ function ResultContent() {
     setDeepDiveError(null);
     setIsDeepDiveLoading(true);
 
-    const nextMessages = [...messages, { role: 'user', content: deepDiveInput.trim() }];
+    const nextMessages: ChatMessage[] = [
+      ...messages,
+      { role: 'user', content: deepDiveInput.trim() },
+    ];
     addMessage({ role: 'user', content: deepDiveInput.trim() });
     setDeepDiveInput('');
 
@@ -241,7 +244,7 @@ function ResultContent() {
         addMessage({ role: 'assistant', content: data.answer });
       }
 
-      const updatedMessages = data.answer
+      const updatedMessages: ChatMessage[] = data.answer
         ? [...nextMessages, { role: 'assistant', content: data.answer }]
         : nextMessages;
 

@@ -39,7 +39,7 @@ function loadPrompt(filename: string): string {
 }
 
 // プロンプトをキャッシュ（初回読み込み時のみファイルアクセス）
-let promptCache: Record<string, string> = {};
+const promptCache: Record<string, string> = {};
 
 function getPrompt(filename: string): string {
   if (!promptCache[filename]) {
@@ -385,7 +385,151 @@ export async function generateSimpleSummary(
 export async function generateOverview(
   intermediate: IntermediateRepresentation
 ): Promise<Overview | null> {
+  const normalizeSentence = (value: unknown, maxLength: number): string => {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    if (!normalized) {
+      return '';
+    }
+    return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}…` : normalized;
+  };
+
+  const normalizeList = (
+    value: unknown,
+    maxItems: number,
+    maxLengthPerItem: number
+  ): string[] => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const deduped = new Set<string>();
+    for (const item of value) {
+      const normalized = normalizeSentence(item, maxLengthPerItem);
+      if (normalized) {
+        deduped.add(normalized);
+      }
+    }
+
+    return Array.from(deduped).slice(0, maxItems);
+  };
+
+  const normalizeCriticalFacts = (
+    value: unknown,
+    maxItems: number
+  ): Array<{ item: string; value: string; reason: string }> => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const deduped = new Map<string, { item: string; value: string; reason: string }>();
+
+    for (const row of value) {
+      if (!row || typeof row !== 'object') {
+        continue;
+      }
+
+      const rowObject = row as Record<string, unknown>;
+      const item = normalizeSentence(rowObject.item, 40);
+      const rowValue = normalizeSentence(rowObject.value, 100);
+      const reason = normalizeSentence(rowObject.reason, 80);
+
+      if (!item || !rowValue) {
+        continue;
+      }
+
+      const key = `${item}:${rowValue}`;
+      if (!deduped.has(key)) {
+        deduped.set(key, {
+          item,
+          value: rowValue,
+          reason: reason || '見落とすと手続きの失敗につながるため',
+        });
+      }
+    }
+
+    return Array.from(deduped.values()).slice(0, maxItems);
+  };
+
+  const hasContactKeyword = (text: string): boolean =>
+    /(問い合わせ|連絡先|窓口|電話|相談|コールセンター|contact)/i.test(text);
+
+  const buildFallbackCriticalFacts = (): Array<{ item: string; value: string; reason: string }> => {
+    const fallbackFactTexts = [
+      ...(intermediate.keyPoints ?? []).map((point) => point.text),
+      ...(intermediate.procedure?.steps ?? []).map((step) => step.action),
+      ...(intermediate.importantDates ?? []).map((date) =>
+        date.date ? `${date.description}: ${date.date}` : date.description
+      ),
+      intermediate.benefits?.amount ? `支援額: ${intermediate.benefits.amount}` : '',
+      intermediate.procedure?.deadline ? `期限: ${intermediate.procedure.deadline}` : '',
+      ...(intermediate.warnings ?? []),
+    ].filter(Boolean);
+
+    const rows = fallbackFactTexts.map((text, index) => {
+      const sentence = normalizeSentence(text, 100);
+      const segments = sentence.split(/[:：]/);
+      const hasStructuredLabel = segments.length > 1 && segments[0].trim().length <= 18;
+      const item = hasStructuredLabel ? segments[0].trim() : `重要事項${index + 1}`;
+      const value = hasStructuredLabel ? segments.slice(1).join('：').trim() : sentence;
+      return {
+        item,
+        value,
+        reason: '見落とすと制度利用の判断や手続きに影響するため',
+      };
+    });
+
+    return normalizeCriticalFacts(rows, 5).filter(
+      (row) => !hasContactKeyword(`${row.item} ${row.value}`)
+    );
+  };
+
+  const buildFallbackOverview = (): Overview => {
+    const fallbackConclusion = normalizeSentence(
+      intermediate.summary || `${intermediate.title || 'このページ'}の内容を短く整理しました。`,
+      90
+    );
+    const fallbackTarget = normalizeSentence(
+      intermediate.target?.eligibility_summary ||
+        intermediate.target?.conditions?.[0] ||
+        '対象条件は本文で確認してください。',
+      90
+    );
+    const fallbackPurpose = normalizeSentence(
+      intermediate.benefits?.description ||
+        intermediate.summary ||
+        '制度の内容と手続き条件を確認するための案内です。',
+      90
+    );
+    const requiredDocCount = (intermediate.procedure?.required_documents ?? []).filter(Boolean).length;
+    const fallbackTopics = [
+      requiredDocCount > 0 ? `必要書類は${requiredDocCount}点あります。` : '',
+      intermediate.procedure?.deadline ? `期限は${intermediate.procedure.deadline}です。` : '',
+      ...(intermediate.keyPoints ?? []).map((point) => point.text),
+      ...(intermediate.procedure?.steps ?? []).map((step) => step.action),
+    ];
+    const fallbackCautions = [
+      ...(intermediate.warnings ?? []),
+      ...(intermediate.target?.exceptions ?? []),
+    ];
+    const fallbackCriticalFacts = buildFallbackCriticalFacts();
+
+    return {
+      conclusion: fallbackConclusion,
+      targetAudience: fallbackTarget,
+      purpose: fallbackPurpose,
+      topics: normalizeList(fallbackTopics, 5, 90),
+      cautions: normalizeList(fallbackCautions, 3, 90).filter(
+        (caution) => !hasContactKeyword(caution)
+      ),
+      criticalFacts: fallbackCriticalFacts,
+    };
+  };
+
   try {
+    const fallback = buildFallbackOverview();
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: [
@@ -402,18 +546,31 @@ export async function generateOverview(
     const text = extractText(result);
     const overview = parseJSON<Overview>(text);
     if (!overview) {
-      return null;
+      return fallback;
     }
+
+    const normalizedTopics = normalizeList(overview.topics, 5, 90);
+    const normalizedCautions = normalizeList(overview.cautions, 3, 90).filter(
+      (caution) => !hasContactKeyword(caution)
+    );
+    const normalizedCriticalFacts = normalizeCriticalFacts(overview.criticalFacts, 5).filter(
+      (row) => !hasContactKeyword(`${row.item} ${row.value}`)
+    );
+
     return {
-      conclusion: overview.conclusion || '',
-      targetAudience: overview.targetAudience || '',
-      purpose: overview.purpose || '',
-      topics: Array.isArray(overview.topics) ? overview.topics : [],
-      cautions: Array.isArray(overview.cautions) ? overview.cautions : [],
+      conclusion: normalizeSentence(overview.conclusion, 90) || fallback.conclusion,
+      targetAudience: normalizeSentence(overview.targetAudience, 90) || fallback.targetAudience,
+      purpose: normalizeSentence(overview.purpose, 90) || fallback.purpose,
+      topics: normalizedTopics.length > 0 ? normalizedTopics : fallback.topics,
+      cautions: normalizedCautions.length > 0 ? normalizedCautions : fallback.cautions,
+      criticalFacts:
+        normalizedCriticalFacts.length > 0
+          ? normalizedCriticalFacts
+          : (fallback.criticalFacts ?? []),
     };
   } catch (error) {
     console.error('Overview generation error:', error);
-    return null;
+    return buildFallbackOverview();
   }
 }
 
