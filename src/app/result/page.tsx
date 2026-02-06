@@ -119,6 +119,9 @@ function ResultContent() {
   const intermediate = result?.intermediate;
   const summaryText = result?.generatedSummary || intermediate?.summary || '';
   const overview = result?.overview;
+  const intentAnswerLines = result?.intentAnswer
+    ? result.intentAnswer.split('\n').map((line) => line.trim()).filter(Boolean)
+    : [];
 
   useEffect(() => {
     if (!result?.id || handledResultIdRef.current === result.id) return;
@@ -517,22 +520,49 @@ function ResultContent() {
 
       {/* 回答生成開始 */}
       {isGenerating && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xl" aria-hidden="true">
-              ✨
-            </span>
-            <h3 className="text-lg font-bold">回答</h3>
-          </div>
-          {!isIntentGenerating && result.intentAnswer ? (
-            <div className="mt-4 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
-              {result.intentAnswer}
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl" aria-hidden="true">
+                ✨
+              </span>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">回答</h3>
+                <p className="text-xs text-slate-500">いまやるべきことがひと目で分かる回答</p>
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-gray-500 mt-3">
-              回答を生成中です。しばらくお待ちください。
-            </p>
-          )}
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+              パーソナライズ
+            </span>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+            {!isIntentGenerating && result.intentAnswer ? (
+              <div className="space-y-3 text-sm text-slate-800 leading-relaxed">
+                {intentAnswerLines.length > 1 ? (
+                  <ul className="space-y-2">
+                    {intentAnswerLines.map((line, index) => (
+                      <li key={index} className="flex gap-2">
+                        <span className="mt-0.5 text-slate-400" aria-hidden="true">
+                          ▪︎
+                        </span>
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>{result.intentAnswer}</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-slate-500">回答を整えています。まもなく表示します。</p>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full w-1/3 animate-pulse rounded-full bg-slate-300" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
