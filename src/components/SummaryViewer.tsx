@@ -221,7 +221,7 @@ export function SummaryViewer({
           <section className="rounded-2xl border border-amber-200/80 bg-amber-50 p-5 shadow-[0_6px_18px_rgba(146,64,14,0.08)]">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
               <span aria-hidden="true">⚠️</span>
-              先に知っておく注意点
+              見落とすと困る注意点
             </h3>
             {compactCautions.length > 0 ? (
               <div className="mt-3 space-y-2">
