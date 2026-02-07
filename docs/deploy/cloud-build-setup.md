@@ -384,7 +384,7 @@ ERROR: failed to build: executing step 0: building image
 - ローカルで `docker build` が成功するか確認
 
 ```bash
-# メインアプリのビルド確認
+# メインアプリのビルド確認（クライアント側環境変数のみ必要）
 docker build \
   --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyC29gGNXK7v-mJdcUHRPu8oMDuFYmfeaVA \
   --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=zenn-ai-agent-hackathon-vol4.firebaseapp.com \
