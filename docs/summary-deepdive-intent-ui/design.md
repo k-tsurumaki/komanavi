@@ -73,6 +73,7 @@
 深掘りチャットのメッセージ管理:
 - メッセージが20件を超えると、古いメッセージを `summaryOnly: true` で要約しトリミング
 - 要約失敗時は全メッセージを保持（データ損失を防ぐ）
+- チャット吹き出しは `user` と `assistant` で視覚スタイルを分離（`user`: blue系, `assistant`: slate系）
 
 ### 4.2 ページ理解モード (`src/components/SummaryViewer.tsx`)
 
@@ -115,6 +116,7 @@ Props:
 | `failureRisks` | `IntentAnswerEntry[]` | 失敗リスク（最大2件） | amber |
 
 JSONパース戦略:
+（実装箇所: `src/lib/intent-answer-parser.ts`）
 1. `JSON.parse` を試行
 2. 失敗時は `extractJsonChunk` でコードフェンスを除去し、ネスト対応の括弧マッチングでJSON部分を抽出
 3. 各フィールドは `normalizeIntentEntry` で正規化（`text` のみ使用、欠損時は所定のフォールバック文言）
@@ -296,16 +298,7 @@ JSONパース戦略:
 - `history` / `result` / `intermediate` を同時返却
 - ユーザーIDと `historyId` の整合を検証
 
-## 10. 既知課題
-
-| # | 箇所 | 内容 | 影響 |
-|---|------|------|------|
-| 1 | `src/lib/gemini.ts` `extractText` | `parts[0].text` 固定 | 複数part返却時にテキスト欠落の余地 |
-| 2 | `src/app/api/analyze/route.ts` `buildPersonalizationInput` | `[DEBUG]` ログが3箇所残存 | 本番環境での情報漏洩リスク |
-| 3 | `src/app/result/page.tsx` チャット吹き出し | user/assistant が同一スタイル（`bg-slate-50`） | 視覚的区別がない |
-| 4 | `src/app/result/page.tsx` JSONパーサー群 | `extractJsonChunk` 等がページローカル定義 | 共通ユーティリティとして抽出可能 |
-
-## 11. 受け入れチェック項目
+## 10. 受け入れチェック項目
 
 1. `/result` でページ理解モードの主要ブロック（30秒で把握・だれ向け・実現できること・注意点）が表示される
 2. `このページの最重要ポイント` と `問い合わせ情報` はデータがある場合のみ表示される
