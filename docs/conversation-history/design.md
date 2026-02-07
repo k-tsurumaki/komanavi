@@ -43,6 +43,7 @@
 | updatedAt | Timestamp | ✅ | 更新日時（サーバ時刻） | POST/PATCH 時にサーバで `new Date()` を設定 |
 | checklist | ChecklistItem[] | ⭕️ | チェックリスト | POST `/api/history` のリクエストから取得 |
 | generatedSummary | string | ⭕️ | 生成要約 | POST `/api/history` のリクエストから取得 |
+| userIntent | string | ⭕️ | ユーザーの意図入力 | POST/PATCH `/api/history` のリクエストから取得 |
 | intentAnswer | string | ⭕️ | 意図ベース回答 | POST/PATCH `/api/history` のリクエストから取得 |
 | guidanceUnlocked | boolean | ⭕️ | 意図入力後のガイド表示フラグ | POST は `false`、PATCH で `true` に更新 |
 
@@ -80,6 +81,7 @@
 	- `historyId` (任意)
 	- `checklist` (任意)
 	- `generatedSummary` (任意)
+	- `userIntent` (任意)
 	- `intentAnswer` (任意)
 	- `guidanceUnlocked` (任意。未指定時は `false`)
 	- `intermediate` (任意)
@@ -100,6 +102,7 @@
 - 認証: 必須（未認証は 401）
 - リクエスト:
 	- `checklist` (任意)
+	- `userIntent` (任意)
 	- `intentAnswer` (任意)
 	- `guidanceUnlocked` (任意)
 	- ※ いずれか1つ以上必須
