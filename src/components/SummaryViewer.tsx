@@ -186,7 +186,10 @@ export function SummaryViewer({
         <p className="text-xs font-semibold text-slate-500">証跡URL</p>
         <ul className="mt-2 space-y-1.5">
           {urls.map((url, index) => (
-            <li key={`${blockId}-${index}`}>
+            <li key={`${blockId}-${index}`} className="flex items-start gap-2">
+              <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-500">
+                {index + 1}
+              </span>
               <a
                 href={url}
                 target="_blank"

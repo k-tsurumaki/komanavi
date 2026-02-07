@@ -89,27 +89,6 @@ function parseJson<T>(text: string): T | null {
   }
 }
 
-function normalizeEvidenceUrl(url: unknown): string {
-  if (typeof url !== 'string') {
-    return '';
-  }
-  const trimmed = url.trim();
-  if (!trimmed) {
-    return '';
-  }
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return '';
-    }
-    parsed.hash = '';
-    const normalized = parsed.toString();
-    return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
-  } catch {
-    return '';
-  }
-}
-
 function normalizeIntentText(value: unknown, fallback = '不明'): string {
   if (typeof value !== 'string') {
     return fallback;
@@ -420,66 +399,6 @@ function ResultContent() {
     .map((item) => item.text?.trim())
     .filter((text): text is string => Boolean(text));
 
-  const evidenceTitleByUrl = new Map<string, string>();
-  const registerEvidenceTitle = (url?: string, title?: string) => {
-    const normalized = normalizeEvidenceUrl(url);
-    if (!normalized) {
-      return;
-    }
-    const trimmedTitle = title?.trim();
-    if (trimmedTitle) {
-      evidenceTitleByUrl.set(normalized, trimmedTitle);
-      return;
-    }
-    if (!evidenceTitleByUrl.has(normalized)) {
-      try {
-        evidenceTitleByUrl.set(normalized, new URL(normalized).hostname.replace(/^www\./i, ''));
-      } catch {
-        evidenceTitleByUrl.set(normalized, normalized);
-      }
-    }
-  };
-
-  registerEvidenceTitle(intermediate.metadata.source_url, intermediate.metadata.page_title || intermediate.title);
-  for (const chunk of intermediate.metadata.groundingMetadata?.groundingChunks ?? []) {
-    registerEvidenceTitle(chunk.web?.uri, chunk.web?.title);
-  }
-  for (const relatedLink of intermediate.relatedLinks ?? []) {
-    registerEvidenceTitle(relatedLink.url, relatedLink.title);
-  }
-  registerEvidenceTitle(
-    intermediate.contact?.website,
-    intermediate.contact?.department ? `${intermediate.contact.department} の案内ページ` : undefined
-  );
-  const groundingChunks = intermediate.metadata.groundingMetadata?.groundingChunks ?? [];
-  const groundingSupports = intermediate.metadata.groundingMetadata?.groundingSupports ?? [];
-  const usedGroundingChunkIndices = new Set<number>();
-  for (const support of groundingSupports) {
-    for (const index of support.groundingChunkIndices ?? []) {
-      if (index >= 0 && index < groundingChunks.length) {
-        usedGroundingChunkIndices.add(index);
-      }
-    }
-  }
-  const groundingEvidenceUrls = Array.from(
-    new Set(
-      (
-        usedGroundingChunkIndices.size > 0
-          ? Array.from(usedGroundingChunkIndices).map((index) => groundingChunks[index]?.web?.uri)
-          : groundingChunks.map((chunk) => chunk.web?.uri)
-      )
-        .map((uri) => normalizeEvidenceUrl(uri))
-        .filter(Boolean)
-    )
-  );
-  const fallbackGroundingEvidenceUrls = Array.from(
-    new Set(groundingChunks.map((chunk) => normalizeEvidenceUrl(chunk.web?.uri)).filter(Boolean))
-  );
-  const answerEvidenceUrls =
-    groundingEvidenceUrls.length > 0 ? groundingEvidenceUrls : fallbackGroundingEvidenceUrls;
-  const isAnswerEvidenceFallback =
-    groundingEvidenceUrls.length === 0 && fallbackGroundingEvidenceUrls.length > 0;
-
   const handleSendDeepDive = async () => {
     if (!deepDiveInput.trim() || isDeepDiveLoading) return;
     setDeepDiveError(null);
@@ -643,37 +562,6 @@ function ResultContent() {
       <p className="mt-2 text-sm leading-relaxed text-slate-900">{entry.text}</p>
     </section>
   );
-
-  const renderAnswerEvidenceSection = (keyPrefix: string) => {
-    if (answerEvidenceUrls.length === 0) {
-      return null;
-    }
-    return (
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h4 className="text-sm font-semibold text-slate-700">この回答の根拠</h4>
-        {isAnswerEvidenceFallback && (
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            本文との直接ひも付けが取れないため、検索で参照した情報源を表示しています。
-          </p>
-        )}
-        <ul className="mt-3 space-y-1.5">
-          {answerEvidenceUrls.map((evidenceUrl, index) => (
-            <li key={`${keyPrefix}-${index}`}>
-              <a
-                href={evidenceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-900"
-              >
-                {evidenceTitleByUrl.get(evidenceUrl) || evidenceUrl}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-    );
-  };
-
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -912,8 +800,6 @@ function ResultContent() {
                     {structuredIntentAnswer.headline}
                   </p>
 
-                  {renderAnswerEvidenceSection('answer-evidence')}
-
                   {renderAnswerEntryCard(
                     'あなたは対象になりそうですか？',
                     structuredIntentAnswer.finalJudgment,
@@ -938,7 +824,6 @@ function ResultContent() {
                 </div>
               ) : (
                 <div className="space-y-3 text-sm text-slate-800 leading-relaxed">
-                  {renderAnswerEvidenceSection('answer-evidence-fallback')}
                   {rawIntentAnswerLines.length > 1 ? (
                     <ul className="space-y-2">
                       {rawIntentAnswerLines.map((line, index) => (

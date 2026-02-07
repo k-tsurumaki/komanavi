@@ -222,10 +222,8 @@
 
 ### 9.3 意図回答の証跡 (`result/page.tsx`)
 
-- 優先: `groundingSupports[].groundingChunkIndices` で本文に使われた chunk URL
-- フォールバック: `groundingChunks[].web.uri` 全体
-- ラベル: `この回答の根拠`
-- フォールバック時は「本文との直接ひも付けなし」の注記を表示
+- 意図回答カード内には証跡URLを表示しない
+- 根拠情報は下部の `GoogleSearchAttribution` / `SourceReference` に集約
 
 ## 10. 履歴保存・復元
 
@@ -248,10 +246,7 @@
 1. `src/lib/gemini.ts` の `extractText` が `parts[0].text` 固定
 - 複数part返却時にテキスト欠落の余地あり
 
-2. 根拠表示の役割重複
-- 画面内の「この回答の根拠」と `GoogleSearchAttribution` は一部重複
-
-3. Debugログの残存
+2. Debugログの残存
 - `src/lib/gemini.ts`, `src/app/api/analyze/route.ts` にデバッグログが残る
 
 ## 12. 受け入れチェック項目
@@ -259,5 +254,5 @@
 1. `/result` でページ理解モード6ブロックが表示される
 2. 深掘り送信で `mode: deepDive` が呼ばれ、回答と要約が更新される
 3. 意図確定で `mode: intent` が呼ばれ、構造化回答カードが表示される
-4. 回答根拠は supports 優先、supports 不在時のみ chunks フォールバックで表示される
+4. 意図回答カード内に証跡URLが表示されない
 5. 意図確定後にチェックリスト・漫画・Google検索引用・出典が表示される
