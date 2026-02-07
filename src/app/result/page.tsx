@@ -13,6 +13,189 @@ import { fetchHistoryDetail } from '@/lib/history-api';
 import type { ChatMessage, IntentAnswerResponse } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
+interface IntentAnswerEntry {
+  text: string;
+  evidenceUrls: string[];
+}
+
+interface StructuredIntentAnswer {
+  headline: string;
+  finalJudgment: IntentAnswerEntry;
+  firstPriorityAction: IntentAnswerEntry;
+  failureRisks: IntentAnswerEntry[];
+}
+
+function extractJsonChunk(text: string): string | null {
+  const cleaned = text
+    .replace(/```json\n?/g, '')
+    .replace(/```\n?/g, '')
+    .trim();
+  const startIndex = cleaned.search(/[\[{]/);
+  if (startIndex === -1) {
+    return null;
+  }
+  const openChar = cleaned[startIndex];
+  const closeChar = openChar === '{' ? '}' : ']';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = startIndex; i < cleaned.length; i += 1) {
+    const char = cleaned[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (char === openChar) {
+      depth += 1;
+      continue;
+    }
+    if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return cleaned.slice(startIndex, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+function parseJson<T>(text: string): T | null {
+  try {
+    const cleaned = text
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+    return JSON.parse(cleaned) as T;
+  } catch {
+    const extracted = extractJsonChunk(text);
+    if (!extracted) {
+      return null;
+    }
+    try {
+      return JSON.parse(extracted) as T;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function normalizeEvidenceUrl(url: unknown): string {
+  if (typeof url !== 'string') {
+    return '';
+  }
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return '';
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return '';
+    }
+    parsed.hash = '';
+    const normalized = parsed.toString();
+    return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+  } catch {
+    return '';
+  }
+}
+
+function normalizeEvidenceUrls(value: unknown, limit: number): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const deduped = new Set<string>();
+  for (const item of value) {
+    const normalized = normalizeEvidenceUrl(item);
+    if (!normalized || deduped.has(normalized)) {
+      continue;
+    }
+    deduped.add(normalized);
+    if (deduped.size >= limit) {
+      break;
+    }
+  }
+  return Array.from(deduped);
+}
+
+function normalizeIntentText(value: unknown, fallback = '不明'): string {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized || fallback;
+}
+
+function normalizeIntentEntry(value: unknown, fallbackText = '不明'): IntentAnswerEntry {
+  if (typeof value === 'string') {
+    return {
+      text: normalizeIntentText(value, fallbackText),
+      evidenceUrls: [],
+    };
+  }
+  if (!value || typeof value !== 'object') {
+    return {
+      text: fallbackText,
+      evidenceUrls: [],
+    };
+  }
+  const objectValue = value as Record<string, unknown>;
+  return {
+    text: normalizeIntentText(objectValue.text, fallbackText),
+    evidenceUrls: normalizeEvidenceUrls(objectValue.evidenceUrls, 3),
+  };
+}
+
+function normalizeIntentEntryList(value: unknown, fallbackText: string): IntentAnswerEntry[] {
+  if (!Array.isArray(value)) {
+    return [normalizeIntentEntry(null, fallbackText)];
+  }
+  const entries = value
+    .map((item) => normalizeIntentEntry(item, fallbackText))
+    .filter((entry, index, self) => self.findIndex((current) => current.text === entry.text) === index)
+    .slice(0, 5);
+  return entries.length > 0 ? entries : [normalizeIntentEntry(null, fallbackText)];
+}
+
+function parseStructuredIntentAnswer(rawText?: string): StructuredIntentAnswer | null {
+  if (!rawText) {
+    return null;
+  }
+  const parsed = parseJson<Record<string, unknown>>(rawText);
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const core = (parsed.core && typeof parsed.core === 'object'
+    ? parsed.core
+    : parsed) as Record<string, unknown>;
+
+  return {
+    headline: normalizeIntentText(parsed.headline, 'あなた向けの回答'),
+    finalJudgment: normalizeIntentEntry(
+      core.finalJudgment ?? core.targetJudgment ?? core.targetAudienceDecision,
+      '対象かどうかの判断材料は不明'
+    ),
+    firstPriorityAction: normalizeIntentEntry(
+      core.firstPriorityAction ?? core.firstAction,
+      '最優先の1手は不明'
+    ),
+    failureRisks: normalizeIntentEntryList(core.failureRisks ?? core.cautions, '失敗リスクは不明')
+      .slice(0, 2),
+  };
+}
+
 function ResultContent() {
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
@@ -204,10 +387,81 @@ function ResultContent() {
   const intermediate = result.intermediate;
   const summaryText = result.generatedSummary || intermediate.summary || '';
   const overview = result.overview;
-  const intentAnswerLines = result.intentAnswer
+  const structuredIntentAnswer = parseStructuredIntentAnswer(result.intentAnswer);
+  const rawIntentAnswerLines = result.intentAnswer
     ? result.intentAnswer.split('\n').map((line) => line.trim()).filter(Boolean)
     : [];
   const { checklist } = result;
+  const overviewTexts = [
+    overview?.conclusion,
+    overview?.targetAudience,
+    ...(overview?.topics ?? []),
+    ...(overview?.cautions ?? []),
+    ...(overview?.criticalFacts ?? []).map((fact) => `${fact.item}: ${fact.value}`),
+  ].filter((text): text is string => typeof text === 'string' && text.trim().length > 0);
+  const checklistTexts = checklist
+    .map((item) => item.text?.trim())
+    .filter((text): text is string => Boolean(text));
+
+  const evidenceTitleByUrl = new Map<string, string>();
+  const registerEvidenceTitle = (url?: string, title?: string) => {
+    const normalized = normalizeEvidenceUrl(url);
+    if (!normalized) {
+      return;
+    }
+    const trimmedTitle = title?.trim();
+    if (trimmedTitle) {
+      evidenceTitleByUrl.set(normalized, trimmedTitle);
+      return;
+    }
+    if (!evidenceTitleByUrl.has(normalized)) {
+      try {
+        evidenceTitleByUrl.set(normalized, new URL(normalized).hostname.replace(/^www\./i, ''));
+      } catch {
+        evidenceTitleByUrl.set(normalized, normalized);
+      }
+    }
+  };
+
+  registerEvidenceTitle(intermediate.metadata.source_url, intermediate.metadata.page_title || intermediate.title);
+  for (const chunk of intermediate.metadata.groundingMetadata?.groundingChunks ?? []) {
+    registerEvidenceTitle(chunk.web?.uri, chunk.web?.title);
+  }
+  for (const relatedLink of intermediate.relatedLinks ?? []) {
+    registerEvidenceTitle(relatedLink.url, relatedLink.title);
+  }
+  registerEvidenceTitle(
+    intermediate.contact?.website,
+    intermediate.contact?.department ? `${intermediate.contact.department} の案内ページ` : undefined
+  );
+  const groundingChunks = intermediate.metadata.groundingMetadata?.groundingChunks ?? [];
+  const groundingSupports = intermediate.metadata.groundingMetadata?.groundingSupports ?? [];
+  const usedGroundingChunkIndices = new Set<number>();
+  for (const support of groundingSupports) {
+    for (const index of support.groundingChunkIndices ?? []) {
+      if (index >= 0 && index < groundingChunks.length) {
+        usedGroundingChunkIndices.add(index);
+      }
+    }
+  }
+  const groundingEvidenceUrls = Array.from(
+    new Set(
+      (
+        usedGroundingChunkIndices.size > 0
+          ? Array.from(usedGroundingChunkIndices).map((index) => groundingChunks[index]?.web?.uri)
+          : groundingChunks.map((chunk) => chunk.web?.uri)
+      )
+        .map((uri) => normalizeEvidenceUrl(uri))
+        .filter(Boolean)
+    )
+  );
+  const fallbackGroundingEvidenceUrls = Array.from(
+    new Set(groundingChunks.map((chunk) => normalizeEvidenceUrl(chunk.web?.uri)).filter(Boolean))
+  );
+  const answerEvidenceUrls =
+    groundingEvidenceUrls.length > 0 ? groundingEvidenceUrls : fallbackGroundingEvidenceUrls;
+  const isAnswerEvidenceFallback =
+    groundingEvidenceUrls.length === 0 && fallbackGroundingEvidenceUrls.length > 0;
 
   const handleSendDeepDive = async () => {
     if (!deepDiveInput.trim() || isDeepDiveLoading) return;
@@ -340,6 +594,8 @@ function ResultContent() {
           messages,
           focus: focus || undefined,
           deepDiveSummary: deepDiveSummary || undefined,
+          overviewTexts,
+          checklistTexts,
         }),
       });
 
@@ -361,6 +617,47 @@ function ResultContent() {
       setIsGenerating(hadIntentAnswer);
       setIsIntentLocked(false);
     }
+  };
+
+  const renderAnswerEntryCard = (
+    title: string,
+    entry: IntentAnswerEntry,
+    toneClassName = 'border-slate-200 bg-white'
+  ) => (
+    <section className={`rounded-xl border p-4 ${toneClassName}`}>
+      <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
+      <p className="mt-2 text-sm leading-relaxed text-slate-900">{entry.text}</p>
+    </section>
+  );
+
+  const renderAnswerEvidenceSection = (keyPrefix: string) => {
+    if (answerEvidenceUrls.length === 0) {
+      return null;
+    }
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <h4 className="text-sm font-semibold text-slate-700">この回答の根拠</h4>
+        {isAnswerEvidenceFallback && (
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            本文との直接ひも付けが取れないため、検索で参照した情報源を表示しています。
+          </p>
+        )}
+        <ul className="mt-3 space-y-1.5">
+          {answerEvidenceUrls.map((evidenceUrl, index) => (
+            <li key={`${keyPrefix}-${index}`}>
+              <a
+                href={evidenceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-900"
+              >
+                {evidenceTitleByUrl.get(evidenceUrl) || evidenceUrl}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
   };
 
 
@@ -595,25 +892,58 @@ function ResultContent() {
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
             {!isIntentGenerating && result.intentAnswer ? (
-              <div className="space-y-3 text-sm text-slate-800 leading-relaxed">
-                {intentAnswerLines.length > 1 ? (
-                  <ul className="space-y-2">
-                    {intentAnswerLines.map((line, index) => (
-                      <li key={index} className="flex gap-2">
-                        <span className="mt-0.5 text-slate-400" aria-hidden="true">
-                          ▪︎
-                        </span>
-                        <span>{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>{result.intentAnswer}</p>
-                )}
-              </div>
+              structuredIntentAnswer ? (
+                <div className="space-y-4">
+                  <p className="text-sm font-semibold leading-relaxed text-slate-900">
+                    {structuredIntentAnswer.headline}
+                  </p>
+
+                  {renderAnswerEvidenceSection('answer-evidence')}
+
+                  {renderAnswerEntryCard(
+                    'あなたは対象になりそうですか？',
+                    structuredIntentAnswer.finalJudgment,
+                    'border-sky-200 bg-sky-50/70'
+                  )}
+                  {renderAnswerEntryCard(
+                    '最優先の1手',
+                    structuredIntentAnswer.firstPriorityAction,
+                    'border-emerald-200 bg-emerald-50/60'
+                  )}
+
+                  <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                    <h4 className="text-sm font-semibold text-amber-900">見落とすと申請で困るポイント</h4>
+                    <ul className="mt-3 space-y-2">
+                      {structuredIntentAnswer.failureRisks.map((risk, index) => (
+                        <li key={`failure-risk-${index}`} className="rounded-lg border border-amber-200 bg-white px-3 py-2">
+                          <p className="text-sm leading-relaxed text-slate-900">{risk.text}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </div>
+              ) : (
+                <div className="space-y-3 text-sm text-slate-800 leading-relaxed">
+                  {renderAnswerEvidenceSection('answer-evidence-fallback')}
+                  {rawIntentAnswerLines.length > 1 ? (
+                    <ul className="space-y-2">
+                      {rawIntentAnswerLines.map((line, index) => (
+                        <li key={index} className="flex gap-2">
+                          <span className="mt-0.5 text-slate-400" aria-hidden="true">
+                            ▪︎
+                          </span>
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>{result.intentAnswer}</p>
+                  )}
+                </div>
+              )
             ) : (
               <div className="space-y-2">
-                <p className="text-sm text-slate-500">回答を整えています。まもなく表示します。</p>
+                <p className="text-sm text-slate-500">あなた向けの回答を作成しています。まもなくご確認いただけます。</p>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full w-1/3 animate-pulse rounded-full bg-slate-300" />
                 </div>

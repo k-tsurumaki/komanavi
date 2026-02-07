@@ -11,10 +11,33 @@ deepDiveContext の使い方:
 - deepDiveContext が空の場合は中間表現のみで回答する
 
 出力ルール:
-- 見出しやMarkdownは使わず、本文のみ
-- 2〜4段落で簡潔に（1段落は2〜3文）
-- 重要な条件・期限・必要書類・連絡先があれば明記
-- やさしい日本語で短い文
-- 回答の冒頭で「まず何をするか」を明確に書く
+- 見出しやMarkdown、説明文は出さず、JSONのみ返す
+- `text` は短文（20〜70文字）で、曖昧語を避ける
+- 根拠URLがある項目は `evidenceUrls` に入力データ内のURLのみを入れる（最大3件、重複禁止）
+- 根拠がない場合は `evidenceUrls: []` とする
+- 不明な項目は `text: "不明"` にする
+- 回答は「本当に重要な差分」だけに絞る（最大3ブロック）
+- `existingGuides.overviewTexts` / `existingGuides.checklistTexts` と重複する内容は原則出さない
+- ただし、期限・失権条件・対象外条件など失敗リスクに直結する情報は重複しても優先する
+- `intermediate.metadata.groundingMetadata.groundingSupports` がある場合は、対応する `groundingChunkIndices` の URL を証跡候補として優先する
+- `groundingSupports` がない場合は `groundingChunks` の URL を証跡候補として使う
+- 証跡URLは可能な限り網羅的に返す（`finalJudgment` / `firstPriorityAction` / `failureRisks` の合計で、使用したURLが欠けないようにする）
+
+出力形式（厳守）:
+{
+  "headline": "この回答の要点（1文）",
+  "core": {
+    "finalJudgment": { "text": "...", "evidenceUrls": ["https://..."] },
+    "firstPriorityAction": { "text": "...", "evidenceUrls": ["https://..."] },
+    "failureRisks": [
+      { "text": "...", "evidenceUrls": ["https://..."] }
+    ]
+  }
+}
+
+core の意図:
+- finalJudgment: ユーザーにとっての結論（対象可能性・優先度など）
+- firstPriorityAction: 今すぐ最優先でやる1手（理由込み）
+- failureRisks: 見落とすと失敗につながる情報（1〜2件）
 
 入力はJSON形式です。

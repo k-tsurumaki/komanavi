@@ -102,6 +102,23 @@ function extractGroundingMetadata(response: GenerateContentResponse): GroundingM
     groundingChunks: gm.groundingChunks?.map((chunk: { web?: { uri: string; title: string } }) => ({
       web: chunk.web ? { uri: chunk.web.uri, title: chunk.web.title } : undefined,
     })),
+    groundingSupports: gm.groundingSupports?.map(
+      (support: {
+        segment?: { startIndex?: number; endIndex?: number; text?: string };
+        groundingChunkIndices?: number[];
+      }) => ({
+        segment: support.segment
+          ? {
+              startIndex: support.segment.startIndex,
+              endIndex: support.segment.endIndex,
+              text: support.segment.text,
+            }
+          : undefined,
+        groundingChunkIndices: Array.isArray(support.groundingChunkIndices)
+          ? support.groundingChunkIndices.filter((index: unknown): index is number => typeof index === 'number')
+          : undefined,
+      })
+    ),
     searchEntryPoint: gm.searchEntryPoint
       ? { renderedContent: gm.searchEntryPoint.renderedContent }
       : undefined,
@@ -705,6 +722,8 @@ export async function generateIntentAnswer(
     deepDiveSummary?: string;
     focus?: string;
     messages?: ChatMessage[];
+    overviewTexts?: string[];
+    checklistTexts?: string[];
   }
 ): Promise<string> {
   const personalizationContext = buildPersonalizationContext(personalization);
@@ -716,6 +735,10 @@ export async function generateIntentAnswer(
         deepDiveSummary: context?.deepDiveSummary || '',
         focus: context?.focus || '',
         messages: context?.messages ?? [],
+      },
+      existingGuides: {
+        overviewTexts: context?.overviewTexts ?? [],
+        checklistTexts: context?.checklistTexts ?? [],
       },
     },
     null,

@@ -150,6 +150,8 @@ export async function POST(request: NextRequest) {
           deepDiveSummary: body.deepDiveSummary,
           focus: body.focus,
           messages: body.messages || [],
+          overviewTexts: body.overviewTexts || [],
+          checklistTexts: body.checklistTexts || [],
         }
       );
 

@@ -189,10 +189,21 @@ export interface GroundingChunk {
   };
 }
 
+/** グラウンディングサポート（本文とチャンクの紐付け） */
+export interface GroundingSupport {
+  segment?: {
+    startIndex?: number;
+    endIndex?: number;
+    text?: string;
+  };
+  groundingChunkIndices?: number[];
+}
+
 /** グラウンディングメタデータ */
 export interface GroundingMetadata {
   webSearchQueries?: string[];
   groundingChunks?: GroundingChunk[];
+  groundingSupports?: GroundingSupport[];
   searchEntryPoint?: {
     renderedContent: string;
   };
@@ -334,6 +345,8 @@ export interface IntentAnswerRequest {
   messages?: ChatMessage[];
   focus?: string;
   deepDiveSummary?: string;
+  overviewTexts?: string[];
+  checklistTexts?: string[];
 }
 
 /** 深掘りレスポンス */
