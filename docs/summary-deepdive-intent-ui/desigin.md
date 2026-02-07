@@ -1,14 +1,33 @@
 # ページ理解モード・深掘りチャット・意図入力 実装設計書
 
-## 1. 文書の目的
-- `feature/summary-deepdive-intent-ui` ブランチで実装した「1分でわかる！平易化されたWebページ」「深掘りチャット」「意図入力」機能を、実装準拠で整理する。
-- 基準差分は `dev..feature/summary-deepdive-intent-ui` とする。
-- 併せて、ローカル未コミット変更（回答根拠ロジック・意図回答JSON化など）も反映した現時点仕様を記載する。
+## 1. この設計書の目的
+この文書は、`feature/summary-deepdive-intent-ui` ブランチの実装内容を、レビューしやすい形で整理したものです。
 
-## 2. 差分サマリ（dev基準）
+- 差分基準: `dev..feature/summary-deepdive-intent-ui`
+- 対象機能: 「1分でわかる！平易化されたWebページ」「深掘りチャット」「意図入力」
+- 補足: ローカル未コミット変更（意図回答JSON化、根拠URL表示改善など）も現時点仕様として反映
 
-### 2.1 対象ファイル
-- `docs/summary-deepdive-intent-ui/desigin.md`
+## 2. 先に押さえる要点（TL;DR）
+
+1. URL解析後の第一画面を「ページ理解モード」に再設計した。
+2. 深掘りチャットと意図入力を同一カードで切替できるようにした。
+3. `/api/analyze` を mode 分岐（default / deepDive / intent）に拡張した。
+4. `overview` と `intentAnswer` を `AnalyzeResult` に統合した。
+5. 根拠URLは `groundingSupports` 優先、なければ `groundingChunks` でフォールバックする方針にした。
+
+## 3. レビューの進め方（推奨）
+
+1. 画面仕様: `src/components/SummaryViewer.tsx` と `src/app/result/page.tsx`
+2. API契約: `src/lib/types/intermediate.ts` と `src/app/api/analyze/route.ts`
+3. 生成仕様: `src/lib/gemini.ts` と `prompts/*.txt`
+4. 状態・保存: `src/stores/analyzeStore.ts` と `src/lib/history-api.ts` / `src/app/api/history/route.ts`
+
+## 4. 差分概要（dev基準）
+
+- 変更ファイル数: 15
+- 追加/削除: +1911 / -258
+
+主な対象ファイル:
 - `prompts/deep-dive.txt`
 - `prompts/intent-answer.txt`
 - `prompts/intermediate.txt`
@@ -24,226 +43,162 @@
 - `src/lib/types/intermediate.ts`
 - `src/stores/analyzeStore.ts`
 
-### 2.2 差分規模
-- 15 files changed
-- 1911 insertions / 258 deletions
+## 5. プロダクト要件（実装上の到達点）
 
-## 3. 実装ゴールと非ゴール
+### 5.1 ゴール
+- 長文で複雑な行政ページを、短時間で理解できること。
+- 理解不足の論点をその場で深掘りし、疑問を解消できること。
+- 最後に利用者の目的を確定し、個別化された回答へ接続できること。
 
-### 3.1 ゴール
-- 長文で難解な行政ページを、短時間で「理解→確認→次行動」に接続する。
-- URL投入後の第一画面を、判断に必要な情報へ圧縮した「ページ理解モード」に再設計する。
-- 理解不足が残る論点は「深掘りチャット」で解消する。
-- 利用者の目的は「意図入力」で確定し、個別回答へ接続する。
+### 5.2 非ゴール
+- 画面内チャット履歴の永続化。
+- 意図入力の候補サジェスト。
+- 本文トークン単位のインライン引用UI。
 
-### 3.2 非ゴール
-- 画面内のチャット履歴を永続化すること（履歴保存対象は解析結果中心）。
-- 意図入力時の候補提案やサジェスト補完。
-- すべての生成結果に対する厳密な引用スパンUI（本文トークン単位のインライン引用）。
+## 6. 全体フロー
 
-## 4. 全体アーキテクチャ
+1. `/analyze` でURLを入力する。
+2. `/api/analyze` default mode で中間表現・overview・checklistを生成する。
+3. `/result` でページ理解モードを表示する。
+4. 同一画面で深掘りチャットを行う。
+5. 意図入力を確定し、`mode: intent` で回答を生成する。
+6. 意図確定後にチェックリスト、漫画、検索引用、根拠情報を表示する。
 
-### 4.1 処理フロー
-1. `/analyze` でURLを入力し、`/api/analyze` default mode を実行。
-2. Google Search Groundingで取得した情報を中間表現化し、`overview` と `checklist` を生成。
-3. `/result` で `SummaryViewer` を中心としたページ理解UIを表示。
-4. ユーザーは同一画面の「深掘り / 意図入力」タブで対話を進める。
-5. 意図確定後に `mode: intent` を呼び、意図回答を表示。
-6. 意図確定後のみチェックリスト・漫画・検索引用・根拠を追加表示。
+## 7. フロントエンド設計
 
-### 4.2 システム責務
-- `src/app/result/page.tsx`: 画面状態遷移、深掘り送信、意図確定、回答表示制御。
-- `src/components/SummaryViewer.tsx`: ページ理解モードの可視化（主要ブロックと証跡表示）。
-- `src/app/api/analyze/route.ts`: mode分岐とオーケストレーション。
-- `src/lib/gemini.ts`: 各生成処理（intermediate / overview / deepDive / intent）と正規化。
-- `src/stores/analyzeStore.ts`: 解析・チャット・意図のクライアント状態管理。
+### 7.1 Resultページ（`src/app/result/page.tsx`）
+- 上段: `SummaryViewer`（ページ理解モード）
+- 中段: 深掘り/意図入力の切替カード
+- 下段: 意図回答カード（生成中表示あり）
+- 後段: チェックリスト、漫画、Google検索引用、根拠表示
 
-## 5. データモデル設計
+主なUI状態:
+- URLのみで `/result` 到達時は自動解析しない。手動ボタンで解析開始。
+- 意図再生成中は全体ローディングへ戻さず、画面を維持する。
+- 意図入力はロック制御し、編集ボタンで再入力可能にする。
 
-### 5.1 `Overview` の導入
-- `src/lib/types/intermediate.ts` に以下を追加:
-- `OverviewCriticalFact { item, value, reason }`
-- `OverviewBlockId`
-- `OverviewEvidenceByBlock`
-- `Overview`
-
-### 5.2 `AnalyzeResult` の拡張
-- `intentAnswer?: string`
-- `overview?: Overview`
-
-### 5.3 API mode別型の追加
-- `DeepDiveRequest` / `DeepDiveResponse`
-- `IntentAnswerRequest` / `IntentAnswerResponse`
-- `AnalyzeRequest` を union type 化（default/deepDive/intent）
-
-### 5.4 Groundingメタデータ拡張
-- `GroundingSupport` を追加。
-- `GroundingMetadata.groundingSupports?: GroundingSupport[]` を保持。
-- `groundingSupports` を使って回答根拠URLを本文利用分へ寄せる設計に対応。
-
-### 5.5 意図回答重複抑制の入力
-- `IntentAnswerRequest` に `overviewTexts?: string[]` / `checklistTexts?: string[]` を追加。
-- 既存ガイド文との重複を避けるため、LLM入力へ渡す。
-
-## 6. API設計（`/api/analyze`）
-
-### 6.1 default mode
-- 入力: `url`, optional `userIntent`
-- 実行順:
-- `fetchWithGoogleSearch`
-- `generateIntermediateRepresentation`
-- `generateChecklist`
-- `generateSimpleSummary`
-- `generateOverview`
-- optional `generateIntentAnswer`
-- 出力: `AnalyzeResult`
-
-### 6.2 `mode: deepDive`
-- 入力: `summary`, `messages`, `focus`, `deepDiveSummary`, `summaryOnly`
-- 実装: `generateDeepDiveResponse`
-- 出力: `{ status, answer, summary }`
-
-### 6.3 `mode: intent`
-- 入力: `userIntent`, `intermediate`, `messages`, `focus`, `deepDiveSummary`, `overviewTexts`, `checklistTexts`
-- 実装: `generateIntentAnswer`
-- 出力: `{ status, intentAnswer }`
-
-### 6.4 エラー処理
-- modeごとに入力バリデーションを実施し、400/500を返却。
-- 認証情報が取得できない場合でも、パーソナライズなしで継続可能。
-
-## 7. LLMプロンプト設計
-
-### 7.1 `prompts/overview.txt`
-- 目的: 1分理解向けの構造化概要生成。
-- 出力はJSON固定。
-- `criticalFacts` は柔軟な項目名で3〜5件。
-- `evidenceByBlock` は入力内URLのみ、0〜3件/ブロック。
-- 問い合わせ情報は `criticalFacts` / `cautions` から除外。
-
-### 7.2 `prompts/deep-dive.txt`
-- 入力文脈: summary + deepDiveSummary + focus + messages。
-- 出力: `{ answer, summary }` のJSON固定。
-- `summaryOnly=true` 時は `answer` を空にできる設計。
-
-### 7.3 `prompts/intent-answer.txt`（現時点仕様）
-- 出力はJSON固定。
-- `headline` + `core.finalJudgment` + `core.firstPriorityAction` + `core.failureRisks`。
-- `text` は20〜70文字の短文。
-- 証跡URLは `groundingSupports` 優先、なければ `groundingChunks`。
-- `existingGuides`（overview/checklist）との重複は原則回避。
-
-### 7.4 `prompts/intermediate.txt` / `prompts/simple-summary.txt`
-- intermediate の title を「短く意味が通る表現」に強化。
-- simple-summary は見出し順序・箇条書き固定の出力制約を追加。
-
-## 8. フロントエンドUI設計
-
-## 8.1 結果ページ全体（`src/app/result/page.tsx`）
-- 上部: ページ見出し + `SummaryViewer`。
-- 中段: 深掘り/意図入力を切替可能な統合カード。
-- 下段: 意図確定後に回答カードを表示。
-- さらに下段: チェックリスト、漫画、Google検索引用、根拠を表示。
-
-## 8.2 ローディングと遷移
-- URLのみで `/result` に来た場合は自動解析しない。
-- 「このURLを解析する」ボタンで明示実行。
-- 意図再生成中は画面を維持し、全体ローディング画面へ戻さない。
-
-## 8.3 深掘りチャットUI
-- メッセージ列を `messages` で保持。
-- 送信時は optimistic に user message を追加。
-- 失敗時はエラーバナーを表示。
-- 20件超過時は overflow分を `summaryOnly` で要約して圧縮。
-
-## 8.4 意図入力UI
-- `isIntentLocked` により再送防止。
-- 編集ボタンでロック解除可能。
-- 入力確定後に `isGenerating=true` へ遷移。
-
-## 8.5 意図回答UI（現時点）
-- LLMのJSON回答を `parseStructuredIntentAnswer` でパース。
-- 表示ブロック:
-- headline
-- 「あなたは対象になりそうですか？」
-- 「最優先の1手」
-- 「見落とすと申請で困るポイント」
-- ローディング文言:
-- `あなた向けの回答を作成しています。まもなくご確認いただけます。`
-- JSONパース失敗時はプレーンテキスト表示へフォールバック。
-
-## 8.6 ページ理解モード（`SummaryViewer`）
-- 表示ブロック:
+### 7.2 ページ理解モード（`src/components/SummaryViewer.tsx`）
+表示ブロック:
 - `30秒で把握`
 - `だれ向けの情報か`
 - `このページで実現できること`
-- `このページの最重要ポイント`（3列テーブル）
+- `このページの最重要ポイント`（表形式）
 - `見落とすと困る注意点`
-- `問い合わせ情報`（別ブロック）
-- 旧詳細UIは `hideDetails` で非表示化可能。
+- `問い合わせ情報`（注意点から分離）
 
-## 9. 証跡URL設計
+### 7.3 意図回答表示
+- JSON形式の回答をパースしてカード表示する。
+- 構成: `headline` / `最終判断` / `最優先の1手` / `失敗リスク`
+- パース失敗時はテキスト表示へフォールバックする。
+- 生成中文言: `あなた向けの回答を作成しています。まもなくご確認いただけます。`
 
-### 9.1 共通正規化
-- HTTP/HTTPSのみ許可。
-- hash除去。
-- 末尾スラッシュ正規化。
-- タイトル未取得時は hostname を表示名に利用。
+## 8. API設計（`/api/analyze`）
 
-### 9.2 SummaryViewerの証跡
-- `overview.evidenceByBlock` を優先。
-- 不足時は許可URLプールからブロック別フォールバックを構築。
-- `source_url` のみになるケースを避け、可能なら周辺URLを優先。
+### 8.1 default mode
+- 入力: `url`, optional `userIntent`
+- 処理: `fetchWithGoogleSearch` -> `generateIntermediateRepresentation` -> `generateChecklist` -> `generateSimpleSummary` -> `generateOverview` -> optional `generateIntentAnswer`
+- 出力: `AnalyzeResult`
 
-### 9.3 意図回答の証跡（現時点）
-- まず `groundingSupports -> groundingChunkIndices -> groundingChunks` を採用。
-- supportsが取れない場合のみ `groundingChunks` 全体へフォールバック。
-- ラベルは `この回答の根拠`。
-- フォールバック時は「本文との直接ひも付けなし」の注記を表示。
-- LLMが返した `evidenceUrls` はUI直接表示の主ソースにせず、grounding由来を優先。
+### 8.2 `mode: deepDive`
+- 入力: `summary`, `messages`, `focus`, `deepDiveSummary`, `summaryOnly`
+- 出力: `{ status, answer, summary }`
+- 備考: メッセージ圧縮時に `summaryOnly=true` を利用する。
 
-## 10. 状態管理設計（`analyzeStore`）
-- 追加状態:
+### 8.3 `mode: intent`
+- 入力: `userIntent`, `intermediate`, `messages`, `focus`, `deepDiveSummary`, `overviewTexts`, `checklistTexts`
+- 出力: `{ status, intentAnswer }`
+- 備考: `overviewTexts/checklistTexts` は重複抑制用の文脈としてLLMへ渡す。
+
+### 8.4 エラー方針
+- modeごとに必須入力をバリデーションする。
+- 400/500を明示的に返却する。
+- 認証情報が取れない場合でも、パーソナライズなしで処理継続する。
+
+## 9. データモデル変更
+
+`src/lib/types/intermediate.ts` の主な追加:
+- `Overview`, `OverviewCriticalFact`, `OverviewEvidenceByBlock`
+- `DeepDiveRequest/Response`
+- `IntentAnswerRequest/Response`
+- `GroundingSupport`
+
+主な拡張:
+- `AnalyzeResult.intentAnswer?: string`
+- `AnalyzeResult.overview?: Overview`
+- `GroundingMetadata.groundingSupports?: GroundingSupport[]`
+- `IntentAnswerRequest.overviewTexts?: string[]`
+- `IntentAnswerRequest.checklistTexts?: string[]`
+
+## 10. プロンプト設計
+
+### 10.1 `prompts/overview.txt`
+- 構造化JSON固定で出力する。
+- `criticalFacts` は3〜5件、項目名は柔軟に生成する。
+- `evidenceByBlock` は入力内URLのみを許可する。
+
+### 10.2 `prompts/deep-dive.txt`
+- 出力を `{ answer, summary }` のJSONに固定する。
+- `summaryOnly` の場合は `answer` を空にできる。
+
+### 10.3 `prompts/intent-answer.txt`（現時点）
+- JSON固定出力（`headline` と `core`）。
+- 短文化・重複抑制・根拠URL方針を明示する。
+- `groundingSupports` 優先、なければ `groundingChunks` を証跡候補にする。
+
+### 10.4 `prompts/intermediate.txt` / `prompts/simple-summary.txt`
+- タイトルの短文化・可読性向上ルールを追加する。
+- 見出し順序と箇条書き形式を固定する。
+
+## 11. 証跡URL設計
+
+### 11.1 共通ルール
+- `http/https` のみ許可
+- hash除去
+- 末尾スラッシュ正規化
+- タイトル欠損時は hostname を表示名に利用
+
+### 11.2 SummaryViewer
+- `overview.evidenceByBlock` を優先する。
+- 欠損時は許可URLプールからフォールバックを構築する。
+
+### 11.3 意図回答（現時点）
+- `groundingSupports` から利用chunkを抽出して表示する。
+- supportsがない場合のみ `groundingChunks` 全体へフォールバックする。
+- 表示ラベルは `この回答の根拠` とする。
+- フォールバック時は「本文との直接ひも付けなし」の注記を表示する。
+
+## 12. 状態管理・履歴連携
+
+### 12.1 `src/stores/analyzeStore.ts`
+追加状態:
 - `messages`
 - `intent`
 - `focus`
 - `deepDiveSummary`
-- `lastHistoryId`
-- 追加アクション:
+
+追加操作:
 - `setMessages`
 - `addMessage`
 - `setIntent`
 - `setFocus`
 - `setDeepDiveSummary`
 - `resetDeepDiveState`
-- `analyze(url, userIntent?)` に拡張。
+- `analyze(url, userIntent?)`
 
-## 11. 履歴連携設計
-- `overview` を履歴保存対象に追加。
-- `fetchHistoryDetail` で `overview` を復元。
-- `/analyze` 成功遷移は `historyId` 優先 (`/result?historyId=...`)。
-- `historyId` がない場合は `/result` へ遷移し、状態ストアから描画。
+### 12.2 履歴
+- `overview` を保存・復元対象に追加した。
+- `/analyze` 成功時は `historyId` 優先で `result` へ遷移する。
 
-## 12. 失敗時フォールバック設計
-- `generateOverview` は厳格正規化 + fallback overview 生成を持つ。
-- `generateIntentAnswer` の失敗はUIで `intentError` を表示し、直前回答があれば維持。
-- `groundingMetadata` 不在時は根拠ブロックを非表示（またはフォールバック注記付き）。
+## 13. 既知課題
 
-## 13. 実装上の重要な判断
-- 根拠URLは「検索で拾った全URL」ではなく「回答に使った根拠URL（supports）」に寄せる。
-- 問い合わせ情報は注意点から分離し、連絡導線を明示。
-- 意図回答は「網羅」ではなく「本当に重要な差分」に限定する。
-- 画面の第一目的を「短時間理解」に固定し、冗長なテキストを削減。
+- `extractText` が `parts[0].text` のみを読むため、複数part返却時に欠落余地がある。
+- 画面内の根拠表示と `GoogleSearchAttribution` の役割が一部重複している。
+- `src/app/result/page.tsx` の `useEffect` 依存 warning が残っている。
 
-## 14. 既知の課題・今後改善候補
-- `extractText` が `parts[0].text` のみ取得のため、複数part返却時に欠落余地がある。
-- 画面内のエビデンス表示とGoogle検索引用表示に役割重複があるため、将来的に統合設計が必要。
-- `useEffect` の依存警告（`src/app/result/page.tsx`）は既知の改善ポイント。
+## 14. 受け入れチェック
 
-## 15. 受け入れ確認チェックリスト
-- `dev` 比で対象15ファイルに差分が存在すること。
-- `/result` で「ページ理解モード」ブロックが表示されること。
-- 深掘り送信で `mode: deepDive` が呼ばれ、回答が追記されること。
-- 意図確定で `mode: intent` が呼ばれ、回答カードが表示されること。
-- 意図回答の根拠が supports優先・chunksフォールバックで表示されること。
-- 意図確定後にチェックリスト/漫画/引用ブロックが表示されること。
+1. `/result` でページ理解モードの6ブロックが表示される。
+2. 深掘り送信で `mode: deepDive` が呼ばれ、回答と要約が更新される。
+3. 意図確定で `mode: intent` が呼ばれ、回答カードが表示される。
+4. 回答根拠は supports優先、chunksフォールバックで表示される。
+5. 意図確定後にチェックリスト、漫画、引用ブロックが表示される。
