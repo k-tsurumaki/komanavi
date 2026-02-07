@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import type { ChecklistItem, IntermediateRepresentation } from '@/lib/types/intermediate';
+import type { ChecklistItem, IntermediateRepresentation, Overview } from '@/lib/types/intermediate';
 import { requireUserId, toIsoString } from '@/app/api/history/utils';
 
 export const runtime = 'nodejs';
@@ -20,6 +20,7 @@ type SaveHistoryRequest = {
   checklist?: ChecklistItem[];
   intermediate?: IntermediateRepresentation;
   generatedSummary?: string;
+  overview?: Overview;
 };
 
 function compact<T extends Record<string, unknown>>(data: T): T {
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest) {
     createdAt,
     checklist: body.checklist,
     generatedSummary: body.generatedSummary,
+    overview: body.overview,
   });
 
   const batch = db.batch();

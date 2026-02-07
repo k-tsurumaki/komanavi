@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AnalyzeResult, AnalyzeStatus, ChecklistItem } from '@/lib/types/intermediate';
+import type { AnalyzeResult, AnalyzeStatus, ChecklistItem, ChatMessage } from '@/lib/types/intermediate';
 import { saveHistoryFromResult } from '@/lib/history-api';
 
 interface AnalyzeState {
@@ -25,11 +25,25 @@ interface AnalyzeState {
   resetCheckedItems: (items: ChecklistItem[]) => void;
 
   // 解析実行
-  analyze: (url: string) => Promise<void>;
+  analyze: (url: string, userIntent?: string) => Promise<void>;
 
   // 直近の履歴ID
   lastHistoryId: string | null;
   setLastHistoryId: (historyId: string | null) => void;
+
+  // 深掘りチャット
+  messages: ChatMessage[];
+  setMessages: (messages: ChatMessage[]) => void;
+  addMessage: (message: ChatMessage) => void;
+
+  // 意図入力
+  intent: string;
+  setIntent: (intent: string) => void;
+
+  // 深掘り要約
+  deepDiveSummary: string;
+  setDeepDiveSummary: (summary: string) => void;
+  resetDeepDiveState: () => void;
 
   // リセット
   reset: () => void;
@@ -42,6 +56,9 @@ const initialState = {
   error: null,
   checkedItems: {},
   lastHistoryId: null,
+  messages: [] as ChatMessage[],
+  intent: '',
+  deepDiveSummary: '',
 };
 
 export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
@@ -52,6 +69,16 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   setResult: (result) => set({ result }),
   setError: (error) => set({ error }),
   setLastHistoryId: (historyId) => set({ lastHistoryId: historyId }),
+  setMessages: (messages) => set({ messages }),
+  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
+  setIntent: (intent) => set({ intent }),
+  setDeepDiveSummary: (summary) => set({ deepDiveSummary: summary }),
+  resetDeepDiveState: () =>
+    set({
+      messages: [],
+      intent: '',
+      deepDiveSummary: '',
+    }),
 
   toggleCheckedItem: (id) =>
     set((state) => ({
@@ -72,7 +99,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       ),
     }),
 
-  analyze: async (url) => {
+  analyze: async (url, userIntent) => {
     const { setUrl, setStatus, setResult, setError, resetCheckedItems, setLastHistoryId } = get();
 
     setUrl(url);
@@ -85,7 +112,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, userIntent }),
       });
 
       if (!response.ok) {
@@ -102,6 +129,11 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       setResult(data);
       resetCheckedItems(data.checklist);
       setStatus('success');
+      set({
+        messages: [],
+        intent: '',
+        deepDiveSummary: '',
+      });
 
       try {
         const saved = await saveHistoryFromResult({

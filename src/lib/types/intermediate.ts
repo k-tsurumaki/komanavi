@@ -189,10 +189,21 @@ export interface GroundingChunk {
   };
 }
 
+/** グラウンディングサポート（本文とチャンクの紐付け） */
+export interface GroundingSupport {
+  segment?: {
+    startIndex?: number;
+    endIndex?: number;
+    text?: string;
+  };
+  groundingChunkIndices?: number[];
+}
+
 /** グラウンディングメタデータ */
 export interface GroundingMetadata {
   webSearchQueries?: string[];
   groundingChunks?: GroundingChunk[];
+  groundingSupports?: GroundingSupport[];
   searchEntryPoint?: {
     renderedContent: string;
   };
@@ -264,6 +275,33 @@ export interface ChecklistItem {
   priority?: 'high' | 'medium' | 'low';
 }
 
+/** ページ概要（構造化） */
+export interface OverviewCriticalFact {
+  item: string;
+  value: string;
+  reason: string;
+}
+
+export type OverviewBlockId =
+  | 'conclusion'
+  | 'targetAudience'
+  | 'achievableOutcomes'
+  | 'criticalFacts'
+  | 'cautions'
+  | 'contactInfo';
+
+export type OverviewEvidenceByBlock = Partial<Record<OverviewBlockId, string[]>>;
+
+export interface Overview {
+  conclusion: string;
+  targetAudience: string;
+  purpose: string;
+  topics: string[];
+  cautions: string[];
+  criticalFacts?: OverviewCriticalFact[];
+  evidenceByBlock?: OverviewEvidenceByBlock;
+}
+
 /** 適用されたパーソナライズ情報 */
 export interface AppliedPersonalization {
   appliedIntent: string;
@@ -275,18 +313,65 @@ export interface AnalyzeResult {
   id: string;
   intermediate: IntermediateRepresentation;
   generatedSummary: string;
+  intentAnswer?: string;
+  overview?: Overview;
   checklist: ChecklistItem[];
   personalization?: AppliedPersonalization;
   status: 'success' | 'error';
   error?: string;
 }
 
-/** 解析リクエスト */
-export interface AnalyzeRequest {
-  url: string;
-  userIntent?: string;
-  personalization?: PersonalizationAnswer[];
+/** 深掘りチャット用メッセージ */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
+
+/** 深掘りリクエスト */
+export interface DeepDiveRequest {
+  mode: 'deepDive';
+  summary: string;
+  messages: ChatMessage[];
+  deepDiveSummary?: string;
+  summaryOnly?: boolean;
+}
+
+/** 意図回答リクエスト */
+export interface IntentAnswerRequest {
+  mode: 'intent';
+  userIntent: string;
+  intermediate: IntermediateRepresentation;
+  messages?: ChatMessage[];
+  deepDiveSummary?: string;
+  overviewTexts?: string[];
+  checklistTexts?: string[];
+}
+
+/** 深掘りレスポンス */
+export interface DeepDiveResponse {
+  status: 'success' | 'error';
+  answer?: string;
+  summary?: string;
+  error?: string;
+}
+
+/** 意図回答レスポンス */
+export interface IntentAnswerResponse {
+  status: 'success' | 'error';
+  intentAnswer?: string;
+  error?: string;
+}
+
+/** 解析リクエスト */
+export type AnalyzeRequest =
+  | {
+      url: string;
+      userIntent?: string;
+      personalization?: PersonalizationAnswer[];
+      mode?: 'default';
+    }
+  | DeepDiveRequest
+  | IntentAnswerRequest;
 
 /** 解析ステータス */
 export type AnalyzeStatus = 'idle' | 'loading' | 'success' | 'error';

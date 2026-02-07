@@ -6,6 +6,10 @@ import type {
   ChecklistItem,
   DocumentType,
   GroundingMetadata,
+  ChatMessage,
+  Overview,
+  OverviewBlockId,
+  OverviewEvidenceByBlock,
   PersonalizationInput,
 } from '@/lib/types/intermediate';
 
@@ -37,7 +41,7 @@ function loadPrompt(filename: string): string {
 }
 
 // プロンプトをキャッシュ（初回読み込み時のみファイルアクセス）
-let promptCache: Record<string, string> = {};
+const promptCache: Record<string, string> = {};
 
 function getPrompt(filename: string): string {
   if (!promptCache[filename]) {
@@ -73,7 +77,14 @@ type GenerateContentResponse = any;
  * Vertex AI レスポンスからテキストを抽出
  */
 function extractText(response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }): string {
-  return response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const parts = response.candidates?.[0]?.content?.parts;
+  if (!parts || parts.length === 0) {
+    return '';
+  }
+
+  return parts
+    .map((part) => part.text ?? '')
+    .join('');
 }
 
 /**
@@ -98,6 +109,23 @@ function extractGroundingMetadata(response: GenerateContentResponse): GroundingM
     groundingChunks: gm.groundingChunks?.map((chunk: { web?: { uri: string; title: string } }) => ({
       web: chunk.web ? { uri: chunk.web.uri, title: chunk.web.title } : undefined,
     })),
+    groundingSupports: gm.groundingSupports?.map(
+      (support: {
+        segment?: { startIndex?: number; endIndex?: number; text?: string };
+        groundingChunkIndices?: number[];
+      }) => ({
+        segment: support.segment
+          ? {
+              startIndex: support.segment.startIndex,
+              endIndex: support.segment.endIndex,
+              text: support.segment.text,
+            }
+          : undefined,
+        groundingChunkIndices: Array.isArray(support.groundingChunkIndices)
+          ? support.groundingChunkIndices.filter((index: unknown): index is number => typeof index === 'number')
+          : undefined,
+      })
+    ),
     searchEntryPoint: gm.searchEntryPoint
       ? { renderedContent: gm.searchEntryPoint.renderedContent }
       : undefined,
@@ -374,5 +402,415 @@ export async function generateSimpleSummary(
   } catch (error) {
     console.error('Summary generation error:', error);
     return '';
+  }
+}
+
+/**
+ * 構造化されたページ概要を生成
+ */
+export async function generateOverview(
+  intermediate: IntermediateRepresentation
+): Promise<Overview | null> {
+  const overviewBlockIds: OverviewBlockId[] = [
+    'conclusion',
+    'targetAudience',
+    'achievableOutcomes',
+    'criticalFacts',
+    'cautions',
+    'contactInfo',
+  ];
+
+  const normalizeUrl = (value: unknown): string => {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return '';
+      }
+      url.hash = '';
+      const normalized = url.toString();
+      return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+    } catch {
+      return '';
+    }
+  };
+
+  const allowedEvidenceUrlByKey = new Map<string, string>();
+  const pushAllowedEvidenceUrl = (url?: string) => {
+    const normalized = normalizeUrl(url);
+    if (!normalized || allowedEvidenceUrlByKey.has(normalized)) {
+      return;
+    }
+    allowedEvidenceUrlByKey.set(normalized, normalized);
+  };
+
+  pushAllowedEvidenceUrl(intermediate.metadata.source_url);
+  for (const chunk of intermediate.metadata.groundingMetadata?.groundingChunks ?? []) {
+    pushAllowedEvidenceUrl(chunk.web?.uri);
+  }
+  for (const link of intermediate.relatedLinks ?? []) {
+    pushAllowedEvidenceUrl(link.url);
+  }
+  pushAllowedEvidenceUrl(intermediate.contact?.website);
+
+  const allowedEvidenceUrls = Array.from(allowedEvidenceUrlByKey.values());
+
+  const normalizeEvidenceByBlock = (value: unknown): OverviewEvidenceByBlock => {
+    if (!value || typeof value !== 'object') {
+      return {};
+    }
+
+    const objectValue = value as Record<string, unknown>;
+    const normalized: OverviewEvidenceByBlock = {};
+
+    for (const blockId of overviewBlockIds) {
+      const blockUrls = objectValue[blockId];
+      if (!Array.isArray(blockUrls)) {
+        continue;
+      }
+
+      const deduped = new Set<string>();
+      for (const blockUrl of blockUrls) {
+        const normalizedUrl = normalizeUrl(blockUrl);
+        if (!normalizedUrl) {
+          continue;
+        }
+        const allowedUrl = allowedEvidenceUrlByKey.get(normalizedUrl);
+        if (!allowedUrl || deduped.has(allowedUrl)) {
+          continue;
+        }
+        deduped.add(allowedUrl);
+      }
+
+      const normalizedUrls = Array.from(deduped).slice(0, 3);
+      if (normalizedUrls.length > 0) {
+        normalized[blockId] = normalizedUrls;
+      }
+    }
+
+    return normalized;
+  };
+
+  const buildFallbackEvidenceByBlock = (): OverviewEvidenceByBlock => {
+    if (allowedEvidenceUrls.length === 0) {
+      return {};
+    }
+
+    const primaryEvidence = allowedEvidenceUrls.slice(0, 2);
+    const detailedEvidence = allowedEvidenceUrls.slice(0, 3);
+    const contactEvidence = allowedEvidenceUrls
+      .filter((url) => /(contact|inquiry|faq|madoguchi|sodan|toiawase)/i.test(url))
+      .slice(0, 2);
+
+    const fallback: OverviewEvidenceByBlock = {
+      conclusion: primaryEvidence,
+      targetAudience: primaryEvidence,
+      achievableOutcomes: detailedEvidence,
+      criticalFacts: detailedEvidence,
+      cautions: primaryEvidence,
+      contactInfo: contactEvidence.length > 0 ? contactEvidence : primaryEvidence,
+    };
+
+    return fallback;
+  };
+
+  const normalizeSentence = (value: unknown, maxLength: number): string => {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    if (!normalized) {
+      return '';
+    }
+    return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}…` : normalized;
+  };
+
+  const normalizeList = (
+    value: unknown,
+    maxItems: number,
+    maxLengthPerItem: number
+  ): string[] => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const deduped = new Set<string>();
+    for (const item of value) {
+      const normalized = normalizeSentence(item, maxLengthPerItem);
+      if (normalized) {
+        deduped.add(normalized);
+      }
+    }
+
+    return Array.from(deduped).slice(0, maxItems);
+  };
+
+  const normalizeCriticalFacts = (
+    value: unknown,
+    maxItems: number
+  ): Array<{ item: string; value: string; reason: string }> => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const deduped = new Map<string, { item: string; value: string; reason: string }>();
+
+    for (const row of value) {
+      if (!row || typeof row !== 'object') {
+        continue;
+      }
+
+      const rowObject = row as Record<string, unknown>;
+      const item = normalizeSentence(rowObject.item, 40);
+      const rowValue = normalizeSentence(rowObject.value, 100);
+      const reason = normalizeSentence(rowObject.reason, 80);
+
+      if (!item || !rowValue) {
+        continue;
+      }
+
+      const key = `${item}:${rowValue}`;
+      if (!deduped.has(key)) {
+        deduped.set(key, {
+          item,
+          value: rowValue,
+          reason: reason || '見落とすと手続きの失敗につながるため',
+        });
+      }
+    }
+
+    return Array.from(deduped.values()).slice(0, maxItems);
+  };
+
+  const hasContactKeyword = (text: string): boolean =>
+    /(問い合わせ|連絡先|窓口|電話|相談|コールセンター|contact)/i.test(text);
+
+  const buildFallbackCriticalFacts = (): Array<{ item: string; value: string; reason: string }> => {
+    const fallbackFactTexts = [
+      ...(intermediate.keyPoints ?? []).map((point) => point.text),
+      ...(intermediate.procedure?.steps ?? []).map((step) => step.action),
+      ...(intermediate.importantDates ?? []).map((date) =>
+        date.date ? `${date.description}: ${date.date}` : date.description
+      ),
+      intermediate.benefits?.amount ? `支援額: ${intermediate.benefits.amount}` : '',
+      intermediate.procedure?.deadline ? `期限: ${intermediate.procedure.deadline}` : '',
+      ...(intermediate.warnings ?? []),
+    ].filter(Boolean);
+
+    const rows = fallbackFactTexts.map((text, index) => {
+      const sentence = normalizeSentence(text, 100);
+      const segments = sentence.split(/[:：]/);
+      const hasStructuredLabel = segments.length > 1 && segments[0].trim().length <= 18;
+      const item = hasStructuredLabel ? segments[0].trim() : `重要事項${index + 1}`;
+      const value = hasStructuredLabel ? segments.slice(1).join('：').trim() : sentence;
+      return {
+        item,
+        value,
+        reason: '見落とすと制度利用の判断や手続きに影響するため',
+      };
+    });
+
+    return normalizeCriticalFacts(rows, 5).filter(
+      (row) => !hasContactKeyword(`${row.item} ${row.value}`)
+    );
+  };
+
+  const buildFallbackOverview = (): Overview => {
+    const fallbackConclusion = normalizeSentence(
+      intermediate.summary || `${intermediate.title || 'このページ'}の内容を短く整理しました。`,
+      90
+    );
+    const fallbackTarget = normalizeSentence(
+      intermediate.target?.eligibility_summary ||
+        intermediate.target?.conditions?.[0] ||
+        '対象条件は本文で確認してください。',
+      90
+    );
+    const fallbackPurpose = normalizeSentence(
+      intermediate.benefits?.description ||
+        intermediate.summary ||
+        '制度の内容と手続き条件を確認するための案内です。',
+      90
+    );
+    const requiredDocCount = (intermediate.procedure?.required_documents ?? []).filter(Boolean).length;
+    const fallbackTopics = [
+      requiredDocCount > 0 ? `必要書類は${requiredDocCount}点あります。` : '',
+      intermediate.procedure?.deadline ? `期限は${intermediate.procedure.deadline}です。` : '',
+      ...(intermediate.keyPoints ?? []).map((point) => point.text),
+      ...(intermediate.procedure?.steps ?? []).map((step) => step.action),
+    ];
+    const fallbackCautions = [
+      ...(intermediate.warnings ?? []),
+      ...(intermediate.target?.exceptions ?? []),
+    ];
+    const fallbackCriticalFacts = buildFallbackCriticalFacts();
+    const fallbackEvidenceByBlock = buildFallbackEvidenceByBlock();
+
+    return {
+      conclusion: fallbackConclusion,
+      targetAudience: fallbackTarget,
+      purpose: fallbackPurpose,
+      topics: normalizeList(fallbackTopics, 5, 90),
+      cautions: normalizeList(fallbackCautions, 3, 90).filter(
+        (caution) => !hasContactKeyword(caution)
+      ),
+      criticalFacts: fallbackCriticalFacts,
+      evidenceByBlock: fallbackEvidenceByBlock,
+    };
+  };
+
+  try {
+    const fallback = buildFallbackOverview();
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: getPrompt('overview.txt') + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2),
+            },
+          ],
+        },
+      ],
+    });
+    const text = extractText(result);
+    const overview = parseJSON<Overview>(text);
+    if (!overview) {
+      return fallback;
+    }
+
+    const normalizedTopics = normalizeList(overview.topics, 5, 90);
+    const normalizedCautions = normalizeList(overview.cautions, 3, 90).filter(
+      (caution) => !hasContactKeyword(caution)
+    );
+    const normalizedCriticalFacts = normalizeCriticalFacts(overview.criticalFacts, 5).filter(
+      (row) => !hasContactKeyword(`${row.item} ${row.value}`)
+    );
+    const normalizedEvidenceByBlock = normalizeEvidenceByBlock(overview.evidenceByBlock);
+    const fallbackEvidenceByBlock = fallback.evidenceByBlock ?? {};
+
+    return {
+      conclusion: normalizeSentence(overview.conclusion, 90) || fallback.conclusion,
+      targetAudience: normalizeSentence(overview.targetAudience, 90) || fallback.targetAudience,
+      purpose: normalizeSentence(overview.purpose, 90) || fallback.purpose,
+      topics: normalizedTopics.length > 0 ? normalizedTopics : fallback.topics,
+      cautions: normalizedCautions.length > 0 ? normalizedCautions : fallback.cautions,
+      criticalFacts:
+        normalizedCriticalFacts.length > 0
+          ? normalizedCriticalFacts
+          : (fallback.criticalFacts ?? []),
+      evidenceByBlock:
+        Object.keys(normalizedEvidenceByBlock).length > 0
+          ? normalizedEvidenceByBlock
+          : fallbackEvidenceByBlock,
+    };
+  } catch (error) {
+    console.error('Overview generation error:', error);
+    return buildFallbackOverview();
+  }
+}
+
+/**
+ * 意図ベースの回答を生成
+ */
+export async function generateIntentAnswer(
+  intermediate: IntermediateRepresentation,
+  userIntent: string,
+  personalization?: PersonalizationInput,
+  context?: {
+    deepDiveSummary?: string;
+    messages?: ChatMessage[];
+    overviewTexts?: string[];
+    checklistTexts?: string[];
+  }
+): Promise<string> {
+  const personalizationContext = buildPersonalizationContext(personalization);
+  const payload = JSON.stringify(
+    {
+      userIntent,
+      intermediate,
+      deepDiveContext: {
+        deepDiveSummary: context?.deepDiveSummary || '',
+        messages: context?.messages ?? [],
+      },
+      existingGuides: {
+        overviewTexts: context?.overviewTexts ?? [],
+        checklistTexts: context?.checklistTexts ?? [],
+      },
+    },
+    null,
+    2
+  );
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                getPrompt('intent-answer.txt') +
+                personalizationContext +
+                '\n\n---\n\n' +
+                payload,
+            },
+          ],
+        },
+      ],
+    });
+    return extractText(result);
+  } catch (error) {
+    console.error('Intent answer generation error:', error);
+    return '';
+  }
+}
+
+/**
+ * 深掘り回答と要点要約を生成
+ */
+export async function generateDeepDiveResponse(params: {
+  summary: string;
+  messages: ChatMessage[];
+  deepDiveSummary?: string;
+  summaryOnly?: boolean;
+}): Promise<{ answer: string; summary: string } | null> {
+  const payload = JSON.stringify(
+    {
+      summary: params.summary,
+      deepDiveSummary: params.deepDiveSummary || '',
+      messages: params.messages || [],
+      summaryOnly: Boolean(params.summaryOnly),
+    },
+    null,
+    2
+  );
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [{ role: 'user', parts: [{ text: getPrompt('deep-dive.txt') + '\n\n---\n\n' + payload }] }],
+    });
+    const text = extractText(result);
+    const data = parseJSON<{ answer?: string; summary?: string }>(text);
+    if (!data?.summary) {
+      return null;
+    }
+    return {
+      answer: data.answer || '',
+      summary: data.summary,
+    };
+  } catch (error) {
+    console.error('Deep dive generation error:', error);
+    return null;
   }
 }

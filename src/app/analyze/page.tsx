@@ -10,18 +10,22 @@ export default function AnalyzePage() {
   const router = useRouter();
   const { status, error, analyze, reset } = useAnalyzeStore();
   const redirectRequestedRef = useRef(false);
+  const submittedUrlRef = useRef('');
 
   // 解析成功時に結果ページへ遷移
   useEffect(() => {
     if (status === 'success' && redirectRequestedRef.current) {
-      const url = useAnalyzeStore.getState().url;
-      const historyId = useAnalyzeStore.getState().lastHistoryId;
-      const encodedUrl = encodeURIComponent(url);
-      if (historyId) {
-        router.push(`/result?historyId=${historyId}`);
-      } else {
-        router.push(`/result?url=${encodedUrl}`);
+      const { lastHistoryId, url } = useAnalyzeStore.getState();
+      const targetUrl = submittedUrlRef.current || url;
+      const searchParams = new URLSearchParams();
+      if (lastHistoryId) {
+        searchParams.set('historyId', lastHistoryId);
       }
+      if (targetUrl) {
+        searchParams.set('url', targetUrl);
+      }
+      const query = searchParams.toString();
+      router.push(query ? `/result?${query}` : '/result');
     }
   }, [status, router]);
 
@@ -34,6 +38,7 @@ export default function AnalyzePage() {
 
   const handleSubmit = async (url: string) => {
     redirectRequestedRef.current = true;
+    submittedUrlRef.current = url;
     await analyze(url);
   };
 

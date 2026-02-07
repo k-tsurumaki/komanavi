@@ -4,8 +4,17 @@ import {
   generateIntermediateRepresentation,
   generateChecklist,
   generateSimpleSummary,
+  generateOverview,
+  generateDeepDiveResponse,
+  generateIntentAnswer,
 } from '@/lib/gemini';
-import type { AnalyzeResult, AnalyzeRequest, PersonalizationInput } from '@/lib/types/intermediate';
+import type {
+  AnalyzeResult,
+  AnalyzeRequest,
+  DeepDiveResponse,
+  IntentAnswerResponse,
+  PersonalizationInput,
+} from '@/lib/types/intermediate';
 import { auth } from '@/lib/auth';
 import {
   getUserProfileFromFirestore,
@@ -59,9 +68,103 @@ function saveToCache(url: string, result: AnalyzeResult): void {
   });
 }
 
+async function buildPersonalizationInput(userIntent?: string): Promise<PersonalizationInput> {
+  // パーソナライズ情報の取得
+  let personalizationInput: PersonalizationInput = {
+    userIntent: userIntent || DEFAULT_USER_INTENT,
+  };
+
+  // 認証セッションからユーザー情報を取得
+  try {
+    const session = await auth();
+
+    if (session?.user?.id) {
+      const userProfile = await getUserProfileFromFirestore(session.user.id);
+
+      personalizationInput = toPersonalizationInput(userProfile, userIntent);
+    }
+  } catch (authError) {
+    // 認証エラーは無視（未ログインでも動作する）
+    console.warn('Auth check failed, continuing without personalization:', authError);
+  }
+
+  return personalizationInput;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: AnalyzeRequest = await request.json();
+    if (body.mode === 'deepDive') {
+      if (!body.summary) {
+        return NextResponse.json(
+          { status: 'error', error: 'summaryが指定されていません' } satisfies DeepDiveResponse,
+          { status: 400 }
+        );
+      }
+
+      const response = await generateDeepDiveResponse({
+        summary: body.summary,
+        messages: body.messages || [],
+        deepDiveSummary: body.deepDiveSummary,
+        summaryOnly: body.summaryOnly,
+      });
+
+      if (!response) {
+        return NextResponse.json(
+          { status: 'error', error: '深掘り回答の生成に失敗しました' } satisfies DeepDiveResponse,
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        status: 'success',
+        answer: response.answer,
+        summary: response.summary,
+      } satisfies DeepDiveResponse);
+    }
+
+    if (body.mode === 'intent') {
+      if (!body.userIntent?.trim()) {
+        return NextResponse.json(
+          { status: 'error', error: 'userIntentが指定されていません' } satisfies IntentAnswerResponse,
+          { status: 400 }
+        );
+      }
+      if (!body.intermediate) {
+        return NextResponse.json(
+          { status: 'error', error: 'intermediateが指定されていません' } satisfies IntentAnswerResponse,
+          { status: 400 }
+        );
+      }
+
+      const personalizationInput = await buildPersonalizationInput(body.userIntent);
+      const intentAnswer = await generateIntentAnswer(
+        body.intermediate,
+        body.userIntent,
+        personalizationInput,
+        {
+          deepDiveSummary: body.deepDiveSummary,
+          messages: body.messages || [],
+          overviewTexts: body.overviewTexts || [],
+          checklistTexts: body.checklistTexts || [],
+        }
+      );
+
+      if (!intentAnswer) {
+        return NextResponse.json(
+          { status: 'error', error: '意図回答の生成に失敗しました' } satisfies IntentAnswerResponse,
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          status: 'success',
+          intentAnswer,
+        } satisfies IntentAnswerResponse
+      );
+    }
+
     const { url, userIntent } = body;
 
     if (!url) {
@@ -71,27 +174,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // パーソナライズ情報の取得
-    let personalizationInput: PersonalizationInput = {
-      userIntent: userIntent || DEFAULT_USER_INTENT,
-    };
-
-    // 認証セッションからユーザー情報を取得
-    try {
-      const session = await auth();
-      console.log('[DEBUG] Session:', session?.user?.id ? `User ID: ${session.user.id}` : 'No session');
-
-      if (session?.user?.id) {
-        const userProfile = await getUserProfileFromFirestore(session.user.id);
-        console.log('[DEBUG] User profile from Firestore:', JSON.stringify(userProfile, null, 2));
-
-        personalizationInput = toPersonalizationInput(userProfile, userIntent);
-        console.log('[DEBUG] Personalization input:', JSON.stringify(personalizationInput, null, 2));
-      }
-    } catch (authError) {
-      // 認証エラーは無視（未ログインでも動作する）
-      console.warn('Auth check failed, continuing without personalization:', authError);
-    }
+    const personalizationInput = await buildPersonalizationInput(userIntent);
 
     // キャッシュ確認（パーソナライズなしの基本結果のみキャッシュ）
     // 注意: パーソナライズ結果はキャッシュしない
@@ -136,10 +219,20 @@ export async function POST(request: NextRequest) {
     // 要約生成（パーソナライズ適用）
     const generatedSummary = await generateSimpleSummary(intermediate, personalizationInput);
 
+    // 概要（構造化）生成
+    const overview = await generateOverview(intermediate);
+
+    // 意図ベース回答生成（意図がある場合のみ）
+    const intentAnswer = userIntent
+      ? await generateIntentAnswer(intermediate, userIntent, personalizationInput)
+      : '';
+
     const result: AnalyzeResult = {
       id: crypto.randomUUID(),
       intermediate,
       generatedSummary,
+      intentAnswer: intentAnswer || undefined,
+      overview: overview || undefined,
       checklist,
       personalization: {
         appliedIntent: personalizationInput.userIntent,
