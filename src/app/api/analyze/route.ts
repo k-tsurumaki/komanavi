@@ -232,6 +232,7 @@ export async function POST(request: NextRequest) {
       intermediate,
       generatedSummary,
       intentAnswer: intentAnswer || undefined,
+      guidanceUnlocked: false,
       overview: overview || undefined,
       checklist,
       personalization: {

@@ -40,8 +40,11 @@
 | historyId | string | ✅ | 履歴ドキュメントID | POST `/api/history` の `historyId`（採番 or 既存紐づけ） |
 | userId | string | ✅ | 所有ユーザーID | `requireUserId()` が `session.user.id` から取得 |
 | createdAt | Timestamp | ✅ | 作成日時（サーバ時刻） | サーバで `new Date()` を設定 |
+| updatedAt | Timestamp | ✅ | 更新日時（サーバ時刻） | POST/PATCH 時にサーバで `new Date()` を設定 |
 | checklist | ChecklistItem[] | ⭕️ | チェックリスト | POST `/api/history` のリクエストから取得 |
 | generatedSummary | string | ⭕️ | 生成要約 | POST `/api/history` のリクエストから取得 |
+| intentAnswer | string | ⭕️ | 意図ベース回答 | POST/PATCH `/api/history` のリクエストから取得 |
+| guidanceUnlocked | boolean | ⭕️ | 意図入力後のガイド表示フラグ | POST は `false`、PATCH で `true` に更新 |
 
 ### conversation_intermediates
 | フィールド | 型 | 必須 | 説明 | 取得方法 |
@@ -77,6 +80,8 @@
 	- `historyId` (任意)
 	- `checklist` (任意)
 	- `generatedSummary` (任意)
+	- `intentAnswer` (任意)
+	- `guidanceUnlocked` (任意。未指定時は `false`)
 	- `intermediate` (任意)
 - 保存ルール:
 	- `historyId` 未指定時はサーバで採番（UUID）
@@ -88,6 +93,22 @@
 - レスポンス: `{ historyId, resultId }`
 
 - 実装: [src/app/api/history/route.ts](src/app/api/history/route.ts)
+
+### PATCH /api/history/:historyId
+**履歴結果を部分更新（チェック状態・意図回答・表示フラグ）。**
+
+- 認証: 必須（未認証は 401）
+- リクエスト:
+	- `checklist` (任意)
+	- `intentAnswer` (任意)
+	- `guidanceUnlocked` (任意)
+	- ※ いずれか1つ以上必須
+- 更新ルール:
+	- `historyId` から `resultId` を解決して `conversation_results` を更新
+	- 所有ユーザーが一致しない場合は 403
+	- 不整合（history/result mismatch）は 409
+
+- 実装: [src/app/api/history/[historyId]/route.ts](src/app/api/history/[historyId]/route.ts)
 
 ### GET /api/history/:historyId
 **履歴詳細を取得（履歴・結果・中間表現）。**
@@ -129,7 +150,7 @@
 
 ### 結果ページ復元
 1. `historyId` がある場合 `/api/history/:historyId` を取得
-2. `result` と `intermediate` が揃えば復元して表示
+2. `result` と `intermediate` が揃えば復元して表示（`guidanceUnlocked` を含む）
 3. 足りない場合は再解析へフォールバック
 
 - 実装: [src/app/result/page.tsx](src/app/result/page.tsx)
@@ -164,4 +185,3 @@
 - `createdAt` は保存時に常にサーバ時刻を設定（既存ドキュメントも更新される）
 - 履歴一覧の専用ページは削除し、現在は存在しない（サイドバーのみ）
 - ローカルストレージへの保存は現行実装に含まれない
-

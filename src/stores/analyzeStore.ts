@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AnalyzeResult, AnalyzeStatus, ChecklistItem, ChatMessage } from '@/lib/types/intermediate';
+import type { AnalyzeResult, AnalyzeStatus, ChatMessage } from '@/lib/types/intermediate';
 import { saveHistoryFromResult } from '@/lib/history-api';
 
 interface AnalyzeState {
@@ -19,17 +19,13 @@ interface AnalyzeState {
   error: string | null;
   setError: (error: string | null) => void;
 
-  // チェックリスト状態
-  checkedItems: Record<string, boolean>;
-  toggleCheckedItem: (id: string) => void;
-  resetCheckedItems: (items: ChecklistItem[]) => void;
-
   // 解析実行
   analyze: (url: string, userIntent?: string) => Promise<void>;
 
   // 直近の履歴ID
   lastHistoryId: string | null;
   setLastHistoryId: (historyId: string | null) => void;
+  activeAnalyzeRequestId: string | null;
 
   // 深掘りチャット
   messages: ChatMessage[];
@@ -54,8 +50,8 @@ const initialState = {
   status: 'idle' as AnalyzeStatus,
   result: null,
   error: null,
-  checkedItems: {},
   lastHistoryId: null,
+  activeAnalyzeRequestId: null,
   messages: [] as ChatMessage[],
   intent: '',
   deepDiveSummary: '',
@@ -80,31 +76,15 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       deepDiveSummary: '',
     }),
 
-  toggleCheckedItem: (id) =>
-    set((state) => ({
-      checkedItems: {
-        ...state.checkedItems,
-        [id]: !state.checkedItems[id],
-      },
-    })),
-
-  resetCheckedItems: (items) =>
-    set({
-      checkedItems: items.reduce(
-        (acc, item) => {
-          acc[item.id] = item.completed;
-          return acc;
-        },
-        {} as Record<string, boolean>
-      ),
-    }),
-
   analyze: async (url, userIntent) => {
-    const { setUrl, setStatus, setResult, setError, resetCheckedItems, setLastHistoryId } = get();
+    const { setUrl, setStatus, setResult, setError, setLastHistoryId } = get();
+    const requestId = crypto.randomUUID();
 
     setUrl(url);
     setStatus('loading');
     setError(null);
+    setLastHistoryId(null);
+    set({ activeAnalyzeRequestId: requestId });
 
     try {
       const response = await fetch('/api/analyze', {
@@ -126,29 +106,54 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
         throw new Error(data.error || '解析に失敗しました');
       }
 
+      if (get().activeAnalyzeRequestId !== requestId) {
+        return;
+      }
+
       setResult(data);
-      resetCheckedItems(data.checklist);
-      setStatus('success');
       set({
         messages: [],
         intent: '',
         deepDiveSummary: '',
       });
+      setStatus('success');
 
-      try {
-        const saved = await saveHistoryFromResult({
-          url,
-          title: data.intermediate?.title || url,
-          result: data,
-        });
-        setLastHistoryId(saved.historyId);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('history:updated'));
+      void (async () => {
+        try {
+          const saved = await saveHistoryFromResult({
+            url,
+            title: data.intermediate?.title || url,
+            result: data,
+          });
+          const currentState = get();
+          if (currentState.activeAnalyzeRequestId !== requestId || currentState.result?.id !== data.id) {
+            return;
+          }
+          setLastHistoryId(saved.historyId);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('history:updated'));
+            const current = new URL(window.location.href);
+            const currentHistoryId = current.searchParams.get('historyId');
+            const currentUrl = current.searchParams.get('url');
+            if (current.pathname === '/result' && !currentHistoryId) {
+              if (currentUrl && currentUrl !== url) {
+                return;
+              }
+              current.searchParams.set('historyId', saved.historyId);
+              window.history.replaceState(window.history.state, '', `${current.pathname}?${current.searchParams.toString()}`);
+            }
+          }
+        } catch (saveError) {
+          if (get().activeAnalyzeRequestId !== requestId) {
+            return;
+          }
+          console.warn('履歴の保存に失敗しました', saveError);
         }
-      } catch (saveError) {
-        console.warn('履歴の保存に失敗しました', saveError);
-      }
+      })();
     } catch (err) {
+      if (get().activeAnalyzeRequestId !== requestId) {
+        return;
+      }
       const message = err instanceof Error ? err.message : '予期しないエラーが発生しました';
       setError(message);
       setStatus('error');

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireUserId, toIsoString } from '@/app/api/history/utils';
+import type { ChecklistItem } from '@/lib/types/intermediate';
 
 export const runtime = 'nodejs';
 
@@ -9,6 +10,34 @@ const COLLECTIONS = {
   results: 'conversation_results',
   intermediates: 'conversation_intermediates',
 } as const;
+
+type PatchHistoryRequest = {
+  checklist?: ChecklistItem[];
+  intentAnswer?: string;
+  guidanceUnlocked?: boolean;
+};
+
+function compact<T extends Record<string, unknown>>(data: T): T {
+  const next = { ...data } as Record<string, unknown>;
+  Object.keys(next).forEach((key) => {
+    if (next[key] === undefined) {
+      delete next[key];
+    }
+  });
+  return next as T;
+}
+
+function isChecklistItem(value: unknown): value is ChecklistItem {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Partial<ChecklistItem>;
+  if (typeof item.id !== 'string' || typeof item.text !== 'string') return false;
+  if (typeof item.completed !== 'boolean') return false;
+  if (item.category !== undefined && typeof item.category !== 'string') return false;
+  if (item.deadline !== undefined && typeof item.deadline !== 'string') return false;
+  if (item.sourceId !== undefined && typeof item.sourceId !== 'string') return false;
+  if (item.priority !== undefined && !['high', 'medium', 'low'].includes(item.priority)) return false;
+  return true;
+}
 
 export async function GET(
   _request: NextRequest,
@@ -58,6 +87,7 @@ export async function GET(
         id: resultSnap.id,
         ...resultData,
         createdAt: toIsoString(resultData.createdAt),
+        updatedAt: toIsoString(resultData.updatedAt),
       };
 
       const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultId);
@@ -114,4 +144,86 @@ export async function DELETE(
   await batch.commit();
 
   return NextResponse.json({ deleted: true, historyId, resultId: resultId ?? null });
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ historyId: string }> }
+) {
+  const userId = await requireUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  let body: PatchHistoryRequest;
+  try {
+    body = (await request.json()) as PatchHistoryRequest;
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const hasChecklist = body.checklist !== undefined;
+  const hasIntentAnswer = body.intentAnswer !== undefined;
+  const hasGuidanceUnlocked = body.guidanceUnlocked !== undefined;
+  if (!hasChecklist && !hasIntentAnswer && !hasGuidanceUnlocked) {
+    return NextResponse.json(
+      { error: 'checklist, intentAnswer or guidanceUnlocked is required' },
+      { status: 400 }
+    );
+  }
+
+  if (hasChecklist && (!Array.isArray(body.checklist) || !body.checklist.every(isChecklistItem))) {
+    return NextResponse.json({ error: 'checklist is invalid' }, { status: 400 });
+  }
+  if (hasIntentAnswer && typeof body.intentAnswer !== 'string') {
+    return NextResponse.json({ error: 'intentAnswer must be string' }, { status: 400 });
+  }
+  if (hasGuidanceUnlocked && typeof body.guidanceUnlocked !== 'boolean') {
+    return NextResponse.json({ error: 'guidanceUnlocked must be boolean' }, { status: 400 });
+  }
+
+  const { historyId } = await context.params;
+  const db = getAdminFirestore();
+  const historyRef = db.collection(COLLECTIONS.histories).doc(historyId);
+  const historySnap = await historyRef.get();
+  if (!historySnap.exists) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const historyData = historySnap.data();
+  if (!historyData || historyData.userId !== userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const resultId = historyData.resultId as string | undefined;
+  if (!resultId) {
+    return NextResponse.json({ error: 'Result not found' }, { status: 404 });
+  }
+
+  const resultRef = db.collection(COLLECTIONS.results).doc(resultId);
+  const resultSnap = await resultRef.get();
+  if (!resultSnap.exists) {
+    return NextResponse.json({ error: 'Result not found' }, { status: 404 });
+  }
+
+  const resultData = resultSnap.data();
+  if (resultData?.userId !== userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (resultData?.historyId && resultData.historyId !== historyId) {
+    return NextResponse.json({ error: 'History/result mismatch' }, { status: 409 });
+  }
+
+  const updatedAt = new Date();
+  await resultRef.set(
+    compact({
+      updatedAt,
+      checklist: body.checklist,
+      intentAnswer: body.intentAnswer,
+      guidanceUnlocked: body.guidanceUnlocked,
+    }),
+    { merge: true }
+  );
+
+  return NextResponse.json({ updated: true, historyId, resultId });
 }

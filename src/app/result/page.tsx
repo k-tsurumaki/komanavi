@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
@@ -9,10 +9,10 @@ import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { SourceReference } from '@/components/SourceReference';
 import { GoogleSearchAttribution } from '@/components/GoogleSearchAttribution';
 import { MangaViewer } from '@/components/MangaViewer';
-import { fetchHistoryDetail } from '@/lib/history-api';
+import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
-import type { ChatMessage, IntentAnswerResponse } from '@/lib/types/intermediate';
+import type { ChatMessage, ChecklistItem, IntentAnswerResponse } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -28,7 +28,6 @@ function ResultContent() {
     setStatus,
     setError,
     setUrl,
-    resetCheckedItems,
     reset,
     messages,
     setMessages,
@@ -37,23 +36,88 @@ function ResultContent() {
     deepDiveSummary,
     setDeepDiveSummary,
     resetDeepDiveState,
+    lastHistoryId,
   } = useAnalyzeStore();
   const lastLoadedHistoryId = useRef<string | null>(null);
   const handledResultIdRef = useRef<string | null>(null);
+  const pendingHistoryPatchRef = useRef<{
+    checklist?: ChecklistItem[];
+    intentAnswer?: string;
+    guidanceUnlocked?: boolean;
+  }>({});
+  const patchTimeoutRef = useRef<number | null>(null);
   const [deepDiveInput, setDeepDiveInput] = useState('');
   const [intentInput, setIntentInput] = useState('');
   const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
   const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
   const [intentError, setIntentError] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isIntentGenerating, setIsIntentGenerating] = useState(false);
   const [isIntentLocked, setIsIntentLocked] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
+  const effectiveHistoryId = historyId ?? lastHistoryId;
 
   const handleBackToHome = () => {
     reset();
   };
+
+  const flushPendingHistoryPatch = useCallback(async (options?: { keepalive?: boolean }) => {
+    if (!effectiveHistoryId) return;
+
+    if (patchTimeoutRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(patchTimeoutRef.current);
+      patchTimeoutRef.current = null;
+    }
+
+    const payload = pendingHistoryPatchRef.current;
+    pendingHistoryPatchRef.current = {};
+
+    if (Object.keys(payload).length === 0) return;
+
+    try {
+      await patchHistoryResult(effectiveHistoryId, payload, options);
+    } catch (patchError) {
+      pendingHistoryPatchRef.current = {
+        ...payload,
+        ...pendingHistoryPatchRef.current,
+      };
+      console.warn('履歴の更新に失敗しました', patchError);
+    }
+  }, [effectiveHistoryId]);
+
+  const scheduleHistoryPatch = (patch: {
+    checklist?: ChecklistItem[];
+    intentAnswer?: string;
+    guidanceUnlocked?: boolean;
+  }) => {
+    pendingHistoryPatchRef.current = {
+      ...pendingHistoryPatchRef.current,
+      ...patch,
+    };
+
+    if (!effectiveHistoryId || typeof window === 'undefined') return;
+
+    if (patchTimeoutRef.current !== null) {
+      window.clearTimeout(patchTimeoutRef.current);
+    }
+
+    // チェックボックスの連打時に書き込みをまとめる
+    patchTimeoutRef.current = window.setTimeout(() => {
+      void flushPendingHistoryPatch();
+    }, 450);
+  };
+
+  useEffect(() => {
+    return () => {
+      void flushPendingHistoryPatch({ keepalive: true });
+    };
+  }, [flushPendingHistoryPatch]);
+
+  useEffect(() => {
+    if (!effectiveHistoryId) return;
+    if (Object.keys(pendingHistoryPatchRef.current).length === 0) return;
+    void flushPendingHistoryPatch();
+  }, [effectiveHistoryId, flushPendingHistoryPatch]);
 
   useEffect(() => {
     if (!historyId) {
@@ -91,12 +155,13 @@ function ResultContent() {
             intermediate: detail.intermediate.intermediate,
             generatedSummary:
               detail.result.generatedSummary || detail.intermediate.intermediate.summary || '',
+            intentAnswer: detail.result.intentAnswer,
+            guidanceUnlocked: detail.result.guidanceUnlocked ?? false,
             overview: detail.result.overview,
             checklist: detail.result.checklist || [],
             status: 'success' as const,
           };
           setResult(mergedResult);
-          resetCheckedItems(mergedResult.checklist);
           setStatus('success');
           setError(null);
           resetDeepDiveState();
@@ -133,7 +198,6 @@ function ResultContent() {
   }, [
     analyze,
     historyId,
-    resetCheckedItems,
     resetDeepDiveState,
     setError,
     setResult,
@@ -146,15 +210,9 @@ function ResultContent() {
     if (!result?.id || handledResultIdRef.current === result.id) return;
     handledResultIdRef.current = result.id;
     setChatMode('deepDive');
-    if (isIntentGenerating) {
-      setIsGenerating(true);
-      setIsIntentGenerating(false);
-      setIsIntentLocked(true);
-      return;
-    }
-    setIsGenerating(false);
-    setIsIntentLocked(false);
-  }, [result?.id, isIntentGenerating]);
+    setIsIntentGenerating(false);
+    setIsIntentLocked(Boolean(result.guidanceUnlocked));
+  }, [result?.id, result?.guidanceUnlocked]);
 
   if (!historyId && !url && !result) {
     return (
@@ -260,6 +318,20 @@ function ResultContent() {
   const checklistTexts = checklist
     .map((item) => item.text?.trim())
     .filter((text): text is string => Boolean(text));
+  const guidanceUnlocked = Boolean(result.guidanceUnlocked);
+  const shouldShowGuidanceSection = guidanceUnlocked || isIntentGenerating;
+  const shouldShowChecklistSection = guidanceUnlocked && !isIntentGenerating;
+
+  const handleChecklistToggle = (id: string, completed: boolean) => {
+    const nextChecklist = checklist.map((item) => (
+      item.id === id ? { ...item, completed } : item
+    ));
+    setResult({
+      ...result,
+      checklist: nextChecklist,
+    });
+    scheduleHistoryPatch({ checklist: nextChecklist });
+  };
 
   const handleSendDeepDive = async () => {
     if (!deepDiveInput.trim() || isDeepDiveLoading) return;
@@ -368,12 +440,11 @@ function ResultContent() {
   const handleConfirmIntent = async () => {
     if (!intentInput.trim() || !result?.intermediate || isIntentGenerating) return;
     const trimmedIntent = intentInput.trim();
-    const hadIntentAnswer = Boolean(result.intentAnswer);
+    const wasGuidanceUnlocked = Boolean(result.guidanceUnlocked);
     setIntentInput(trimmedIntent);
     setIntent(trimmedIntent);
     setIntentError(null);
     setDeepDiveError(null);
-    setIsGenerating(true);
     setIsIntentGenerating(true);
     setIsIntentLocked(true);
     setStatus('success');
@@ -402,15 +473,29 @@ function ResultContent() {
       setResult({
         ...result,
         intentAnswer: payload.intentAnswer,
+        guidanceUnlocked: true,
       });
       setIsIntentGenerating(false);
-      setIsGenerating(true);
       setIsIntentLocked(true);
+
+      const historyPatch = {
+        intentAnswer: payload.intentAnswer,
+        guidanceUnlocked: true,
+      };
+
+      if (effectiveHistoryId) {
+        void patchHistoryResult(effectiveHistoryId, historyPatch).catch((patchError) => {
+          scheduleHistoryPatch(historyPatch);
+          setIntentError('回答は生成されましたが、履歴の保存に失敗しました');
+          console.warn('意図回答の履歴保存に失敗しました', patchError);
+        });
+      } else {
+        scheduleHistoryPatch(historyPatch);
+      }
     } catch (err) {
       setIntentError(err instanceof Error ? err.message : '意図回答の生成に失敗しました');
       setIsIntentGenerating(false);
-      setIsGenerating(hadIntentAnswer);
-      setIsIntentLocked(false);
+      setIsIntentLocked(wasGuidanceUnlocked);
     }
   };
 
@@ -644,7 +729,7 @@ function ResultContent() {
         </div>
 
       {/* 回答生成開始 */}
-      {isGenerating && (
+      {shouldShowGuidanceSection && (
         <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -706,23 +791,27 @@ function ResultContent() {
                   )}
                 </div>
               )
-            ) : (
+            ) : isIntentGenerating ? (
               <div className="space-y-2">
                 <p className="text-sm text-slate-500">あなた向けの回答を作成しています。まもなくご確認いただけます。</p>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full w-1/3 animate-pulse rounded-full bg-slate-300" />
                 </div>
               </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                回答はまだ生成されていません。意図を入力して生成してください。
+              </p>
             )}
           </div>
         </div>
       )}
 
-      {isGenerating && !isIntentGenerating && (
+      {shouldShowChecklistSection && (
         <>
           {/* チェックリスト */}
           <div className="mb-6">
-            <ChecklistViewer items={checklist} />
+            <ChecklistViewer items={checklist} onToggle={handleChecklistToggle} />
           </div>
 
           {/* 漫画ビューア（Phase 2） */}

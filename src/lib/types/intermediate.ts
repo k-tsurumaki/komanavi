@@ -314,6 +314,7 @@ export interface AnalyzeResult {
   intermediate: IntermediateRepresentation;
   generatedSummary: string;
   intentAnswer?: string;
+  guidanceUnlocked?: boolean;
   overview?: Overview;
   checklist: ChecklistItem[];
   personalization?: AppliedPersonalization;

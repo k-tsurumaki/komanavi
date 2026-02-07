@@ -20,6 +20,8 @@ type SaveHistoryRequest = {
   checklist?: ChecklistItem[];
   intermediate?: IntermediateRepresentation;
   generatedSummary?: string;
+  intentAnswer?: string;
+  guidanceUnlocked?: boolean;
   overview?: Overview;
 };
 
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 100) : 50;
 
   const db = getAdminFirestore();
-  let query = db
+  const query = db
     .collection(COLLECTIONS.histories)
     .where('userId', '==', userId)
     .orderBy('createdAt', 'desc')
@@ -132,8 +134,11 @@ export async function POST(request: NextRequest) {
     historyId,
     userId,
     createdAt,
+    updatedAt: createdAt,
     checklist: body.checklist,
     generatedSummary: body.generatedSummary,
+    intentAnswer: body.intentAnswer,
+    guidanceUnlocked: body.guidanceUnlocked ?? false,
     overview: body.overview,
   });
 

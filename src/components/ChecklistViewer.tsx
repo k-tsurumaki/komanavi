@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type { ChecklistItem } from '@/lib/types/intermediate';
 
 interface ChecklistViewerProps {
@@ -9,23 +8,14 @@ interface ChecklistViewerProps {
 }
 
 export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(
-    items.reduce(
-      (acc, item) => {
-        acc[item.id] = item.completed;
-        return acc;
-      },
-      {} as Record<string, boolean>
-    )
-  );
-
   const handleToggle = (id: string) => {
-    const newValue = !checkedItems[id];
-    setCheckedItems((prev) => ({ ...prev, [id]: newValue }));
+    const item = items.find((current) => current.id === id);
+    if (!item) return;
+    const newValue = !item.completed;
     onToggle?.(id, newValue);
   };
 
-  const completedCount = Object.values(checkedItems).filter(Boolean).length;
+  const completedCount = items.filter((item) => item.completed).length;
   const totalCount = items.length;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
@@ -79,14 +69,14 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
-                      checked={checkedItems[item.id] || false}
+                      checked={item.completed}
                       onChange={() => handleToggle(item.id)}
                       className="mt-1 w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <div className="flex-1">
                       <span
                         className={`text-gray-800 ${
-                          checkedItems[item.id] ? 'line-through text-gray-400' : ''
+                          item.completed ? 'line-through text-gray-400' : ''
                         }`}
                       >
                         {item.text}
@@ -96,7 +86,7 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
                           📅 {item.deadline}
                         </p>
                       )}
-                      {item.priority === 'high' && !checkedItems[item.id] && (
+                      {item.priority === 'high' && !item.completed && (
                         <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
                           重要
                         </span>
