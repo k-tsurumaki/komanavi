@@ -1,14 +1,13 @@
 # ページ理解モード・深掘りチャット・意図入力 実装設計書
 
 ## 1. 目的
-`feature/summary-deepdive-intent-ui` の実装内容を、現行コードと一致する形でレビュー可能に整理する。
+ページ理解モード・深掘りチャット・意図入力まわりの実装内容を、現行コードと一致する形でレビュー可能に整理する。
 
-- 差分基準: `dev..feature/summary-deepdive-intent-ui`
+- 差分基準: 現行ブランチの実装
 - 対象: 「1分でわかる！平易化されたWebページ」「深掘りチャット」「意図入力」
 
-## 2. 差分スコープ（dev基準）
+## 2. 差分スコープ（現行実装）
 
-- 変更ファイル: 15
 - 代表ファイル:
   - `prompts/deep-dive.txt`
   - `prompts/intent-answer.txt`
@@ -18,7 +17,9 @@
   - `src/app/analyze/page.tsx`
   - `src/app/api/analyze/route.ts`
   - `src/app/api/history/route.ts`
+  - `src/app/api/history/[historyId]/route.ts`
   - `src/app/result/page.tsx`
+  - `src/components/ChecklistViewer.tsx`
   - `src/components/SummaryViewer.tsx`
   - `src/lib/gemini.ts`
   - `src/lib/history-api.ts`
@@ -35,11 +36,12 @@
    4. `generateSimpleSummary` — 平易化要約
    5. `generateOverview` — 構造化ページ概要
    6. （`userIntent` があれば）`generateIntentAnswer` — 意図回答
-3. 解析成功後、`/analyze` → `/result` へ遷移（常に `url` を付与、保存成功時は `historyId` も付与）
+3. 解析成功後、`/analyze` → `/result` へ遷移（常に `url` を付与）
+   - 履歴保存は非同期で継続し、成功時は `historyId` をクエリへ追記（UX優先）
 4. `/result` でページ理解モードを表示
 5. 同一画面で深掘りチャット（タブ切替）
 6. 意図入力タブへ切替→意図確定で `mode: intent` により回答を再生成
-7. 意図回答確定後にチェックリスト・漫画・Google検索引用・出典を表示
+7. 意図回答確定後にチェックリスト・漫画・Google検索引用・出典を表示（`guidanceUnlocked=true`）
 
 補足:
 - `/result?url=...` のみでアクセスした場合、自動解析せず手動ボタンで解析を開始する
@@ -56,19 +58,24 @@
 | 1 | `DisclaimerBanner` | 常時 |
 | 2 | `SummaryViewer`（`hideDetails` 付き） | 常時 |
 | 3 | 深掘り / 意図入力タブ切替カード | 常時（`chatMode` で切替） |
-| 4 | 意図回答カード | `isGenerating` 時のみ |
-| 5 | チェックリスト・漫画・`GoogleSearchAttribution`・`SourceReference` | `isGenerating && !isIntentGenerating` 時のみ |
+| 4 | 意図回答カード | `guidanceUnlocked \|\| isIntentGenerating` |
+| 5 | チェックリスト・漫画・`GoogleSearchAttribution`・`SourceReference` | `guidanceUnlocked && !isIntentGenerating` |
 
 主な挙動:
 - `url` クエリだけで `/result` に来た場合、自動解析しない（手動ボタン「このURLを解析する」でのみ開始）
 - 意図再生成中（`isIntentGenerating`）は全体ローディングへ戻さず、結果画面を維持
 - 意図入力はロック（`isIntentLocked`）/ 再編集切替を持つ
+  - 再編集ボタンは `guidanceUnlocked && isIntentLocked && !isIntentGenerating` で表示
 - dev にあった「結果をダウンロード」ボタンは削除
+- 履歴更新は `PATCH /api/history/:historyId` で部分更新
+  - チェックリストトグルは即時UI更新し、デバウンスでPATCH
+  - `historyId` 未確定時は pending に保持し、確定後にflush
 
 履歴復元:
-- `/analyze` からの遷移は常に `url` をクエリに含める（保存成功時は `historyId` も付与）
+- `/analyze` からの遷移は常に `url` をクエリに含める（`historyId` は保存成功後に追記される）
 - `historyId` 復元失敗時は `setResult(null)` の上で `url` 再解析導線へフォールバック
 - `isHistoryResolving` が `true` の間は手動再解析CTAを表示しない（復元処理との競合防止）
+- 復元時に `result.userIntent` を `intentInput`/store の `intent` に戻し、編集可能状態を再現
 
 深掘りチャットのメッセージ管理:
 - メッセージが20件を超えると、古いメッセージを `summaryOnly: true` で要約しトリミング
@@ -142,7 +149,8 @@ JSONパース戦略:
   5. `generateSimpleSummary` — 平易化要約生成（パーソナライズ適用）
   6. `generateOverview` — 構造化ページ概要生成
   7. optional `generateIntentAnswer` — 意図回答生成（`userIntent` がある場合のみ）
-- 出力: `AnalyzeResult`（`overview`, `intentAnswer` を含む）
+- 出力: `AnalyzeResult`（`overview`, `intentAnswer`, `userIntent`, `guidanceUnlocked` を含む）
+- `guidanceUnlocked` は default mode では `false` で初期化
 - 備考: `buildPersonalizationInput` は deepDive/intent mode でも共用するヘルパー関数として抽出
 
 ### 5.2 `mode: deepDive` / `mode: intent` 比較
@@ -189,7 +197,7 @@ JSONパース戦略:
 | 型名 | 変更内容 |
 |------|----------|
 | `GroundingMetadata` | `groundingSupports?: GroundingSupport[]` を追加 |
-| `AnalyzeResult` | `overview?: Overview`, `intentAnswer?: string` を追加 |
+| `AnalyzeResult` | `overview?: Overview`, `intentAnswer?: string`, `userIntent?: string`, `guidanceUnlocked?: boolean` を追加 |
 | `AnalyzeRequest` | union 型に変更: `{ url, userIntent?, mode?: 'default' }` \| `DeepDiveRequest` \| `IntentAnswerRequest` |
 
 ### 6.2 Store (`src/stores/analyzeStore.ts`)
@@ -202,8 +210,8 @@ JSONパース戦略:
 | `status` | `AnalyzeStatus` | `'idle'` | 既存 |
 | `result` | `AnalyzeResult \| null` | `null` | 既存 |
 | `error` | `string \| null` | `null` | 既存 |
-| `checkedItems` | `Record<string, boolean>` | `{}` | 既存 |
 | `lastHistoryId` | `string \| null` | `null` | 既存 |
+| `activeAnalyzeRequestId` | `string \| null` | `null` | 追加 |
 | `messages` | `ChatMessage[]` | `[]` | **追加** |
 | `intent` | `string` | `''` | **追加** |
 | `deepDiveSummary` | `string` | `''` | **追加** |
@@ -218,6 +226,12 @@ JSONパース戦略:
 | `setDeepDiveSummary` | `(summary) => void` | 追加 | 深掘り要約設定 |
 | `resetDeepDiveState` | `() => void` | 追加 | `messages`, `intent`, `deepDiveSummary` を初期化 |
 | `analyze` | `(url, userIntent?) => Promise<void>` | 変更 | `userIntent` を受け取り API に送信。成功後に深掘り状態を自動リセット |
+| `setLastHistoryId` | `(historyId) => void` | 既存 | 履歴IDを後段保存完了時に設定 |
+
+`analyze` の更新方針:
+- `requestId`（`activeAnalyzeRequestId`）で非同期処理を相関管理
+- `status='success'` を先に立てて結果遷移をブロックしない（履歴保存失敗でもUX継続）
+- 履歴保存成功時のみ `lastHistoryId` を更新し、`/result` のURLに `historyId` を追記
 
 ## 7. プロンプト設計
 
@@ -289,14 +303,32 @@ JSONパース戦略:
 - 保存対象:
   - `checklist`
   - `generatedSummary`
+  - `userIntent`
+  - `intentAnswer`
+  - `guidanceUnlocked`
   - `overview`
   - `intermediate`
 - `resultId` と `historyId` を整合チェックして保存
+- `createdAt` / `updatedAt` をサーバ時刻で設定
 
-### 9.2 復元 (`src/app/api/history/[historyId]/route.ts`)
+### 9.2 部分更新 (`src/app/api/history/[historyId]/route.ts`)
+
+- `PATCH /api/history/:historyId` で以下を部分更新:
+  - `checklist`
+  - `userIntent`
+  - `intentAnswer`
+  - `guidanceUnlocked`
+- `historyId` → `resultId` を解決して `conversation_results` を更新
+- 認可・整合チェック:
+  - `userId` 一致
+  - `historyId` と `result.historyId` の整合
+- `updatedAt` を更新
+
+### 9.3 復元 (`src/app/api/history/[historyId]/route.ts`)
 
 - `history` / `result` / `intermediate` を同時返却
 - ユーザーIDと `historyId` の整合を検証
+- `result.userIntent` / `result.intentAnswer` / `result.guidanceUnlocked` を復元
 
 ## 10. 受け入れチェック項目
 
@@ -312,3 +344,5 @@ JSONパース戦略:
 10. `/result?url=...` のみアクセス時に自動解析せず、手動ボタンが表示される
 11. 履歴復元失敗時に `url` があればフォールバックで手動再解析導線が維持される
 12. `/analyze` → `/result` 遷移時に常に `url` がクエリに含まれる
+13. 履歴から戻った際に `userIntent` が入力欄へ復元され、意図編集導線が表示される
+14. チェックリストトグルは即時反映され、履歴更新はデバウンスPATCHで同期される
