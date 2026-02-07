@@ -326,11 +326,28 @@ export interface DeepDiveRequest {
   summaryOnly?: boolean;
 }
 
+/** 意図回答リクエスト */
+export interface IntentAnswerRequest {
+  mode: 'intent';
+  userIntent: string;
+  intermediate: IntermediateRepresentation;
+  messages?: ChatMessage[];
+  focus?: string;
+  deepDiveSummary?: string;
+}
+
 /** 深掘りレスポンス */
 export interface DeepDiveResponse {
   status: 'success' | 'error';
   answer?: string;
   summary?: string;
+  error?: string;
+}
+
+/** 意図回答レスポンス */
+export interface IntentAnswerResponse {
+  status: 'success' | 'error';
+  intentAnswer?: string;
   error?: string;
 }
 
@@ -342,7 +359,8 @@ export type AnalyzeRequest =
       personalization?: PersonalizationAnswer[];
       mode?: 'default';
     }
-  | DeepDiveRequest;
+  | DeepDiveRequest
+  | IntentAnswerRequest;
 
 /** 解析ステータス */
 export type AnalyzeStatus = 'idle' | 'loading' | 'success' | 'error';

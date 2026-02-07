@@ -10,7 +10,7 @@ import { SourceReference } from '@/components/SourceReference';
 import { GoogleSearchAttribution } from '@/components/GoogleSearchAttribution';
 import { MangaViewer } from '@/components/MangaViewer';
 import { fetchHistoryDetail } from '@/lib/history-api';
-import type { ChatMessage } from '@/lib/types/intermediate';
+import type { ChatMessage, IntentAnswerResponse } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -32,8 +32,6 @@ function ResultContent() {
     setMessages,
     addMessage,
     focus,
-    setFocus,
-    intent,
     setIntent,
     deepDiveSummary,
     setDeepDiveSummary,
@@ -42,11 +40,11 @@ function ResultContent() {
   const lastLoadedHistoryId = useRef<string | null>(null);
   const isNavigatingToAnalyzeRef = useRef(false);
   const handledResultIdRef = useRef<string | null>(null);
-  const autoAnalyzeTriggeredRef = useRef(false);
   const [deepDiveInput, setDeepDiveInput] = useState('');
   const [intentInput, setIntentInput] = useState('');
   const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
   const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
+  const [intentError, setIntentError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isIntentGenerating, setIsIntentGenerating] = useState(false);
   const [isIntentLocked, setIsIntentLocked] = useState(false);
@@ -106,17 +104,6 @@ function ResultContent() {
     loadDetail();
   }, [historyId, analyze, resetCheckedItems, setError, setResult, setStatus, setUrl]);
 
-  // URLパラメータがあり、まだ解析結果がない場合は解析を実行
-  useEffect(() => {
-    if (historyId) return;
-    if (isNavigatingToAnalyzeRef.current) return;
-    if (autoAnalyzeTriggeredRef.current) return;
-    if (url && !result && status === 'idle') {
-      autoAnalyzeTriggeredRef.current = true;
-      analyze(url);
-    }
-  }, [historyId, url, result, status, analyze]);
-
   useEffect(() => {
     if (!result?.id || handledResultIdRef.current === result.id) return;
     handledResultIdRef.current = result.id;
@@ -131,7 +118,7 @@ function ResultContent() {
     setIsIntentLocked(false);
   }, [result?.id, isIntentGenerating]);
 
-  if (!historyId && !url) {
+  if (!historyId && !url && !result) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
@@ -181,11 +168,34 @@ function ResultContent() {
 
   // 結果がない場合
   if (!result || !result.intermediate) {
+    const canAnalyzeFromUrl = Boolean(url && !historyId && status === 'idle');
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-          <p className="text-lg text-gray-700">データを読み込んでいます...</p>
+          {canAnalyzeFromUrl ? (
+            <div className="bg-white border border-gray-200 rounded-xl p-6 text-center max-w-xl">
+              <p className="text-lg font-semibold text-gray-800">このURLの結果はまだ表示されていません</p>
+              <p className="text-sm text-gray-600 mt-2">
+                自動では解析しません。必要な場合のみ手動で解析を開始してください。
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (url) {
+                    analyze(url);
+                  }
+                }}
+                className="mt-4 inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                このURLを解析する
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
+              <p className="text-lg text-gray-700">データを読み込んでいます...</p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -256,6 +266,7 @@ function ResultContent() {
       if (updatedMessages.length > 20) {
         const overflowCount = updatedMessages.length - 20;
         const overflowMessages = updatedMessages.slice(0, overflowCount);
+        let canTrimMessages = false;
 
         try {
           const response = await fetch('/api/analyze', {
@@ -278,13 +289,18 @@ function ResultContent() {
             };
             if (summaryData.status === 'success' && summaryData.summary) {
               setDeepDiveSummary(summaryData.summary);
+              canTrimMessages = true;
             }
           }
         } catch {
           // 要約失敗時は既存のdeepDiveSummaryを保持
         }
 
-        setMessages(updatedMessages.slice(overflowCount));
+        if (canTrimMessages) {
+          setMessages(updatedMessages.slice(overflowCount));
+        } else {
+          setMessages(updatedMessages);
+        }
       } else {
         setMessages(updatedMessages);
       }
@@ -299,18 +315,51 @@ function ResultContent() {
     setChatMode('intent');
   };
 
-  const handleConfirmIntent = () => {
-    if (!intentInput.trim()) return;
+  const handleConfirmIntent = async () => {
+    if (!intentInput.trim() || !result?.intermediate || isIntentGenerating) return;
     const trimmedIntent = intentInput.trim();
+    const hadIntentAnswer = Boolean(result.intentAnswer);
     setIntentInput(trimmedIntent);
     setIntent(trimmedIntent);
+    setIntentError(null);
+    setDeepDiveError(null);
     setIsGenerating(true);
     setIsIntentGenerating(true);
     setIsIntentLocked(true);
+    setStatus('success');
+    setError(null);
 
-    const targetUrl = url || result?.intermediate?.metadata.source_url;
-    if (targetUrl) {
-      analyze(targetUrl, trimmedIntent);
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'intent',
+          userIntent: trimmedIntent,
+          intermediate: result.intermediate,
+          messages,
+          focus: focus || undefined,
+          deepDiveSummary: deepDiveSummary || undefined,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as IntentAnswerResponse;
+      if (!response.ok || payload.status === 'error' || !payload.intentAnswer) {
+        throw new Error(payload.error || '意図回答の生成に失敗しました');
+      }
+
+      setResult({
+        ...result,
+        intentAnswer: payload.intentAnswer,
+      });
+      setIsIntentGenerating(false);
+      setIsGenerating(true);
+      setIsIntentLocked(true);
+    } catch (err) {
+      setIntentError(err instanceof Error ? err.message : '意図回答の生成に失敗しました');
+      setIsIntentGenerating(false);
+      setIsGenerating(hadIntentAnswer);
+      setIsIntentLocked(false);
     }
   };
 
@@ -469,6 +518,9 @@ function ResultContent() {
                   value={intentInput}
                   onChange={(event) => {
                     setIntentInput(event.target.value);
+                    if (intentError) {
+                      setIntentError(null);
+                    }
                     event.currentTarget.style.height = 'auto';
                     event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
                   }}
@@ -505,6 +557,11 @@ function ResultContent() {
                   )}
                 </button>
               </div>
+              {intentError && (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {intentError}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setIsIntentLocked(false)}
@@ -531,12 +588,9 @@ function ResultContent() {
               </span>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">回答</h3>
-                <p className="text-xs text-slate-500">いまやるべきことがひと目で分かる回答</p>
+                <p className="text-xs text-slate-500">あなたの意図とパーソナル情報に基づく回答</p>
               </div>
             </div>
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-              パーソナライズ
-            </span>
           </div>
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">

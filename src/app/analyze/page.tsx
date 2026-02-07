@@ -14,13 +14,11 @@ export default function AnalyzePage() {
   // 解析成功時に結果ページへ遷移
   useEffect(() => {
     if (status === 'success' && redirectRequestedRef.current) {
-      const url = useAnalyzeStore.getState().url;
       const historyId = useAnalyzeStore.getState().lastHistoryId;
-      const encodedUrl = encodeURIComponent(url);
       if (historyId) {
         router.push(`/result?historyId=${historyId}`);
       } else {
-        router.push(`/result?url=${encodedUrl}`);
+        router.push('/result');
       }
     }
   }, [status, router]);

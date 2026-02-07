@@ -700,13 +700,23 @@ export async function generateOverview(
 export async function generateIntentAnswer(
   intermediate: IntermediateRepresentation,
   userIntent: string,
-  personalization?: PersonalizationInput
+  personalization?: PersonalizationInput,
+  context?: {
+    deepDiveSummary?: string;
+    focus?: string;
+    messages?: ChatMessage[];
+  }
 ): Promise<string> {
   const personalizationContext = buildPersonalizationContext(personalization);
   const payload = JSON.stringify(
     {
       userIntent,
       intermediate,
+      deepDiveContext: {
+        deepDiveSummary: context?.deepDiveSummary || '',
+        focus: context?.focus || '',
+        messages: context?.messages ?? [],
+      },
     },
     null,
     2
