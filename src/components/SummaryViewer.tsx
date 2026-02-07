@@ -175,36 +175,6 @@ export function SummaryViewer({
     return [];
   };
 
-  const renderEvidenceUrls = (blockId: OverviewBlockId) => {
-    const urls = getBlockEvidenceUrls(blockId);
-    if (urls.length === 0) {
-      return null;
-    }
-
-    return (
-      <div className="mt-4 border-t border-slate-200 pt-3">
-        <p className="text-xs font-semibold text-slate-500">証跡URL</p>
-        <ul className="mt-2 space-y-1.5">
-          {urls.map((url, index) => (
-            <li key={`${blockId}-${index}`} className="flex items-start gap-2">
-              <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-500">
-                {index + 1}
-              </span>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-900"
-              >
-                {evidenceTitleByUrl.get(url) || getHostnameLabel(url)}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
-
   const fallbackFactCandidates = [
     ...(data.keyPoints ?? []).map((point) => point.text),
     ...(overview?.topics ?? []),
@@ -274,6 +244,19 @@ export function SummaryViewer({
       ? achievableOutcomes.slice(0, 3)
       : ['このページの要点を短時間で把握できる'];
   const conclusionText = overview?.conclusion || data.summary;
+  const evidenceSections = [
+    { blockId: 'conclusion' as const, label: '30秒で把握' },
+    { blockId: 'targetAudience' as const, label: 'だれ向けの情報か' },
+    { blockId: 'achievableOutcomes' as const, label: 'このページで実現できること' },
+    { blockId: 'criticalFacts' as const, label: 'このページの最重要ポイント' },
+    { blockId: 'cautions' as const, label: '見落とすと困る注意点' },
+    { blockId: 'contactInfo' as const, label: '問い合わせ情報' },
+  ]
+    .map((section) => ({
+      ...section,
+      urls: getBlockEvidenceUrls(section.blockId),
+    }))
+    .filter((section) => section.urls.length > 0);
 
   return (
     <div className="mb-6 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_16px_44px_rgba(15,23,42,0.10)]">
@@ -297,7 +280,6 @@ export function SummaryViewer({
             <p className="mt-3 text-lg font-semibold leading-relaxed text-slate-900 sm:text-xl">
               {conclusionText}
             </p>
-            {renderEvidenceUrls('conclusion')}
           </section>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -307,7 +289,6 @@ export function SummaryViewer({
                 だれ向けの情報か
               </h3>
               <p className="mt-3 text-[15px] leading-relaxed text-slate-900">{audienceText}</p>
-              {renderEvidenceUrls('targetAudience')}
             </section>
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -324,7 +305,6 @@ export function SummaryViewer({
                   </li>
                 ))}
               </ul>
-              {renderEvidenceUrls('achievableOutcomes')}
             </section>
           </div>
 
@@ -357,7 +337,6 @@ export function SummaryViewer({
                   </tbody>
                 </table>
               </div>
-              {renderEvidenceUrls('criticalFacts')}
             </section>
           )}
 
@@ -383,7 +362,6 @@ export function SummaryViewer({
             ) : (
               <p className="mt-3 text-sm text-slate-600">特になし</p>
             )}
-            {renderEvidenceUrls('cautions')}
           </section>
 
           {contactDetails.length > 0 && (
@@ -428,7 +406,39 @@ export function SummaryViewer({
                   </tbody>
                 </table>
               </div>
-              {renderEvidenceUrls('contactInfo')}
+            </section>
+          )}
+
+          {evidenceSections.length > 0 && (
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span aria-hidden="true">🔗</span>
+                証跡URL
+              </h3>
+              <div className="mt-3 space-y-4">
+                {evidenceSections.map((section) => (
+                  <div key={section.blockId}>
+                    <p className="text-xs font-semibold text-slate-500">{section.label}</p>
+                    <ul className="mt-2 space-y-1.5">
+                      {section.urls.map((url, index) => (
+                        <li key={`${section.blockId}-${index}`} className="flex items-start gap-2">
+                          <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-500">
+                            {index + 1}
+                          </span>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-900"
+                          >
+                            {evidenceTitleByUrl.get(url) || getHostnameLabel(url)}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
         </div>
