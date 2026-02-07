@@ -45,7 +45,8 @@
 | generatedSummary | string | ⭕️ | 生成要約 | POST `/api/history` のリクエストから取得 |
 | userIntent | string | ⭕️ | ユーザーの意図入力 | POST/PATCH `/api/history` のリクエストから取得 |
 | intentAnswer | string | ⭕️ | 意図ベース回答 | POST/PATCH `/api/history` のリクエストから取得 |
-| guidanceUnlocked | boolean | ⭕️ | 意図入力後のガイド表示フラグ | POST は `false`、PATCH で `true` に更新 |
+| guidanceUnlocked | boolean | ⭕️ | 意図入力後のガイド表示フラグ | POST/PATCH `/api/history` のリクエストから取得（未指定時は `false`） |
+| overview | Overview | ⭕️ | 構造化されたページ概要 | POST `/api/history` のリクエストから取得 |
 
 ### conversation_intermediates
 | フィールド | 型 | 必須 | 説明 | 取得方法 |
@@ -84,11 +85,13 @@
 	- `userIntent` (任意)
 	- `intentAnswer` (任意)
 	- `guidanceUnlocked` (任意。未指定時は `false`)
+	- `overview` (任意)
 	- `intermediate` (任意)
 - 保存ルール:
 	- `historyId` 未指定時はサーバで採番（UUID）
 	- `resultId` は必須、`resultId` をドキュメントIDとして使用
 	- `checklist` / `userIntent` / `intentAnswer` / `guidanceUnlocked` は型検証し、不正時は 400 を返す
+	- `overview` は現行実装では型検証せず、そのまま保存する
 	- 既存の `resultId` が別 `historyId` に紐付いている場合は再利用または 409
 	- 既存の `historyId` が別 `resultId` に紐付いている場合は再採番または 409
 	- `intermediate` が無い場合は中間表現ドキュメントは作成しない
@@ -122,7 +125,7 @@
 - レスポンス: `{ history, result, intermediate }`
 	- `history`: 存在しない場合は 404
 	- `result` / `intermediate`: 存在しない場合は null
-	- `createdAt`: ISO 8601 文字列
+	- `createdAt`: ISO 8601 文字列 or null
 	- `history` / `result` / `intermediate` は `id` を含む
 
 - 実装: [src/app/api/history/[historyId]/route.ts](src/app/api/history/[historyId]/route.ts)
@@ -131,6 +134,10 @@
 **履歴削除（結果・中間表現も同時削除）。**
 
 - 認証: 必須（未認証は 401）
+- 削除ルール:
+	- `conversation_histories` の `userId` を確認し、所有者のみ削除可能
+	- `history.resultId` が存在する場合、同じ `resultId` の `conversation_results` / `conversation_intermediates` を削除
+	- 現行実装では `conversation_results` / `conversation_intermediates` の追加所有チェックや不整合チェックは行わない
 - レスポンス: `{ deleted, historyId, resultId }`
 
 - 実装: [src/app/api/history/[historyId]/route.ts](src/app/api/history/[historyId]/route.ts)
@@ -171,9 +178,10 @@
 
 ## 認可・安全性
 - 全APIで `requireUserId()` により認証必須
-- 各ドキュメントは `userId` で所有チェック
-- `historyId` / `resultId` の不整合は 409 で拒否
-- 既存ドキュメントが別ユーザーの場合は 403
+- `conversation_histories` は全APIで `userId` 所有チェック
+- `conversation_results` は GET/PATCH で `userId` 所有チェック
+- `historyId` / `resultId` の不整合は GET/PATCH で 409、POST は競合時に 409（条件により再利用/再採番あり）
+- 既存ドキュメントが別ユーザーの場合は 403（GET/POST/PATCH）
 
 - 実装: 
    - [src/app/api/history/route.ts](src/app/api/history/route.ts)
