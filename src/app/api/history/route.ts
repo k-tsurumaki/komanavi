@@ -3,6 +3,7 @@ import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import type { ChecklistItem, IntermediateRepresentation, Overview } from '@/lib/types/intermediate';
 import { requireUserId, toIsoString } from '@/app/api/history/utils';
+import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 
 export const runtime = 'nodejs';
 
@@ -86,8 +87,9 @@ export async function POST(request: NextRequest) {
   if (!resultId || !url || !title) {
     return NextResponse.json({ error: 'resultId, url, title are required' }, { status: 400 });
   }
-  if (body.userIntent !== undefined && typeof body.userIntent !== 'string') {
-    return NextResponse.json({ error: 'userIntent must be string' }, { status: 400 });
+  const validationError = validateHistoryResultMutableFields(body);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   let historyId = body.historyId ?? crypto.randomUUID();

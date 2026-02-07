@@ -88,6 +88,7 @@
 - 保存ルール:
 	- `historyId` 未指定時はサーバで採番（UUID）
 	- `resultId` は必須、`resultId` をドキュメントIDとして使用
+	- `checklist` / `userIntent` / `intentAnswer` / `guidanceUnlocked` は型検証し、不正時は 400 を返す
 	- 既存の `resultId` が別 `historyId` に紐付いている場合は再利用または 409
 	- 既存の `historyId` が別 `resultId` に紐付いている場合は再採番または 409
 	- `intermediate` が無い場合は中間表現ドキュメントは作成しない
@@ -108,6 +109,7 @@
 	- ※ いずれか1つ以上必須
 - 更新ルール:
 	- `historyId` から `resultId` を解決して `conversation_results` を更新
+	- `checklist` / `userIntent` / `intentAnswer` / `guidanceUnlocked` は型検証し、不正時は 400 を返す
 	- 所有ユーザーが一致しない場合は 403
 	- 不整合（history/result mismatch）は 409
 

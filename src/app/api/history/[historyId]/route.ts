@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireUserId, toIsoString } from '@/app/api/history/utils';
 import type { ChecklistItem } from '@/lib/types/intermediate';
+import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 
 export const runtime = 'nodejs';
 
@@ -26,18 +27,6 @@ function compact<T extends Record<string, unknown>>(data: T): T {
     }
   });
   return next as T;
-}
-
-function isChecklistItem(value: unknown): value is ChecklistItem {
-  if (!value || typeof value !== 'object') return false;
-  const item = value as Partial<ChecklistItem>;
-  if (typeof item.id !== 'string' || typeof item.text !== 'string') return false;
-  if (typeof item.completed !== 'boolean') return false;
-  if (item.category !== undefined && typeof item.category !== 'string') return false;
-  if (item.deadline !== undefined && typeof item.deadline !== 'string') return false;
-  if (item.sourceId !== undefined && typeof item.sourceId !== 'string') return false;
-  if (item.priority !== undefined && !['high', 'medium', 'low'].includes(item.priority)) return false;
-  return true;
 }
 
 export async function GET(
@@ -163,28 +152,9 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const hasChecklist = body.checklist !== undefined;
-  const hasUserIntent = body.userIntent !== undefined;
-  const hasIntentAnswer = body.intentAnswer !== undefined;
-  const hasGuidanceUnlocked = body.guidanceUnlocked !== undefined;
-  if (!hasChecklist && !hasUserIntent && !hasIntentAnswer && !hasGuidanceUnlocked) {
-    return NextResponse.json(
-      { error: 'checklist, userIntent, intentAnswer or guidanceUnlocked is required' },
-      { status: 400 }
-    );
-  }
-
-  if (hasChecklist && (!Array.isArray(body.checklist) || !body.checklist.every(isChecklistItem))) {
-    return NextResponse.json({ error: 'checklist is invalid' }, { status: 400 });
-  }
-  if (hasUserIntent && typeof body.userIntent !== 'string') {
-    return NextResponse.json({ error: 'userIntent must be string' }, { status: 400 });
-  }
-  if (hasIntentAnswer && typeof body.intentAnswer !== 'string') {
-    return NextResponse.json({ error: 'intentAnswer must be string' }, { status: 400 });
-  }
-  if (hasGuidanceUnlocked && typeof body.guidanceUnlocked !== 'boolean') {
-    return NextResponse.json({ error: 'guidanceUnlocked must be boolean' }, { status: 400 });
+  const validationError = validateHistoryResultMutableFields(body, { requireAtLeastOne: true });
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   const { historyId } = await context.params;
