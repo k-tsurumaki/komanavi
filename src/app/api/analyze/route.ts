@@ -77,14 +77,11 @@ async function buildPersonalizationInput(userIntent?: string): Promise<Personali
   // 認証セッションからユーザー情報を取得
   try {
     const session = await auth();
-    console.log('[DEBUG] Session:', session?.user?.id ? `User ID: ${session.user.id}` : 'No session');
 
     if (session?.user?.id) {
       const userProfile = await getUserProfileFromFirestore(session.user.id);
-      console.log('[DEBUG] User profile from Firestore:', JSON.stringify(userProfile, null, 2));
 
       personalizationInput = toPersonalizationInput(userProfile, userIntent);
-      console.log('[DEBUG] Personalization input:', JSON.stringify(personalizationInput, null, 2));
     }
   } catch (authError) {
     // 認証エラーは無視（未ログインでも動作する）

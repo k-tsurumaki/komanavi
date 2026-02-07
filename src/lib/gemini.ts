@@ -77,7 +77,14 @@ type GenerateContentResponse = any;
  * Vertex AI レスポンスからテキストを抽出
  */
 function extractText(response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }): string {
-  return response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const parts = response.candidates?.[0]?.content?.parts;
+  if (!parts || parts.length === 0) {
+    return '';
+  }
+
+  return parts
+    .map((part) => part.text ?? '')
+    .join('');
 }
 
 /**
