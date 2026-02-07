@@ -3,6 +3,7 @@ import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import type { ChecklistItem, IntermediateRepresentation, Overview } from '@/lib/types/intermediate';
 import { requireUserId, toIsoString } from '@/app/api/history/utils';
+import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +21,9 @@ type SaveHistoryRequest = {
   checklist?: ChecklistItem[];
   intermediate?: IntermediateRepresentation;
   generatedSummary?: string;
+  userIntent?: string;
+  intentAnswer?: string;
+  guidanceUnlocked?: boolean;
   overview?: Overview;
 };
 
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 100) : 50;
 
   const db = getAdminFirestore();
-  let query = db
+  const query = db
     .collection(COLLECTIONS.histories)
     .where('userId', '==', userId)
     .orderBy('createdAt', 'desc')
@@ -82,6 +86,10 @@ export async function POST(request: NextRequest) {
   const { resultId, url, title } = body;
   if (!resultId || !url || !title) {
     return NextResponse.json({ error: 'resultId, url, title are required' }, { status: 400 });
+  }
+  const validationError = validateHistoryResultMutableFields(body);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   let historyId = body.historyId ?? crypto.randomUUID();
@@ -132,8 +140,12 @@ export async function POST(request: NextRequest) {
     historyId,
     userId,
     createdAt,
+    updatedAt: createdAt,
     checklist: body.checklist,
     generatedSummary: body.generatedSummary,
+    userIntent: body.userIntent,
+    intentAnswer: body.intentAnswer,
+    guidanceUnlocked: body.guidanceUnlocked ?? false,
     overview: body.overview,
   });
 

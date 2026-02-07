@@ -18,8 +18,12 @@ type HistoryDetailResponse = {
   result: {
     id: string;
     createdAt: string | null;
+    updatedAt?: string | null;
     checklist?: ChecklistItem[];
     generatedSummary?: string;
+    userIntent?: string;
+    intentAnswer?: string;
+    guidanceUnlocked?: boolean;
     overview?: Overview;
     schemaVersion?: number;
   } | null;
@@ -79,6 +83,9 @@ export async function saveHistoryFromResult(params: {
     title,
     checklist: result.checklist,
     generatedSummary: result.generatedSummary,
+    userIntent: result.userIntent,
+    intentAnswer: result.intentAnswer,
+    guidanceUnlocked: result.guidanceUnlocked ?? false,
     overview: result.overview,
     intermediate: result.intermediate,
   };
@@ -96,4 +103,30 @@ export async function saveHistoryFromResult(params: {
   }
 
   return (await response.json()) as { historyId: string; resultId: string };
+}
+
+export async function patchHistoryResult(
+  historyId: string,
+  payload: {
+    checklist?: ChecklistItem[];
+    userIntent?: string;
+    intentAnswer?: string;
+    guidanceUnlocked?: boolean;
+  },
+  options?: {
+    keepalive?: boolean;
+  }
+): Promise<void> {
+  const response = await fetch(`/api/history/${historyId}`, {
+    method: 'PATCH',
+    keepalive: options?.keepalive,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('履歴の更新に失敗しました');
+  }
 }
