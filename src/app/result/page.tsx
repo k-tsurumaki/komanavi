@@ -209,6 +209,7 @@ function ResultContent() {
   const [isIntentGenerating, setIsIntentGenerating] = useState(false);
   const [isIntentLocked, setIsIntentLocked] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
+  const [isHistoryResolving, setIsHistoryResolving] = useState(false);
 
   const handleBackToHome = () => {
     isNavigatingToAnalyzeRef.current = true;
@@ -216,16 +217,30 @@ function ResultContent() {
   };
 
   useEffect(() => {
-    if (!historyId) return;
+    if (!historyId) {
+      setIsHistoryResolving(false);
+      return;
+    }
     if (lastLoadedHistoryId.current === historyId) return;
+    lastLoadedHistoryId.current = historyId;
+    setIsHistoryResolving(true);
+    setResult(null);
+    setStatus('idle');
+    setError(null);
 
     const loadDetail = async () => {
       try {
         const detail = await fetchHistoryDetail(historyId);
         if (!detail.history) {
-          setError('履歴が見つかりませんでした');
-          setStatus('error');
-          lastLoadedHistoryId.current = historyId;
+          setResult(null);
+          if (url) {
+            setUrl(url);
+            setError('履歴が見つからなかったため、このURLを再解析してください');
+            setStatus('idle');
+          } else {
+            setError('履歴が見つかりませんでした');
+            setStatus('error');
+          }
           return;
         }
 
@@ -246,18 +261,32 @@ function ResultContent() {
           setStatus('success');
           setError(null);
           resetDeepDiveState();
-          lastLoadedHistoryId.current = historyId;
           return;
         }
 
-        if (status === 'idle' && !result) {
+        setResult(null);
+        if (detail.history.url) {
           analyze(detail.history.url);
-          lastLoadedHistoryId.current = historyId;
+        } else if (url) {
+          setUrl(url);
+          setError('履歴情報にURLがないため、このURLを再解析してください');
+          setStatus('idle');
+        } else {
+          setError('履歴情報から再解析できませんでした');
+          setStatus('error');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : '履歴の取得に失敗しました');
-        setStatus('error');
-        lastLoadedHistoryId.current = historyId;
+        setResult(null);
+        if (url) {
+          setUrl(url);
+          setError('履歴の取得に失敗したため、このURLを再解析してください');
+          setStatus('idle');
+        } else {
+          setError(err instanceof Error ? err.message : '履歴の取得に失敗しました');
+          setStatus('error');
+        }
+      } finally {
+        setIsHistoryResolving(false);
       }
     };
 
@@ -267,12 +296,11 @@ function ResultContent() {
     historyId,
     resetCheckedItems,
     resetDeepDiveState,
-    result,
     setError,
     setResult,
     setStatus,
     setUrl,
-    status,
+    url,
   ]);
 
   useEffect(() => {
@@ -339,13 +367,16 @@ function ResultContent() {
 
   // 結果がない場合
   if (!result || !result.intermediate) {
-    const canAnalyzeFromUrl = Boolean(url && !historyId && status === 'idle');
+    const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving);
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-center py-12">
           {canAnalyzeFromUrl ? (
             <div className="bg-white border border-gray-200 rounded-xl p-6 text-center max-w-xl">
               <p className="text-lg font-semibold text-gray-800">このURLの結果はまだ表示されていません</p>
+              {error && (
+                <p className="mt-2 text-sm text-amber-700">{error}</p>
+              )}
               <p className="text-sm text-gray-600 mt-2">
                 自動では解析しません。必要な場合のみ手動で解析を開始してください。
               </p>
