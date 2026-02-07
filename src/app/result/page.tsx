@@ -164,9 +164,6 @@ function ResultContent() {
             checklist: detail.result.checklist || [],
             status: 'success' as const,
           };
-          const restoredIntent = detail.result.userIntent ?? '';
-          setIntentInput(restoredIntent);
-          useAnalyzeStore.getState().setIntent(restoredIntent);
           setResult(mergedResult);
           setStatus('success');
           setError(null);
@@ -217,10 +214,14 @@ function ResultContent() {
     handledResultIdRef.current = result.id;
     setChatMode('deepDive');
     setIsIntentGenerating(false);
-    setIsIntentLocked(Boolean(result.guidanceUnlocked));
-    const restoredIntent = useAnalyzeStore.getState().result?.userIntent ?? '';
+    const restoredIntent = result.userIntent ?? '';
     setIntentInput(restoredIntent);
-    useAnalyzeStore.getState().setIntent(restoredIntent);
+    setIntent(restoredIntent);
+  }, [result?.id, result?.userIntent, setIntent]);
+
+  useEffect(() => {
+    if (!result?.id) return;
+    setIsIntentLocked(Boolean(result.guidanceUnlocked));
   }, [result?.id, result?.guidanceUnlocked]);
 
   if (!historyId && !url && !result) {
