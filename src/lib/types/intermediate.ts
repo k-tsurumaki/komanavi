@@ -332,7 +332,6 @@ export interface DeepDiveRequest {
   mode: 'deepDive';
   summary: string;
   messages: ChatMessage[];
-  focus?: string;
   deepDiveSummary?: string;
   summaryOnly?: boolean;
 }
@@ -343,7 +342,6 @@ export interface IntentAnswerRequest {
   userIntent: string;
   intermediate: IntermediateRepresentation;
   messages?: ChatMessage[];
-  focus?: string;
   deepDiveSummary?: string;
   overviewTexts?: string[];
   checklistTexts?: string[];

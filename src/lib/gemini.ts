@@ -720,7 +720,6 @@ export async function generateIntentAnswer(
   personalization?: PersonalizationInput,
   context?: {
     deepDiveSummary?: string;
-    focus?: string;
     messages?: ChatMessage[];
     overviewTexts?: string[];
     checklistTexts?: string[];
@@ -733,7 +732,6 @@ export async function generateIntentAnswer(
       intermediate,
       deepDiveContext: {
         deepDiveSummary: context?.deepDiveSummary || '',
-        focus: context?.focus || '',
         messages: context?.messages ?? [],
       },
       existingGuides: {
@@ -776,7 +774,6 @@ export async function generateIntentAnswer(
 export async function generateDeepDiveResponse(params: {
   summary: string;
   messages: ChatMessage[];
-  focus?: string;
   deepDiveSummary?: string;
   summaryOnly?: boolean;
 }): Promise<{ answer: string; summary: string } | null> {
@@ -784,7 +781,6 @@ export async function generateDeepDiveResponse(params: {
     {
       summary: params.summary,
       deepDiveSummary: params.deepDiveSummary || '',
-      focus: params.focus || '',
       messages: params.messages || [],
       summaryOnly: Boolean(params.summaryOnly),
     },

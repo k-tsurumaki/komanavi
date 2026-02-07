@@ -15,7 +15,6 @@ import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 interface IntentAnswerEntry {
   text: string;
-  evidenceUrls: string[];
 }
 
 interface StructuredIntentAnswer {
@@ -111,24 +110,6 @@ function normalizeEvidenceUrl(url: unknown): string {
   }
 }
 
-function normalizeEvidenceUrls(value: unknown, limit: number): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const deduped = new Set<string>();
-  for (const item of value) {
-    const normalized = normalizeEvidenceUrl(item);
-    if (!normalized || deduped.has(normalized)) {
-      continue;
-    }
-    deduped.add(normalized);
-    if (deduped.size >= limit) {
-      break;
-    }
-  }
-  return Array.from(deduped);
-}
-
 function normalizeIntentText(value: unknown, fallback = '不明'): string {
   if (typeof value !== 'string') {
     return fallback;
@@ -141,19 +122,16 @@ function normalizeIntentEntry(value: unknown, fallbackText = '不明'): IntentAn
   if (typeof value === 'string') {
     return {
       text: normalizeIntentText(value, fallbackText),
-      evidenceUrls: [],
     };
   }
   if (!value || typeof value !== 'object') {
     return {
       text: fallbackText,
-      evidenceUrls: [],
     };
   }
   const objectValue = value as Record<string, unknown>;
   return {
     text: normalizeIntentText(objectValue.text, fallbackText),
-    evidenceUrls: normalizeEvidenceUrls(objectValue.evidenceUrls, 3),
   };
 }
 
@@ -214,7 +192,6 @@ function ResultContent() {
     messages,
     setMessages,
     addMessage,
-    focus,
     setIntent,
     deepDiveSummary,
     setDeepDiveSummary,
@@ -285,7 +262,18 @@ function ResultContent() {
     };
 
     loadDetail();
-  }, [historyId, analyze, resetCheckedItems, setError, setResult, setStatus, setUrl]);
+  }, [
+    analyze,
+    historyId,
+    resetCheckedItems,
+    resetDeepDiveState,
+    result,
+    setError,
+    setResult,
+    setStatus,
+    setUrl,
+    status,
+  ]);
 
   useEffect(() => {
     if (!result?.id || handledResultIdRef.current === result.id) return;
@@ -483,7 +471,6 @@ function ResultContent() {
           mode: 'deepDive',
           summary: summaryText,
           messages: nextMessages,
-          focus: focus || undefined,
           deepDiveSummary: deepDiveSummary || undefined,
         }),
       });
@@ -530,7 +517,6 @@ function ResultContent() {
               mode: 'deepDive',
               summary: summaryText,
               messages: overflowMessages,
-              focus: focus || undefined,
               deepDiveSummary: latestSummary || undefined,
               summaryOnly: true,
             }),
@@ -592,7 +578,6 @@ function ResultContent() {
           userIntent: trimmedIntent,
           intermediate: result.intermediate,
           messages,
-          focus: focus || undefined,
           deepDiveSummary: deepDiveSummary || undefined,
           overviewTexts,
           checklistTexts,

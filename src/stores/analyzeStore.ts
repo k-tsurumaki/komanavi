@@ -40,10 +40,6 @@ interface AnalyzeState {
   intent: string;
   setIntent: (intent: string) => void;
 
-  // 深掘り対象
-  focus: string;
-  setFocus: (focus: string) => void;
-
   // 深掘り要約
   deepDiveSummary: string;
   setDeepDiveSummary: (summary: string) => void;
@@ -62,7 +58,6 @@ const initialState = {
   lastHistoryId: null,
   messages: [] as ChatMessage[],
   intent: '',
-  focus: '',
   deepDiveSummary: '',
 };
 
@@ -77,13 +72,11 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   setMessages: (messages) => set({ messages }),
   addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   setIntent: (intent) => set({ intent }),
-  setFocus: (focus) => set({ focus }),
   setDeepDiveSummary: (summary) => set({ deepDiveSummary: summary }),
   resetDeepDiveState: () =>
     set({
       messages: [],
       intent: '',
-      focus: '',
       deepDiveSummary: '',
     }),
 
@@ -139,7 +132,6 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       set({
         messages: [],
         intent: '',
-        focus: '',
         deepDiveSummary: '',
       });
 

@@ -108,7 +108,6 @@ export async function POST(request: NextRequest) {
       const response = await generateDeepDiveResponse({
         summary: body.summary,
         messages: body.messages || [],
-        focus: body.focus,
         deepDiveSummary: body.deepDiveSummary,
         summaryOnly: body.summaryOnly,
       });
@@ -148,7 +147,6 @@ export async function POST(request: NextRequest) {
         personalizationInput,
         {
           deepDiveSummary: body.deepDiveSummary,
-          focus: body.focus,
           messages: body.messages || [],
           overviewTexts: body.overviewTexts || [],
           checklistTexts: body.checklistTexts || [],
