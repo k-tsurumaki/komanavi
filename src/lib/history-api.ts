@@ -21,6 +21,7 @@ type HistoryDetailResponse = {
     updatedAt?: string | null;
     checklist?: ChecklistItem[];
     generatedSummary?: string;
+    userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
     overview?: Overview;
@@ -82,6 +83,7 @@ export async function saveHistoryFromResult(params: {
     title,
     checklist: result.checklist,
     generatedSummary: result.generatedSummary,
+    userIntent: result.userIntent,
     intentAnswer: result.intentAnswer,
     guidanceUnlocked: result.guidanceUnlocked ?? false,
     overview: result.overview,
@@ -107,6 +109,7 @@ export async function patchHistoryResult(
   historyId: string,
   payload: {
     checklist?: ChecklistItem[];
+    userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
   },

@@ -42,6 +42,7 @@ function ResultContent() {
   const handledResultIdRef = useRef<string | null>(null);
   const pendingHistoryPatchRef = useRef<{
     checklist?: ChecklistItem[];
+    userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
   }>({});
@@ -87,6 +88,7 @@ function ResultContent() {
 
   const scheduleHistoryPatch = (patch: {
     checklist?: ChecklistItem[];
+    userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
   }) => {
@@ -155,12 +157,16 @@ function ResultContent() {
             intermediate: detail.intermediate.intermediate,
             generatedSummary:
               detail.result.generatedSummary || detail.intermediate.intermediate.summary || '',
+            userIntent: detail.result.userIntent,
             intentAnswer: detail.result.intentAnswer,
             guidanceUnlocked: detail.result.guidanceUnlocked ?? false,
             overview: detail.result.overview,
             checklist: detail.result.checklist || [],
             status: 'success' as const,
           };
+          const restoredIntent = detail.result.userIntent ?? '';
+          setIntentInput(restoredIntent);
+          useAnalyzeStore.getState().setIntent(restoredIntent);
           setResult(mergedResult);
           setStatus('success');
           setError(null);
@@ -212,6 +218,9 @@ function ResultContent() {
     setChatMode('deepDive');
     setIsIntentGenerating(false);
     setIsIntentLocked(Boolean(result.guidanceUnlocked));
+    const restoredIntent = useAnalyzeStore.getState().result?.userIntent ?? '';
+    setIntentInput(restoredIntent);
+    useAnalyzeStore.getState().setIntent(restoredIntent);
   }, [result?.id, result?.guidanceUnlocked]);
 
   if (!historyId && !url && !result) {
@@ -472,6 +481,7 @@ function ResultContent() {
 
       setResult({
         ...result,
+        userIntent: trimmedIntent,
         intentAnswer: payload.intentAnswer,
         guidanceUnlocked: true,
       });
@@ -479,6 +489,7 @@ function ResultContent() {
       setIsIntentLocked(true);
 
       const historyPatch = {
+        userIntent: trimmedIntent,
         intentAnswer: payload.intentAnswer,
         guidanceUnlocked: true,
       };
@@ -510,7 +521,7 @@ function ResultContent() {
     </section>
   );
   const canShowIntentEditButton =
-    isIntentLocked && intentInput.trim().length > 0 && !isIntentGenerating;
+    guidanceUnlocked && isIntentLocked && !isIntentGenerating;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">

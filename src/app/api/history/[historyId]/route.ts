@@ -13,6 +13,7 @@ const COLLECTIONS = {
 
 type PatchHistoryRequest = {
   checklist?: ChecklistItem[];
+  userIntent?: string;
   intentAnswer?: string;
   guidanceUnlocked?: boolean;
 };
@@ -163,17 +164,21 @@ export async function PATCH(
   }
 
   const hasChecklist = body.checklist !== undefined;
+  const hasUserIntent = body.userIntent !== undefined;
   const hasIntentAnswer = body.intentAnswer !== undefined;
   const hasGuidanceUnlocked = body.guidanceUnlocked !== undefined;
-  if (!hasChecklist && !hasIntentAnswer && !hasGuidanceUnlocked) {
+  if (!hasChecklist && !hasUserIntent && !hasIntentAnswer && !hasGuidanceUnlocked) {
     return NextResponse.json(
-      { error: 'checklist, intentAnswer or guidanceUnlocked is required' },
+      { error: 'checklist, userIntent, intentAnswer or guidanceUnlocked is required' },
       { status: 400 }
     );
   }
 
   if (hasChecklist && (!Array.isArray(body.checklist) || !body.checklist.every(isChecklistItem))) {
     return NextResponse.json({ error: 'checklist is invalid' }, { status: 400 });
+  }
+  if (hasUserIntent && typeof body.userIntent !== 'string') {
+    return NextResponse.json({ error: 'userIntent must be string' }, { status: 400 });
   }
   if (hasIntentAnswer && typeof body.intentAnswer !== 'string') {
     return NextResponse.json({ error: 'intentAnswer must be string' }, { status: 400 });
@@ -219,6 +224,7 @@ export async function PATCH(
     compact({
       updatedAt,
       checklist: body.checklist,
+      userIntent: body.userIntent,
       intentAnswer: body.intentAnswer,
       guidanceUnlocked: body.guidanceUnlocked,
     }),

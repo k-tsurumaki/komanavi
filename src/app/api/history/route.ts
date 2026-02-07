@@ -20,6 +20,7 @@ type SaveHistoryRequest = {
   checklist?: ChecklistItem[];
   intermediate?: IntermediateRepresentation;
   generatedSummary?: string;
+  userIntent?: string;
   intentAnswer?: string;
   guidanceUnlocked?: boolean;
   overview?: Overview;
@@ -85,6 +86,9 @@ export async function POST(request: NextRequest) {
   if (!resultId || !url || !title) {
     return NextResponse.json({ error: 'resultId, url, title are required' }, { status: 400 });
   }
+  if (body.userIntent !== undefined && typeof body.userIntent !== 'string') {
+    return NextResponse.json({ error: 'userIntent must be string' }, { status: 400 });
+  }
 
   let historyId = body.historyId ?? crypto.randomUUID();
   const createdAt = new Date();
@@ -137,6 +141,7 @@ export async function POST(request: NextRequest) {
     updatedAt: createdAt,
     checklist: body.checklist,
     generatedSummary: body.generatedSummary,
+    userIntent: body.userIntent,
     intentAnswer: body.intentAnswer,
     guidanceUnlocked: body.guidanceUnlocked ?? false,
     overview: body.overview,

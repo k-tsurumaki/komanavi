@@ -313,6 +313,7 @@ export interface AnalyzeResult {
   id: string;
   intermediate: IntermediateRepresentation;
   generatedSummary: string;
+  userIntent?: string;
   intentAnswer?: string;
   guidanceUnlocked?: boolean;
   overview?: Overview;

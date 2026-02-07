@@ -231,6 +231,7 @@ export async function POST(request: NextRequest) {
       id: crypto.randomUUID(),
       intermediate,
       generatedSummary,
+      userIntent: userIntent?.trim() || undefined,
       intentAnswer: intentAnswer || undefined,
       guidanceUnlocked: false,
       overview: overview || undefined,
