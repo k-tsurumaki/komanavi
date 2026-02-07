@@ -244,14 +244,17 @@ export function SummaryViewer({
       ? achievableOutcomes.slice(0, 3)
       : ['このページの要点を短時間で把握できる'];
   const conclusionText = overview?.conclusion || data.summary;
+  const hasCriticalFactsSection = criticalFacts.length > 0;
+  const hasContactInfoSection = contactDetails.length > 0;
   const evidenceSections = [
-    { blockId: 'conclusion' as const, label: '30秒で把握' },
-    { blockId: 'targetAudience' as const, label: 'だれ向けの情報か' },
-    { blockId: 'achievableOutcomes' as const, label: 'このページで実現できること' },
-    { blockId: 'criticalFacts' as const, label: 'このページの最重要ポイント' },
-    { blockId: 'cautions' as const, label: '見落とすと困る注意点' },
-    { blockId: 'contactInfo' as const, label: '問い合わせ情報' },
+    { blockId: 'conclusion' as const, label: '30秒で把握', visible: true },
+    { blockId: 'targetAudience' as const, label: 'だれ向けの情報か', visible: true },
+    { blockId: 'achievableOutcomes' as const, label: 'このページで実現できること', visible: true },
+    { blockId: 'criticalFacts' as const, label: 'このページの最重要ポイント', visible: hasCriticalFactsSection },
+    { blockId: 'cautions' as const, label: '見落とすと困る注意点', visible: true },
+    { blockId: 'contactInfo' as const, label: '問い合わせ情報', visible: hasContactInfoSection },
   ]
+    .filter((section) => section.visible)
     .map((section) => ({
       ...section,
       urls: getBlockEvidenceUrls(section.blockId),
