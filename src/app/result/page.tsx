@@ -424,6 +424,8 @@ function ResultContent() {
       <p className="mt-2 text-sm leading-relaxed text-slate-900">{entry.text}</p>
     </section>
   );
+  const canShowIntentEditButton =
+    isIntentLocked && intentInput.trim().length > 0 && !isIntentGenerating;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -623,18 +625,20 @@ function ResultContent() {
                   {intentError}
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => setIsIntentLocked(false)}
-                className="-mt-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
-                aria-label="意図を編集"
-                disabled={isIntentGenerating}
-              >
-                <span className="text-base" aria-hidden="true">
-                  ✎
-                </span>
-                メッセージを編集する
-              </button>
+              {canShowIntentEditButton && (
+                <button
+                  type="button"
+                  onClick={() => setIsIntentLocked(false)}
+                  className="-mt-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+                  aria-label="意図を編集"
+                  disabled={isIntentGenerating}
+                >
+                  <span className="text-base" aria-hidden="true">
+                    ✎
+                  </span>
+                  メッセージを編集する
+                </button>
+              )}
             </div>
           )}
         </div>
