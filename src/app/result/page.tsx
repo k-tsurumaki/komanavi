@@ -198,7 +198,6 @@ function ResultContent() {
     resetDeepDiveState,
   } = useAnalyzeStore();
   const lastLoadedHistoryId = useRef<string | null>(null);
-  const isNavigatingToAnalyzeRef = useRef(false);
   const handledResultIdRef = useRef<string | null>(null);
   const [deepDiveInput, setDeepDiveInput] = useState('');
   const [intentInput, setIntentInput] = useState('');
@@ -212,7 +211,6 @@ function ResultContent() {
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
 
   const handleBackToHome = () => {
-    isNavigatingToAnalyzeRef.current = true;
     reset();
   };
 

@@ -5,7 +5,7 @@
 
 - 差分基準: `dev..feature/summary-deepdive-intent-ui`
 - 対象: 「1分でわかる！平易化されたWebページ」「深掘りチャット」「意図入力」
-- 本書は直近の整理（`focus` 削除、`evidenceUrls` 契約削除、`useEffect` 依存修正）を反映済み
+- 本書は直近の整理（`focus` 削除、`evidenceUrls` 契約削除、履歴復元フロー修正、未使用state削除）を反映済み
 
 ## 2. 今回の整理で反映した変更点
 
@@ -20,9 +20,14 @@
 - Promptの出力JSONをテキスト中心に単純化（`headline` + `core`）
 - UIパーサーも `text` のみを正規化する構成へ統一
 
-3. 履歴読み込み `useEffect` の依存を修正
-- `resetDeepDiveState`, `result`, `status` を依存配列に追加
-- 依存不足警告と挙動ズレのリスクを低減
+3. 履歴復元フローを修正
+- `/analyze` → `/result` 遷移時に常に `url` クエリを付与（保存成功時は `historyId` も付与）
+- `historyId` 復元失敗時は `setResult(null)` の上で `url` 再解析導線へフォールバック
+- `historyId` 解決中は手動再解析CTAを非表示にし、復元処理との競合を防止
+
+4. 未使用stateを削除
+- `src/app/result/page.tsx` の `isNavigatingToAnalyzeRef` を削除
+- 将来の誤解を生む write-only state を排除
 
 ## 3. 差分スコープ（dev基準）
 
