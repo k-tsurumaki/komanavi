@@ -13,6 +13,172 @@ interface SummaryViewerProps {
   hideDetails?: boolean;
 }
 
+type SummaryHeadingIconName =
+  | 'summary'
+  | 'audience'
+  | 'outcomes'
+  | 'critical'
+  | 'cautions'
+  | 'contact'
+  | 'evidence';
+
+function SummaryHeadingIcon({
+  name,
+  className = 'text-slate-500',
+}: {
+  name: SummaryHeadingIconName;
+  className?: string;
+}) {
+  if (name === 'summary') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="m12 3 1.2 3.2L16.5 7.5l-3.3 1.3L12 12l-1.2-3.2L7.5 7.5l3.3-1.3L12 3Z" />
+        <path d="m18.5 12 0.8 2.1 2.2 0.8-2.2 0.8-0.8 2.1-0.8-2.1-2.2-0.8 2.2-0.8 0.8-2.1Z" />
+        <path d="m6 13.5 0.7 1.8 1.8 0.7-1.8 0.7L6 18.5l-0.7-1.8-1.8-0.7 1.8-0.7 0.7-1.8Z" />
+      </svg>
+    );
+  }
+
+  if (name === 'audience') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="9" cy="8" r="2.5" />
+        <circle cx="16.5" cy="9.5" r="2" />
+        <path d="M4.5 17.5c0-2.6 2-4.5 4.5-4.5s4.5 1.9 4.5 4.5" />
+        <path d="M13.5 17.5c0-1.8 1.4-3.1 3.1-3.1 1.7 0 3.1 1.3 3.1 3.1" />
+      </svg>
+    );
+  }
+
+  if (name === 'outcomes') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="8" />
+        <path d="m8.8 12.3 2.2 2.2 4.2-4.2" />
+      </svg>
+    );
+  }
+
+  if (name === 'critical') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M7 7h10" />
+        <path d="M7 12h10" />
+        <path d="M7 17h10" />
+        <circle cx="4.5" cy="7" r="0.8" fill="currentColor" stroke="none" />
+        <circle cx="4.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
+        <circle cx="4.5" cy="17" r="0.8" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  if (name === 'cautions') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 4 3.8 18h16.4L12 4Z" />
+        <path d="M12 9v4.2" />
+        <circle cx="12" cy="16.2" r="0.9" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  if (name === 'contact') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M6.5 4.5h3l1 3.6-1.8 1.8a12.7 12.7 0 0 0 5.4 5.4l1.8-1.8 3.6 1v3c0 1-.8 1.8-1.8 1.8A15.4 15.4 0 0 1 4.7 6.3c0-1 .8-1.8 1.8-1.8Z" />
+      </svg>
+    );
+  }
+
+  if (name === 'evidence') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M10 14a4 4 0 0 1 0-5.7l1.7-1.7a4 4 0 0 1 5.7 5.7l-1.5 1.5" />
+        <path d="M14 10a4 4 0 0 1 0 5.7l-1.7 1.7a4 4 0 1 1-5.7-5.7l1.5-1.5" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={`h-4 w-4 flex-shrink-0 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 14a4 4 0 0 1 0-5.7l1.7-1.7a4 4 0 0 1 5.7 5.7l-1.5 1.5" />
+      <path d="M14 10a4 4 0 0 1 0 5.7l-1.7 1.7a4 4 0 1 1-5.7-5.7l1.5-1.5" />
+    </svg>
+  );
+}
+
 export function SummaryViewer({
   data,
   overview,
@@ -271,13 +437,10 @@ export function SummaryViewer({
       <div className="mb-6 rounded-[24px] border border-slate-200/80 bg-slate-50 p-5 sm:p-6">
         <div className="space-y-4 sm:space-y-5">
           <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_22px_rgba(13,13,13,0.08)] sm:p-6">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <span
-                aria-hidden="true"
-                className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
-              />
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <SummaryHeadingIcon name="summary" />
               30秒で把握
-            </div>
+            </h3>
             <p className="mt-3 text-lg font-semibold leading-relaxed text-slate-900 sm:text-xl">
               {conclusionText}
             </p>
@@ -286,20 +449,14 @@ export function SummaryViewer({
           <div className="grid gap-4 md:grid-cols-2">
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
-                />
+                <SummaryHeadingIcon name="audience" />
                 だれ向けの情報か
               </h3>
               <p className="mt-3 text-[15px] leading-relaxed text-slate-900">{audienceText}</p>
             </section>
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
-                />
+                <SummaryHeadingIcon name="outcomes" />
                 このページで実現できること
               </h3>
               <ul className="mt-3 space-y-2">
@@ -321,10 +478,7 @@ export function SummaryViewer({
           {criticalFacts.length > 0 && (
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
-                />
+                <SummaryHeadingIcon name="critical" />
                 このページの最重要ポイント
               </h3>
               <div className="mt-3 overflow-x-auto rounded-xl">
@@ -357,10 +511,7 @@ export function SummaryViewer({
 
           <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(38,8,1,0.10)]">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-              <span
-                aria-hidden="true"
-                className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-700"
-              />
+              <SummaryHeadingIcon name="cautions" className="text-stone-700" />
               見落とすと困る注意点
             </h3>
             {compactCautions.length > 0 ? (
@@ -385,10 +536,7 @@ export function SummaryViewer({
           {contactDetails.length > 0 && (
             <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(38,8,1,0.10)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-700"
-                />
+                <SummaryHeadingIcon name="contact" className="text-stone-700" />
                 問い合わせ情報
               </h3>
               <div className="mt-3 overflow-x-auto rounded-xl border border-stone-300 bg-white">
@@ -435,10 +583,7 @@ export function SummaryViewer({
           {evidenceSections.length > 0 && (
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
-                />
+                <SummaryHeadingIcon name="evidence" />
                 証跡URL
               </h3>
               <div className="mt-3 space-y-4">
