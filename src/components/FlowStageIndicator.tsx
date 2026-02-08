@@ -97,7 +97,7 @@ function StepButton({
   index: number;
   compact?: boolean;
 }) {
-  const canNavigate = Boolean(onStepSelect && step.available !== false);
+  const canNavigate = Boolean(onStepSelect);
   const statusTone = getStatusTone(step.status);
   const statusLabel = getStatusLabel(step.status);
   const markerLabel = step.status === 'completed' ? '✓' : index + 1;
@@ -114,12 +114,10 @@ function StepButton({
     <button
       type="button"
       onClick={() => {
-        if (canNavigate && onStepSelect) {
+        if (onStepSelect) {
           onStepSelect(step.id);
         }
       }}
-      aria-disabled={!canNavigate}
-      disabled={!canNavigate}
       tabIndex={canNavigate ? 0 : -1}
       aria-current={isCurrent ? 'step' : undefined}
       className={`relative w-full rounded-xl border text-left transition ${
