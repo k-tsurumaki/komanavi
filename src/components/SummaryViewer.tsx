@@ -539,44 +539,32 @@ export function SummaryViewer({
                 <SummaryHeadingIcon name="contact" className="text-stone-700" />
                 問い合わせ情報
               </h3>
-              <div className="mt-3 overflow-x-auto rounded-xl border border-stone-300 bg-white">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-stone-100 text-slate-700">
-                    <tr>
-                      <th className="w-[32%] px-3 py-2 text-left font-semibold">項目</th>
-                      <th className="px-3 py-2 text-left font-semibold">内容</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contactDetails.map((detail, index) => (
-                      <tr
-                        key={`${detail.label}-${index}`}
-                        className={`border-t border-stone-200 align-top text-slate-800 ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-stone-100'
-                        }`}
-                      >
-                        <td className="px-3 py-2.5 font-semibold text-slate-900">{detail.label}</td>
-                        <td className="px-3 py-2.5">
-                          {detail.href ? (
-                            <a
-                              href={detail.href}
-                              target={detail.href.startsWith('http') ? '_blank' : undefined}
-                              rel={
-                                detail.href.startsWith('http') ? 'noreferrer noopener' : undefined
-                              }
-                              className="text-stone-700 underline underline-offset-2 break-all hover:text-stone-800"
-                            >
-                              {detail.value}
-                            </a>
-                          ) : (
-                            <span className="break-words">{detail.value}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <dl className="mt-3 space-y-2.5">
+                {contactDetails.map((detail, index) => (
+                  <div
+                    key={`${detail.label}-${index}`}
+                    className="grid gap-1.5 rounded-xl border border-stone-200 bg-white/95 px-4 py-3 sm:grid-cols-[150px,1fr] sm:gap-3"
+                  >
+                    <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
+                      {detail.label}
+                    </dt>
+                    <dd className="min-w-0 text-sm text-slate-900">
+                      {detail.href ? (
+                        <a
+                          href={detail.href}
+                          target={detail.href.startsWith('http') ? '_blank' : undefined}
+                          rel={detail.href.startsWith('http') ? 'noreferrer noopener' : undefined}
+                          className="break-all font-medium text-stone-700 underline underline-offset-2 hover:text-stone-800"
+                        >
+                          {detail.value}
+                        </a>
+                      ) : (
+                        <span className="break-words">{detail.value}</span>
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </section>
           )}
 
