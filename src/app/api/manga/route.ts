@@ -172,7 +172,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Firestore に conversation_manga を作成
-    await createConversationManga(resultId, historyId, body, userId);
+    try {
+      await createConversationManga(resultId, historyId, body, userId);
+    } catch (createError) {
+      const errorMessage = createError instanceof Error ? createError.message : 'Unknown error';
+      if (errorMessage.includes('already in progress')) {
+        return NextResponse.json(
+          {
+            error: '現在この解析結果の漫画生成が進行中です。完了後に再度お試しください。',
+            errorCode: 'concurrent',
+          },
+          { status: 409 }
+        );
+      }
+      throw createError;
+    }
 
     // Cloud Tasks にタスクをエンキュー
     try {

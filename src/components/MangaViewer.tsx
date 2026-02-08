@@ -456,8 +456,14 @@ export function MangaViewer(props: MangaViewerProps) {
               type="button"
               className="ui-btn ui-btn-ghost px-4 py-2 text-sm"
               onClick={() => {
+                // 全ての状態をクリア
                 setImageUrl('');
                 setResult(null);
+                setError(null);
+                setProgress(0);
+                clearPolling();
+                // localStorageのactiveJobをクリア
+                clearActiveJob();
               }}
             >
               もう一度生成する
@@ -486,6 +492,8 @@ export function MangaViewer(props: MangaViewerProps) {
                   className="font-semibold text-stone-700 hover:text-stone-800"
                   onClick={() => {
                     setError(null);
+                    setProgress(0);
+                    clearActiveJob();
                     handleGenerate();
                   }}
                 >

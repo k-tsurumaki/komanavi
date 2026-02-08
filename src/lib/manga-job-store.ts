@@ -38,6 +38,10 @@ export async function createConversationManga(
     if (existingData.userId !== userId || existingData.historyId !== historyId) {
       throw new Error('Forbidden: resultId or historyId mismatch');
     }
+    // 処理中のジョブは上書き不可
+    if (existingData.status === 'queued' || existingData.status === 'processing') {
+      throw new Error('Job is already in progress');
+    }
   }
 
   const mangaDoc: ConversationMangaDocument = {
