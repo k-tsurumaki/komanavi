@@ -763,11 +763,11 @@ function ResultContent() {
 
   return (
     <div className="ui-page ui-shell-gap">
+      {renderFlowIndicator()}
       <DisclaimerBanner
         sourceUrl={intermediate.metadata.source_url}
         fetchedAt={intermediate.metadata.fetched_at}
       />
-      {renderFlowIndicator()}
 
       <div ref={summarySectionRef}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
