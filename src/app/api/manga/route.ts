@@ -9,7 +9,7 @@ import {
 import { enqueueMangaTask, getMissingCloudTasksEnvVars } from '@/lib/cloud-tasks';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 
-const POLL_TIMEOUT_MS = 60 * 1000;
+const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10分（フロントエンドと整合）
 
 // レート制限用のインメモリ状態（同一ユーザーからの並行リクエスト制限）
 interface ActiveJobInfo {

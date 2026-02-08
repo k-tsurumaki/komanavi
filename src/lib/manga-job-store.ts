@@ -40,7 +40,6 @@ export async function createConversationManga(
     }
     // 処理中のジョブは上書き不可（ただしタイムアウト経過していればOK）
     if (existingData.status === 'queued' || existingData.status === 'processing') {
-      const now = Timestamp.now();
       const elapsedMs = now.toMillis() - existingData.createdAt.toMillis();
       const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10分
 

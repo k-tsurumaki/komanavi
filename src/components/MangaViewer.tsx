@@ -212,6 +212,7 @@ export function MangaViewer(props: MangaViewerProps) {
   const startedAtRef = useRef<number | null>(null);
   const isPollingRef = useRef(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const regeneratingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLoggedIn = !!session;
 
   const canGenerateMessage = useMemo(() => {
@@ -270,9 +271,9 @@ export function MangaViewer(props: MangaViewerProps) {
         const currentProgress = data.progress || 0;
         setProgress(currentProgress);
 
-        // localStorageの進捗を更新（ページ遷移後の復元用）
+        // localStorageの進捗を更新（進捗が変化した時のみ保存）
         const usage = loadUsage();
-        if (usage.activeJob && usage.activeJob.jobId === job) {
+        if (usage.activeJob && usage.activeJob.jobId === job && usage.activeJob.progress !== currentProgress) {
           usage.activeJob.progress = currentProgress;
           saveUsage(usage);
         }
@@ -383,9 +384,8 @@ export function MangaViewer(props: MangaViewerProps) {
 
     setIsRegenerating(true);
 
-    // 全ての状態をクリア
+    // 再生成時は初期データの復元を抑制するため result を維持しつつ imageUrl のみクリア
     setImageUrl('');
-    setResult(null);
     setError(null);
     setProgress(0);
     clearPolling();
@@ -396,7 +396,13 @@ export function MangaViewer(props: MangaViewerProps) {
       await handleGenerate();
     } finally {
       // 最小200ms待機（視覚的フィードバック）
-      setTimeout(() => setIsRegenerating(false), 200);
+      if (regeneratingTimeoutRef.current) {
+        clearTimeout(regeneratingTimeoutRef.current);
+      }
+      regeneratingTimeoutRef.current = setTimeout(() => {
+        setIsRegenerating(false);
+        regeneratingTimeoutRef.current = null;
+      }, 200);
     }
   }, [handleGenerate, clearPolling, clearActiveJob, isRegenerating, isPolling]);
 
@@ -412,12 +418,15 @@ export function MangaViewer(props: MangaViewerProps) {
 
     return () => {
       clearPolling();
+      if (regeneratingTimeoutRef.current) {
+        clearTimeout(regeneratingTimeoutRef.current);
+      }
     };
   }, [clearPolling, props.url, startPolling]);
 
-  // 履歴から復元した漫画データを初期表示
+  // 履歴から復元した漫画データを初期表示（再生成中・ポーリング中は復元しない）
   useEffect(() => {
-    if (props.initialMangaResult && !imageUrl) {
+    if (props.initialMangaResult && !imageUrl && !isPolling && !isRegenerating) {
       setResult(props.initialMangaResult);
       setProgress(100);
       if (props.initialMangaResult.imageUrls && props.initialMangaResult.imageUrls.length > 0) {
@@ -427,7 +436,7 @@ export function MangaViewer(props: MangaViewerProps) {
         setImageUrl(pngUrl);
       }
     }
-  }, [props.initialMangaResult, imageUrl]);
+  }, [props.initialMangaResult, imageUrl, isPolling, isRegenerating]);
 
   return (
     <div className="ui-card mb-6 rounded-2xl p-5 sm:p-6">
@@ -564,7 +573,7 @@ export function MangaViewer(props: MangaViewerProps) {
         </div>
       )}
 
-      {(error || (result && !imageUrl)) && (
+      {(error || (result && !imageUrl && !isPolling && !isRegenerating)) && (
         <div className="mt-4 space-y-2 text-sm text-slate-600">
           <p>テキスト要約にフォールバックしました。</p>
           <ul className="list-disc pl-5">
