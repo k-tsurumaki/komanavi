@@ -76,21 +76,23 @@ type GenerateContentResponse = any;
 /**
  * Vertex AI レスポンスからテキストを抽出
  */
-function extractText(response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }): string {
+function extractText(response: {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+}): string {
   const parts = response.candidates?.[0]?.content?.parts;
   if (!parts || parts.length === 0) {
     return '';
   }
 
-  return parts
-    .map((part) => part.text ?? '')
-    .join('');
+  return parts.map((part) => part.text ?? '').join('');
 }
 
 /**
  * レスポンスからGroundingMetadataを抽出
  */
-function extractGroundingMetadata(response: GenerateContentResponse): GroundingMetadata | undefined {
+function extractGroundingMetadata(
+  response: GenerateContentResponse
+): GroundingMetadata | undefined {
   const candidate = response.candidates?.[0];
 
   // デバッグ: groundingMetadata の存在確認
@@ -122,7 +124,9 @@ function extractGroundingMetadata(response: GenerateContentResponse): GroundingM
             }
           : undefined,
         groundingChunkIndices: Array.isArray(support.groundingChunkIndices)
-          ? support.groundingChunkIndices.filter((index: unknown): index is number => typeof index === 'number')
+          ? support.groundingChunkIndices.filter(
+              (index: unknown): index is number => typeof index === 'number'
+            )
           : undefined,
       })
     ),
@@ -302,7 +306,12 @@ ${searchResult.content}
     // ドキュメントタイプ判定
     const typeResult = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('document-type.txt') + '\n\n---\n\n' + pageContent }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: getPrompt('document-type.txt') + '\n\n---\n\n' + pageContent }],
+        },
+      ],
     });
     const typeText = extractText(typeResult);
     const typeData = parseJSON<{ documentType: DocumentType }>(typeText);
@@ -311,7 +320,12 @@ ${searchResult.content}
     // 中間表現生成
     const intermediateResult = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('intermediate.txt') + '\n\n---\n\n' + pageContent }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: getPrompt('intermediate.txt') + '\n\n---\n\n' + pageContent }],
+        },
+      ],
     });
     const intermediateText = extractText(intermediateResult);
     const intermediateData = parseJSON<Partial<IntermediateRepresentation>>(intermediateText);
@@ -319,14 +333,6 @@ ${searchResult.content}
     if (!intermediateData) {
       return null;
     }
-
-    // 根拠情報抽出
-    const sourcesResult = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('sources.txt') + '\n\n---\n\n' + pageContent }] }],
-    });
-    const sourcesText = extractText(sourcesResult);
-    const sources = parseJSON<IntermediateRepresentation['sources']>(sourcesText) || [];
 
     return {
       title: intermediateData.title || '',
@@ -344,7 +350,7 @@ ${searchResult.content}
       contact: intermediateData.contact,
       warnings: intermediateData.warnings,
       tips: intermediateData.tips,
-      sources,
+      sources: [],
     };
   } catch (error) {
     console.error('Google Gen AI error:', error);
@@ -365,7 +371,14 @@ export async function generateChecklist(
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('checklist.txt') + personalizationContext + '\n\n---\n\n' + context }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: getPrompt('checklist.txt') + personalizationContext + '\n\n---\n\n' + context },
+          ],
+        },
+      ],
     });
     const text = extractText(result);
     const items = parseJSON<Omit<ChecklistItem, 'completed'>[]>(text);
@@ -396,7 +409,20 @@ export async function generateSimpleSummary(
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('simple-summary.txt') + personalizationContext + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2) }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                getPrompt('simple-summary.txt') +
+                personalizationContext +
+                '\n\n---\n\n' +
+                JSON.stringify(intermediate, null, 2),
+            },
+          ],
+        },
+      ],
     });
     return extractText(result);
   } catch (error) {
@@ -532,11 +558,7 @@ export async function generateOverview(
     return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}…` : normalized;
   };
 
-  const normalizeList = (
-    value: unknown,
-    maxItems: number,
-    maxLengthPerItem: number
-  ): string[] => {
+  const normalizeList = (value: unknown, maxItems: number, maxLengthPerItem: number): string[] => {
     if (!Array.isArray(value)) {
       return [];
     }
@@ -639,7 +661,9 @@ export async function generateOverview(
         '制度の内容と手続き条件を確認するための案内です。',
       90
     );
-    const requiredDocCount = (intermediate.procedure?.required_documents ?? []).filter(Boolean).length;
+    const requiredDocCount = (intermediate.procedure?.required_documents ?? []).filter(
+      Boolean
+    ).length;
     const fallbackTopics = [
       requiredDocCount > 0 ? `必要書類は${requiredDocCount}点あります。` : '',
       intermediate.procedure?.deadline ? `期限は${intermediate.procedure.deadline}です。` : '',
@@ -675,7 +699,8 @@ export async function generateOverview(
           role: 'user',
           parts: [
             {
-              text: getPrompt('overview.txt') + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2),
+              text:
+                getPrompt('overview.txt') + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2),
             },
           ],
         },
@@ -759,10 +784,7 @@ export async function generateIntentAnswer(
           parts: [
             {
               text:
-                getPrompt('intent-answer.txt') +
-                personalizationContext +
-                '\n\n---\n\n' +
-                payload,
+                getPrompt('intent-answer.txt') + personalizationContext + '\n\n---\n\n' + payload,
             },
           ],
         },
@@ -798,7 +820,9 @@ export async function generateDeepDiveResponse(params: {
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: getPrompt('deep-dive.txt') + '\n\n---\n\n' + payload }] }],
+      contents: [
+        { role: 'user', parts: [{ text: getPrompt('deep-dive.txt') + '\n\n---\n\n' + payload }] },
+      ],
     });
     const text = extractText(result);
     const data = parseJSON<{ answer?: string; summary?: string }>(text);

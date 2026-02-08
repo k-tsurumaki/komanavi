@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
-import { GoogleSearchAttribution } from '@/components/GoogleSearchAttribution';
 import { MangaViewer } from '@/components/MangaViewer';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
@@ -830,11 +829,6 @@ function ResultContent() {
               historyId={effectiveHistoryId}
               initialMangaResult={savedMangaResult}
             />
-          )}
-
-          {/* Google Search 引用表示 */}
-          {intermediate.metadata.groundingMetadata && (
-            <GoogleSearchAttribution groundingMetadata={intermediate.metadata.groundingMetadata} />
           )}
         </>
       )}

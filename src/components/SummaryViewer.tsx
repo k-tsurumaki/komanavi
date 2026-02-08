@@ -554,7 +554,7 @@ export function SummaryViewer({
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <SummaryHeadingIcon name="evidence" />
-                公式情報へのリンク
+                参照リンク
               </h3>
               <div className="mt-3 space-y-4">
                 {evidenceSections.map((section) => (
