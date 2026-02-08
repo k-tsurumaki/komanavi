@@ -1,20 +1,27 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Suspense,
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
 } from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
+import { FlowStageIndicator } from '@/components/FlowStageIndicator';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { MangaViewer } from '@/components/MangaViewer';
+import {
+  deriveFlowStageModel,
+  type FlowStepId,
+  type MangaFlowState,
+} from '@/lib/flow-stage';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
@@ -22,6 +29,7 @@ import type { ChatMessage, ChecklistItem, IntentAnswerResponse, MangaResult } fr
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
   const historyId = searchParams.get('historyId');
@@ -61,8 +69,10 @@ function ResultContent() {
   const [isIntentGenerating, setIsIntentGenerating] = useState(false);
   const [isIntentLocked, setIsIntentLocked] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
+  const [hasIntentStepVisited, setHasIntentStepVisited] = useState(false);
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
   const [savedMangaResult, setSavedMangaResult] = useState<MangaResult | null>(null);
+  const [hasChecklistReviewed, setHasChecklistReviewed] = useState(false);
   const tabsId = useId();
   const deepDiveTabId = `${tabsId}-deep-dive-tab`;
   const intentTabId = `${tabsId}-intent-tab`;
@@ -70,6 +80,17 @@ function ResultContent() {
   const intentPanelId = `${tabsId}-intent-panel`;
   const deepDiveTabButtonRef = useRef<HTMLButtonElement | null>(null);
   const intentTabButtonRef = useRef<HTMLButtonElement | null>(null);
+  const intentSubmitButtonRef = useRef<HTMLButtonElement | null>(null);
+  const intentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const summarySectionRef = useRef<HTMLDivElement | null>(null);
+  const interactionSectionRef = useRef<HTMLDivElement | null>(null);
+  const checklistSectionRef = useRef<HTMLDivElement | null>(null);
+  const mangaSectionRef = useRef<HTMLDivElement | null>(null);
+  const [mangaFlowState, setMangaFlowState] = useState<MangaFlowState>({
+    status: 'not_started',
+    progress: 0,
+    updatedAt: Date.now(),
+  });
   const effectiveHistoryId = historyId ?? lastHistoryId;
 
   const handleBackToHome = () => {
@@ -189,8 +210,18 @@ function ResultContent() {
           // 漫画データを復元
           if (detail.manga?.result) {
             setSavedMangaResult(detail.manga.result);
+            setMangaFlowState({
+              status: 'completed',
+              progress: 100,
+              updatedAt: Date.now(),
+            });
           } else {
             setSavedMangaResult(null);
+            setMangaFlowState({
+              status: 'not_started',
+              progress: 0,
+              updatedAt: Date.now(),
+            });
           }
 
           return;
@@ -231,6 +262,7 @@ function ResultContent() {
     setChatMode('deepDive');
     setIsIntentGenerating(false);
     const restoredIntent = result.userIntent ?? '';
+    setHasIntentStepVisited(Boolean(restoredIntent.trim()));
     setIntentInput(restoredIntent);
     setIntent(restoredIntent);
   }, [result?.id, result?.userIntent, setIntent]);
@@ -240,9 +272,175 @@ function ResultContent() {
     setIsIntentLocked(Boolean(result.guidanceUnlocked));
   }, [result?.id, result?.guidanceUnlocked]);
 
+  useEffect(() => {
+    if (!result?.id) {
+      return;
+    }
+    if (savedMangaResult) {
+      setMangaFlowState({
+        status: 'completed',
+        progress: 100,
+        updatedAt: Date.now(),
+      });
+      return;
+    }
+    setMangaFlowState({
+      status: 'not_started',
+      progress: 0,
+      updatedAt: Date.now(),
+    });
+  }, [result?.id, savedMangaResult]);
+
+  useEffect(() => {
+    if (!result?.id) {
+      return;
+    }
+    setHasChecklistReviewed(false);
+  }, [result?.id]);
+
+  const hasIntermediate = Boolean(result?.intermediate);
+  const guidanceUnlocked = Boolean(result?.guidanceUnlocked);
+  const hasIntentInput = Boolean(intentInput.trim() || result?.userIntent?.trim());
+  const hasChecklistAvailable = Boolean(result?.checklist?.length);
+  const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving && !hasIntermediate);
+  const hasIntentGenerationError = Boolean(intentError && !isIntentGenerating && !guidanceUnlocked);
+  const shouldObserveChecklist = Boolean(
+    guidanceUnlocked && !isIntentGenerating && hasChecklistAvailable && !hasChecklistReviewed
+  );
+
+  const flowModel = useMemo(
+    () =>
+      deriveFlowStageModel({
+        analyzeStatus: status,
+        isHistoryResolving,
+        hasIntermediate,
+        hasIntentInput,
+        hasIntentStepVisited,
+        hasIntentGenerationError,
+        isIntentGenerating,
+        guidanceUnlocked,
+        hasChecklistAvailable,
+        hasChecklistReviewed,
+        hasDeepDiveMessages: messages.length > 0,
+        canStartAnalyzeFromUrl: canAnalyzeFromUrl,
+        manga: mangaFlowState,
+      }),
+    [
+      canAnalyzeFromUrl,
+      guidanceUnlocked,
+      hasChecklistAvailable,
+      hasChecklistReviewed,
+      hasIntentGenerationError,
+      hasIntentInput,
+      hasIntentStepVisited,
+      hasIntermediate,
+      isHistoryResolving,
+      isIntentGenerating,
+      mangaFlowState,
+      messages.length,
+      status,
+    ]
+  );
+
+  useEffect(() => {
+    if (!shouldObserveChecklist || !checklistSectionRef.current || typeof window === 'undefined') {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setHasChecklistReviewed(true);
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(checklistSectionRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [shouldObserveChecklist]);
+
+  const scrollToSection = useCallback((target: HTMLElement | null) => {
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const handleFlowStepNavigation = useCallback(
+    (stepId: FlowStepId) => {
+      if (stepId === 'analyze_url') {
+        if (canAnalyzeFromUrl && url) {
+          void analyze(url);
+          return;
+        }
+        reset();
+        router.push('/analyze');
+        return;
+      }
+
+      if (stepId === 'review_summary') {
+        scrollToSection(summarySectionRef.current);
+        return;
+      }
+
+      if (stepId === 'input_intent') {
+        setHasIntentStepVisited(true);
+        setChatMode('intent');
+        scrollToSection(interactionSectionRef.current);
+        window.setTimeout(() => {
+          intentTextareaRef.current?.focus();
+        }, 0);
+        return;
+      }
+
+      if (stepId === 'generate_answer') {
+        setHasIntentStepVisited(true);
+        setChatMode('intent');
+        scrollToSection(interactionSectionRef.current);
+        window.setTimeout(() => {
+          intentSubmitButtonRef.current?.focus();
+        }, 0);
+        return;
+      }
+
+      if (stepId === 'review_checklist') {
+        setHasChecklistReviewed(true);
+        scrollToSection(checklistSectionRef.current);
+        return;
+      }
+
+      if (stepId === 'deep_dive') {
+        setChatMode('deepDive');
+        scrollToSection(interactionSectionRef.current);
+        window.setTimeout(() => {
+          deepDiveTabButtonRef.current?.focus();
+        }, 0);
+        return;
+      }
+
+      scrollToSection(mangaSectionRef.current ?? checklistSectionRef.current);
+    },
+    [analyze, canAnalyzeFromUrl, reset, router, scrollToSection, url]
+  );
+
+  const renderFlowIndicator = () => (
+    <FlowStageIndicator
+      model={flowModel}
+      className="mb-5"
+      onStepSelect={handleFlowStepNavigation}
+    />
+  );
+
   if (!historyId && !url && !result) {
     return (
       <div className="ui-page ui-shell-gap">
+        {renderFlowIndicator()}
         <div className="ui-card ui-panel-error rounded-2xl p-6 text-center">
           <p className="mb-4 text-stone-900">URLが指定されていません</p>
           <Link
@@ -261,6 +459,7 @@ function ResultContent() {
   if (status === 'loading' && !isIntentGenerating) {
     return (
       <div className="ui-page ui-shell-gap">
+        {renderFlowIndicator()}
         <div className="flex flex-col items-center justify-center py-12">
           <div className="ui-spinner mb-4 h-12 w-12 animate-spin rounded-full border-2" />
           <p className="text-lg text-slate-700">ページを解析しています...</p>
@@ -274,6 +473,7 @@ function ResultContent() {
   if (status === 'error') {
     return (
       <div className="ui-page ui-shell-gap">
+        {renderFlowIndicator()}
         <div className="ui-card ui-panel-error rounded-2xl p-6 text-center">
           <p className="mb-4 text-stone-900">{error || '解析に失敗しました'}</p>
           <Link
@@ -290,9 +490,9 @@ function ResultContent() {
 
   // 結果がない場合
   if (!result || !result.intermediate) {
-    const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving);
     return (
       <div className="ui-page ui-shell-gap">
+        {renderFlowIndicator()}
         <div className="flex flex-col items-center justify-center py-12">
           {canAnalyzeFromUrl ? (
             <div className="ui-card max-w-xl rounded-2xl p-6 text-center">
@@ -347,11 +547,11 @@ function ResultContent() {
   const checklistTexts = checklist
     .map((item) => item.text?.trim())
     .filter((text): text is string => Boolean(text));
-  const guidanceUnlocked = Boolean(result.guidanceUnlocked);
   const shouldShowGuidanceSection = guidanceUnlocked || isIntentGenerating;
   const shouldShowChecklistSection = guidanceUnlocked && !isIntentGenerating;
 
   const handleChecklistToggle = (id: string, completed: boolean) => {
+    setHasChecklistReviewed(true);
     const nextChecklist = checklist.map((item) => (item.id === id ? { ...item, completed } : item));
     setResult({
       ...result,
@@ -461,6 +661,7 @@ function ResultContent() {
   };
 
   const handleAdvanceToIntent = () => {
+    setHasIntentStepVisited(true);
     setChatMode('intent');
   };
 
@@ -482,6 +683,9 @@ function ResultContent() {
     }
 
     event.preventDefault();
+    if (nextMode === 'intent') {
+      setHasIntentStepVisited(true);
+    }
     setChatMode(nextMode);
     if (nextMode === 'deepDive') {
       deepDiveTabButtonRef.current?.focus();
@@ -569,17 +773,21 @@ function ResultContent() {
 
   return (
     <div className="ui-page ui-shell-gap">
+      {renderFlowIndicator()}
       <DisclaimerBanner
         sourceUrl={intermediate.metadata.source_url}
         fetchedAt={intermediate.metadata.fetched_at}
       />
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="ui-heading text-lg">1分でわかる平易化サマリー</h3>
+
+      <div ref={summarySectionRef}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="ui-heading text-lg">1分でわかる平易化サマリー</h3>
+        </div>
+
+        <SummaryViewer data={intermediate} overview={overview} hideDetails />
       </div>
 
-      <SummaryViewer data={intermediate} overview={overview} hideDetails />
-
-      <div className="group ui-card relative mb-6 rounded-2xl px-6 pb-3 pt-6">
+      <div ref={interactionSectionRef} className="group ui-card relative mb-6 rounded-2xl px-6 pb-3 pt-6">
         <div className="absolute right-6 top-6">
           <div
             role="tablist"
@@ -715,6 +923,7 @@ function ResultContent() {
 
           <div className="relative">
             <textarea
+              ref={intentTextareaRef}
               value={intentInput}
               onChange={(event) => {
                 setIntentInput(event.target.value);
@@ -730,6 +939,7 @@ function ResultContent() {
               className="ui-textarea w-full resize-none pr-14 text-sm disabled:bg-slate-50 disabled:text-slate-500"
             />
             <button
+              ref={intentSubmitButtonRef}
               type="button"
               onClick={handleConfirmIntent}
               disabled={isIntentGenerating || isIntentLocked || !intentInput.trim()}
@@ -877,21 +1087,24 @@ function ResultContent() {
       {shouldShowChecklistSection && (
         <>
           {/* チェックリスト */}
-          <div className="mb-6">
+          <div ref={checklistSectionRef} className="mb-6">
             <ChecklistViewer items={checklist} onToggle={handleChecklistToggle} />
           </div>
 
           {/* 漫画ビューア（Phase 2） */}
           {effectiveHistoryId && (
-            <MangaViewer
-              url={intermediate.metadata.source_url}
-              title={intermediate.title}
-              summary={intermediate.summary}
-              keyPoints={intermediate.keyPoints?.map((point) => point.text)}
-              resultId={result.id}
-              historyId={effectiveHistoryId}
-              initialMangaResult={savedMangaResult}
-            />
+            <div ref={mangaSectionRef}>
+              <MangaViewer
+                url={intermediate.metadata.source_url}
+                title={intermediate.title}
+                summary={intermediate.summary}
+                keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+                resultId={result.id}
+                historyId={effectiveHistoryId}
+                initialMangaResult={savedMangaResult}
+                onFlowStateChange={setMangaFlowState}
+              />
+            </div>
           )}
         </>
       )}

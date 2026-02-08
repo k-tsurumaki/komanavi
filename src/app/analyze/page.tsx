@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { UrlInput } from '@/components/UrlInput';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
+import { FlowStageIndicator } from '@/components/FlowStageIndicator';
+import { deriveFlowStageModel, type FlowStepId } from '@/lib/flow-stage';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 const supportedTopics = [
@@ -51,8 +53,46 @@ export default function AnalyzePage() {
     await analyze(url);
   };
 
+  const flowModel = useMemo(
+    () =>
+      deriveFlowStageModel({
+        analyzeStatus: status,
+        isHistoryResolving: false,
+        hasIntermediate: false,
+        hasIntentInput: false,
+        hasIntentGenerationError: false,
+        isIntentGenerating: false,
+        guidanceUnlocked: false,
+        hasChecklistAvailable: false,
+        hasChecklistReviewed: false,
+        hasDeepDiveMessages: false,
+        canStartAnalyzeFromUrl: false,
+      }),
+    [status]
+  );
+
+  const handleFlowNavigation = (stepId: FlowStepId) => {
+    if (stepId !== 'analyze_url' || typeof window === 'undefined') {
+      return;
+    }
+    const input = document.getElementById('url-input') as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input.focus();
+  };
+
   return (
     <div className="ui-page ui-shell-gap space-y-6">
+      {(status === 'loading' || status === 'error') && (
+        <FlowStageIndicator
+          model={flowModel}
+          className="animate-fade-up"
+          onStepSelect={handleFlowNavigation}
+        />
+      )}
+
       <DisclaimerModal />
 
       <section className="animate-fade-up">
