@@ -10,6 +10,7 @@ const COLLECTIONS = {
   histories: 'conversation_histories',
   results: 'conversation_results',
   intermediates: 'conversation_intermediates',
+  manga: 'conversation_manga',
 } as const;
 
 type PatchHistoryRequest = {
@@ -51,6 +52,7 @@ export async function GET(
   const resultId = historyData.resultId as string | undefined;
   let result = null;
   let intermediate = null;
+  let manga = null;
 
   if (resultId) {
     const resultRef = db.collection(COLLECTIONS.results).doc(resultId);
@@ -83,10 +85,25 @@ export async function GET(
         }
       }
 
+      // 漫画データを取得
+      const mangaRef = db.collection(COLLECTIONS.manga).doc(resultId);
+      const mangaSnap = await mangaRef.get();
+      if (mangaSnap.exists) {
+        const mangaData = mangaSnap.data();
+        if (mangaData?.userId === userId) {
+          manga = {
+            id: mangaSnap.id,
+            ...mangaData,
+            createdAt: toIsoString(mangaData.createdAt),
+            updatedAt: toIsoString(mangaData.updatedAt),
+          };
+        }
+      }
+
     }
   }
 
-  return NextResponse.json({ history, result, intermediate });
+  return NextResponse.json({ history, result, intermediate, manga });
 }
 
 export async function DELETE(

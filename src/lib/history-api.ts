@@ -4,6 +4,10 @@ import type {
   HistoryItem,
   IntermediateRepresentation,
   Overview,
+  MangaJobStatus,
+  MangaRequest,
+  MangaResult,
+  MangaJobStatusResponse,
 } from '@/lib/types/intermediate';
 
 type HistoryListItem = HistoryItem;
@@ -32,6 +36,21 @@ type HistoryDetailResponse = {
     createdAt: string | null;
     intermediate: IntermediateRepresentation;
   } | null;
+  manga: {
+    id: string;
+    resultId: string;
+    historyId: string;
+    userId: string;
+    status: MangaJobStatus;
+    progress: number;
+    request: MangaRequest;
+    result?: MangaResult;
+    error?: string;
+    errorCode?: MangaJobStatusResponse['errorCode'];
+    storageUrl?: string;
+    createdAt: string | null;
+    updatedAt: string | null;
+  } | null;
 };
 
 
@@ -55,7 +74,7 @@ export async function fetchHistoryDetail(historyId: string): Promise<HistoryDeta
   });
   if (!response.ok) {
     if (response.status === 404) {
-      return { history: null, result: null, intermediate: null };
+      return { history: null, result: null, intermediate: null, manga: null };
     }
     throw new Error('履歴詳細の取得に失敗しました');
   }
