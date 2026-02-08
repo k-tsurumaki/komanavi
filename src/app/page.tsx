@@ -40,11 +40,12 @@ export default function LandingPage() {
         <section className="ui-card-float animate-fade-up overflow-hidden p-6 sm:p-8">
           <div className="grid gap-8 lg:grid-cols-[1.25fr_0.95fr] lg:items-center">
             <div>
-              <span className="ui-kicker">行政ページを最短で理解</span>
-              <h1 className="ui-heading mt-4 text-3xl leading-tight sm:text-4xl">
+              <h1 className="ui-heading text-3xl leading-tight sm:text-4xl">
                 必要な手続きを、
                 <br />
-                迷わず進めるためのAIアシスタント
+                迷わず進めるための
+                <br />
+                AIアシスタント
               </h1>
               <p className="ui-muted mt-4 max-w-2xl text-sm sm:text-base">
                 URLを入力すると、要約・チェックリスト・漫画の3つで情報を再構成。
@@ -91,9 +92,7 @@ export default function LandingPage() {
 
         <section className="ui-card p-6 sm:p-7">
           <h2 className="ui-heading text-lg">よく使われる手続き</h2>
-          <p className="ui-subtle mt-2 text-sm">
-            次のような行政情報での利用が増えています。
-          </p>
+          <p className="ui-subtle mt-2 text-sm">次のような行政情報での利用が増えています。</p>
           <div className="mt-4 flex flex-wrap gap-2.5">
             {useCases.map((item) => (
               <span key={item} className="ui-chip">
