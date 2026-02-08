@@ -105,7 +105,6 @@ export default function AnalyzePage() {
           model={flowModel}
           className="mt-5"
           onStepSelect={handleFlowNavigation}
-          onNextAction={handleFlowNavigation}
         />
       </section>
 

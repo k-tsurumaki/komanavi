@@ -10,7 +10,7 @@ const valueProps = [
     description: '必要な準備をステップで整理し、漏れを防ぎます。',
   },
   {
-    title: '漫画で再確認',
+    title: '漫画で確認',
     description: '複雑な流れを視覚化して、理解を定着させます。',
   },
 ];

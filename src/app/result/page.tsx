@@ -428,7 +428,6 @@ function ResultContent() {
       model={flowModel}
       className="mb-5"
       onStepSelect={handleFlowStepNavigation}
-      onNextAction={handleFlowStepNavigation}
     />
   );
 

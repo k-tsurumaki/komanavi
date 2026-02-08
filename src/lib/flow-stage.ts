@@ -63,11 +63,11 @@ const REQUIRED_STEPS: Array<Pick<FlowStepView, 'id' | 'label'>> = [
   { id: 'input_intent', label: '意図を入力' },
   { id: 'generate_answer', label: 'あなた向け回答を作成' },
   { id: 'review_checklist', label: 'チェックリストを確認' },
+  { id: 'manga_review', label: '漫画で確認' },
 ];
 
 const OPTIONAL_STEPS: Array<Pick<FlowStepView, 'id' | 'label'>> = [
   { id: 'deep_dive', label: '深掘りする（任意）' },
-  { id: 'manga_review', label: '漫画で再確認（任意）' },
 ];
 
 function createRequiredStep(id: FlowStepId, label: string): FlowStepView {
@@ -166,13 +166,20 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   const intentStep = findStepById(requiredSteps, 'input_intent');
   const answerStep = findStepById(requiredSteps, 'generate_answer');
   const checklistStep = findStepById(requiredSteps, 'review_checklist');
+  const mangaStep = findStepById(requiredSteps, 'manga_review');
   const deepDiveStep = findStepById(optionalSteps, 'deep_dive');
-  const mangaStep = findStepById(optionalSteps, 'manga_review');
 
-  deepDiveStep.status = context.hasDeepDiveMessages ? 'completed' : 'not_started';
   if (!context.hasIntermediate) {
+    deepDiveStep.status = 'not_started';
     deepDiveStep.available = false;
     deepDiveStep.helperText = '要点表示後に利用できます';
+  } else {
+    // 要件: 意図入力ステップ以上へ進んだら「深掘りする（任意）」は完了扱いにする
+    deepDiveStep.status = 'completed';
+    deepDiveStep.available = true;
+    deepDiveStep.helperText = context.hasDeepDiveMessages
+      ? '深掘りの履歴があります'
+      : '意図入力へ進んだため完了扱い';
   }
 
   const normalizedManga = normalizeMangaState(
@@ -238,17 +245,29 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
           ? 'completed'
           : 'in_progress'
         : 'completed';
-      currentStepId = 'review_checklist';
-      statusText = context.hasChecklistAvailable
-        ? context.hasChecklistReviewed
-          ? '必須タスクを完了しました'
-          : 'チェックリストで行動に移せます'
-        : '回答の確認が完了しました';
-      nextAction = context.hasChecklistAvailable
-        ? context.hasChecklistReviewed
-          ? undefined
-          : { stepId: 'review_checklist', label: 'チェックリストを見る' }
-        : { stepId: 'review_summary', label: '要点を見直す' };
+      const checklistPending = context.hasChecklistAvailable && !context.hasChecklistReviewed;
+
+      if (checklistPending) {
+        currentStepId = 'review_checklist';
+        statusText = 'チェックリストで行動に移せます';
+        nextAction = { stepId: 'review_checklist', label: 'チェックリストを見る' };
+      } else if (mangaStep.status === 'completed') {
+        currentStepId = 'manga_review';
+        statusText = '必須タスクを完了しました';
+        nextAction = undefined;
+      } else if (mangaStep.status === 'in_progress') {
+        currentStepId = 'manga_review';
+        statusText = '漫画を生成しています';
+        nextAction = undefined;
+      } else if (mangaStep.status === 'error') {
+        currentStepId = 'manga_review';
+        statusText = '漫画生成で停止しました';
+        nextAction = { stepId: 'manga_review', label: '漫画生成を再試行' };
+      } else {
+        currentStepId = 'manga_review';
+        statusText = '漫画で確認して理解を定着させましょう';
+        nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
+      }
     } else {
       intentStep.status = 'in_progress';
       currentStepId = 'input_intent';
