@@ -33,7 +33,7 @@ export function DisclaimerBanner({ sourceUrl, fetchedAt }: DisclaimerBannerProps
             rel="noopener noreferrer"
             className="ui-btn ui-btn-secondary px-3 py-2 text-xs"
           >
-            公式サイトを開く
+            公式情報を開く
           </Link>
         </div>
       </div>

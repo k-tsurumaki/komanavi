@@ -847,7 +847,7 @@ function ResultContent() {
             <div>
               <h3 className="ui-heading text-lg">気になる点を深掘り</h3>
               <p className="mt-1 text-sm text-slate-600">
-                「ここが分からない」をAIに質問して解消しましょう。
+                「ここが分からない」をAIアシスタントに質問して解消しましょう。
               </p>
             </div>
           </div>
