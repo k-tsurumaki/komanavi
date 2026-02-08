@@ -42,7 +42,7 @@ export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <div className="flex flex-col gap-3">
-        <label htmlFor="url-input" className="text-sm font-semibold tracking-wide text-slate-700">
+        <label htmlFor="url-input" className="sr-only">
           行政ページのURLを入力してください
         </label>
         <div className="flex flex-col sm:flex-row gap-3">
