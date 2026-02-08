@@ -535,15 +535,6 @@ function ResultContent() {
         sourceUrl={intermediate.metadata.source_url}
         fetchedAt={intermediate.metadata.fetched_at}
       />
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Link
-          href="/analyze"
-          onClick={handleBackToHome}
-          className="ui-btn ui-btn-secondary px-3 py-2 text-sm"
-        >
-          新しいURLを解析
-        </Link>
-      </div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h3 className="ui-heading text-lg">1分でわかる平易化サマリー</h3>
       </div>
