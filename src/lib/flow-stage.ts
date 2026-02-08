@@ -23,6 +23,7 @@ export interface FlowStageContext {
   isHistoryResolving: boolean;
   hasIntermediate: boolean;
   hasIntentInput: boolean;
+  hasIntentStepVisited?: boolean;
   hasIntentGenerationError: boolean;
   isIntentGenerating: boolean;
   guidanceUnlocked: boolean;
@@ -189,6 +190,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   mangaStep.status = normalizedManga.status;
   mangaStep.available = normalizedManga.available;
   mangaStep.helperText = normalizedManga.helperText;
+  const isIntentStepCompleted = Boolean(context.hasIntentInput || context.hasIntentStepVisited);
 
   let currentStepId: FlowStepId = 'analyze_url';
   let statusText = 'URLを入力して解析を開始できます';
@@ -224,13 +226,13 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
     reviewStep.status = 'completed';
 
     if (context.isIntentGenerating) {
-      intentStep.status = context.hasIntentInput ? 'completed' : 'in_progress';
+      intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
       answerStep.status = 'in_progress';
       currentStepId = 'generate_answer';
       statusText = 'あなた向け回答を作成しています';
       nextAction = undefined;
     } else if (context.hasIntentGenerationError) {
-      intentStep.status = context.hasIntentInput ? 'completed' : 'in_progress';
+      intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
       answerStep.status = 'error';
       currentStepId = 'generate_answer';
       statusText = '回答生成で停止しました';
@@ -269,7 +271,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
         nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
       }
     } else {
-      intentStep.status = 'in_progress';
+      intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
       currentStepId = 'input_intent';
       statusText = '実現したいことを一文で入力してください';
       nextAction = { stepId: 'input_intent', label: '意図入力へ移動' };

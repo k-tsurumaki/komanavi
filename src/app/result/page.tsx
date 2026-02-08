@@ -69,6 +69,7 @@ function ResultContent() {
   const [isIntentGenerating, setIsIntentGenerating] = useState(false);
   const [isIntentLocked, setIsIntentLocked] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
+  const [hasIntentStepVisited, setHasIntentStepVisited] = useState(false);
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
   const [savedMangaResult, setSavedMangaResult] = useState<MangaResult | null>(null);
   const [hasChecklistReviewed, setHasChecklistReviewed] = useState(false);
@@ -261,6 +262,7 @@ function ResultContent() {
     setChatMode('deepDive');
     setIsIntentGenerating(false);
     const restoredIntent = result.userIntent ?? '';
+    setHasIntentStepVisited(Boolean(restoredIntent.trim()));
     setIntentInput(restoredIntent);
     setIntent(restoredIntent);
   }, [result?.id, result?.userIntent, setIntent]);
@@ -313,6 +315,7 @@ function ResultContent() {
         isHistoryResolving,
         hasIntermediate,
         hasIntentInput,
+        hasIntentStepVisited,
         hasIntentGenerationError,
         isIntentGenerating,
         guidanceUnlocked,
@@ -329,6 +332,7 @@ function ResultContent() {
       hasChecklistReviewed,
       hasIntentGenerationError,
       hasIntentInput,
+      hasIntentStepVisited,
       hasIntermediate,
       isHistoryResolving,
       isIntentGenerating,
@@ -386,6 +390,7 @@ function ResultContent() {
       }
 
       if (stepId === 'input_intent') {
+        setHasIntentStepVisited(true);
         setChatMode('intent');
         scrollToSection(interactionSectionRef.current);
         window.setTimeout(() => {
@@ -395,6 +400,7 @@ function ResultContent() {
       }
 
       if (stepId === 'generate_answer') {
+        setHasIntentStepVisited(true);
         setChatMode('intent');
         scrollToSection(interactionSectionRef.current);
         window.setTimeout(() => {
@@ -655,6 +661,7 @@ function ResultContent() {
   };
 
   const handleAdvanceToIntent = () => {
+    setHasIntentStepVisited(true);
     setChatMode('intent');
   };
 
@@ -676,6 +683,9 @@ function ResultContent() {
     }
 
     event.preventDefault();
+    if (nextMode === 'intent') {
+      setHasIntentStepVisited(true);
+    }
     setChatMode(nextMode);
     if (nextMode === 'deepDive') {
       deepDiveTabButtonRef.current?.focus();

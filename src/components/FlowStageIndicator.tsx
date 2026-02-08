@@ -19,6 +19,7 @@ const FLOW_STEP_DISPLAY_ORDER: FlowStepId[] = [
   'manga_review',
 ];
 const STICKY_NAV_GAP_PX = 8;
+const STICKY_NAV_HIDE_HYSTERESIS_PX = 16;
 const STICKY_NAV_MEDIA_QUERY = '(min-width: 1024px)';
 
 function getStatusLabel(status: FlowStepStatus): string | null {
@@ -189,6 +190,10 @@ export function FlowStageIndicator({
     ? Math.round((mergedCompletedCount / mergedTotalCount) * 100)
     : 0;
   const optionalInProgress = model.optionalSteps.filter((step) => step.status === 'in_progress');
+  const currentStep = mergedSteps.find((step) => step.id === model.currentStepId) ?? mergedSteps[0];
+  const canNavigateCurrentStep = Boolean(
+    currentStep && onStepSelect && currentStep.available !== false
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -218,11 +223,15 @@ export function FlowStageIndicator({
       }
 
       const rect = section.getBoundingClientRect();
-      const nextVisible = rect.bottom <= nextTopOffset + STICKY_NAV_GAP_PX;
       const nextLeft = Math.round(rect.left);
       const nextWidth = Math.round(rect.width);
 
-      setShowStickySummary((prev) => (prev === nextVisible ? prev : nextVisible));
+      setShowStickySummary((prev) => {
+        const nextVisible = prev
+          ? rect.top <= nextTopOffset + STICKY_NAV_HIDE_HYSTERESIS_PX
+          : rect.top <= nextTopOffset;
+        return prev === nextVisible ? prev : nextVisible;
+      });
       setStickySummaryBounds((prev) =>
         prev.left === nextLeft && prev.width === nextWidth
           ? prev
@@ -271,25 +280,39 @@ export function FlowStageIndicator({
     <>
       {showStickySummary && stickySummaryBounds.width > 0 && (
         <div
-          className="pointer-events-none fixed z-20 hidden lg:block"
+          className="fixed z-20 hidden lg:block"
           style={{
             top: stickyTopOffset,
             left: stickySummaryBounds.left,
             width: stickySummaryBounds.width,
           }}
-          aria-hidden="true"
         >
-          <div className="rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.08)] backdrop-blur"
+          >
             <div className="flex items-center gap-3">
               <p className="shrink-0 text-[10px] font-semibold tracking-[0.08em] text-slate-600">
                 ステップナビ
               </p>
               <p className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">
-                {model.statusText}
+                {currentStep?.label ?? model.statusText}
               </p>
               <span className="text-xs font-medium text-slate-600 tabular-nums">
                 {mergedCompletedCount}/{mergedTotalCount}
               </span>
+              {canNavigateCurrentStep && currentStep && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onStepSelect?.(currentStep.id);
+                  }}
+                  className="rounded-md border border-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-700 transition hover:border-stone-400 hover:bg-white"
+                >
+                  開く
+                </button>
+              )}
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
               <div
