@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
-import { SourceReference } from '@/components/SourceReference';
 import { GoogleSearchAttribution } from '@/components/GoogleSearchAttribution';
 import { MangaViewer } from '@/components/MangaViewer';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
@@ -837,11 +836,6 @@ function ResultContent() {
           {intermediate.metadata.groundingMetadata && (
             <GoogleSearchAttribution groundingMetadata={intermediate.metadata.groundingMetadata} />
           )}
-
-          {/* 根拠表示 */}
-          <div className="mb-6">
-            <SourceReference sources={intermediate.sources} />
-          </div>
         </>
       )}
 
