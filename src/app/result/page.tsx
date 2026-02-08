@@ -1,7 +1,15 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { SummaryViewer } from '@/components/SummaryViewer';
@@ -55,6 +63,13 @@ function ResultContent() {
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
   const [savedMangaResult, setSavedMangaResult] = useState<MangaResult | null>(null);
+  const tabsId = useId();
+  const deepDiveTabId = `${tabsId}-deep-dive-tab`;
+  const intentTabId = `${tabsId}-intent-tab`;
+  const deepDivePanelId = `${tabsId}-deep-dive-panel`;
+  const intentPanelId = `${tabsId}-intent-panel`;
+  const deepDiveTabButtonRef = useRef<HTMLButtonElement | null>(null);
+  const intentTabButtonRef = useRef<HTMLButtonElement | null>(null);
   const effectiveHistoryId = historyId ?? lastHistoryId;
 
   const handleBackToHome = () => {
@@ -449,6 +464,32 @@ function ResultContent() {
     setChatMode('intent');
   };
 
+  const handleChatTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    let nextMode: 'deepDive' | 'intent' | null = null;
+
+    if (event.key === 'ArrowRight') {
+      nextMode = chatMode === 'deepDive' ? 'intent' : 'deepDive';
+    } else if (event.key === 'ArrowLeft') {
+      nextMode = chatMode === 'intent' ? 'deepDive' : 'intent';
+    } else if (event.key === 'Home') {
+      nextMode = 'deepDive';
+    } else if (event.key === 'End') {
+      nextMode = 'intent';
+    }
+
+    if (!nextMode) {
+      return;
+    }
+
+    event.preventDefault();
+    setChatMode(nextMode);
+    if (nextMode === 'deepDive') {
+      deepDiveTabButtonRef.current?.focus();
+      return;
+    }
+    intentTabButtonRef.current?.focus();
+  };
+
   const handleConfirmIntent = async () => {
     if (!intentInput.trim() || !result?.intermediate || isIntentGenerating) return;
     const trimmedIntent = intentInput.trim();
@@ -540,9 +581,20 @@ function ResultContent() {
 
       <div className="group ui-card relative mb-6 rounded-2xl px-6 pb-3 pt-6">
         <div className="absolute right-6 top-6">
-          <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
+          <div
+            role="tablist"
+            aria-label="回答モードの切り替え"
+            className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600"
+          >
             <button
+              ref={deepDiveTabButtonRef}
               type="button"
+              id={deepDiveTabId}
+              role="tab"
+              aria-selected={chatMode === 'deepDive'}
+              aria-controls={deepDivePanelId}
+              tabIndex={chatMode === 'deepDive' ? 0 : -1}
+              onKeyDown={handleChatTabKeyDown}
               onClick={() => setChatMode('deepDive')}
               className={`px-3 py-1 rounded-full transition ${
                 chatMode === 'deepDive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
@@ -551,7 +603,14 @@ function ResultContent() {
               深掘り
             </button>
             <button
+              ref={intentTabButtonRef}
               type="button"
+              id={intentTabId}
+              role="tab"
+              aria-selected={chatMode === 'intent'}
+              aria-controls={intentPanelId}
+              tabIndex={chatMode === 'intent' ? 0 : -1}
+              onKeyDown={handleChatTabKeyDown}
               onClick={handleAdvanceToIntent}
               className={`px-3 py-1 rounded-full transition ${
                 chatMode === 'intent' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
@@ -561,155 +620,159 @@ function ResultContent() {
             </button>
           </div>
         </div>
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4 pr-24">
-          {chatMode === 'deepDive' && (
+        <div
+          id={deepDivePanelId}
+          role="tabpanel"
+          aria-labelledby={deepDiveTabId}
+          hidden={chatMode !== 'deepDive'}
+        >
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4 pr-24">
             <div>
               <h3 className="ui-heading text-lg">気になる点を深掘り</h3>
               <p className="mt-1 text-sm text-slate-600">
                 「ここが分からない」をAIに質問して解消しましょう。
               </p>
             </div>
-          )}
-          {chatMode === 'intent' && (
+          </div>
+
+          <div className="mb-4 space-y-4">
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={`rounded-xl px-4 py-3 border ${
+                  message.role === 'user'
+                    ? 'bg-stone-100 border-stone-300 text-stone-900'
+                    : 'bg-slate-50 border-slate-200 text-slate-800'
+                }`}
+              >
+                <p className="mb-1 text-xs font-semibold tracking-wide">
+                  {message.role === 'user' ? 'あなた' : 'AIアシスタント'}
+                </p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+              </div>
+            ))}
+          </div>
+
+          {deepDiveError && <div className="ui-callout ui-callout-error mb-4">{deepDiveError}</div>}
+
+          <div className="relative">
+            <textarea
+              value={deepDiveInput}
+              onChange={(event) => {
+                setDeepDiveInput(event.target.value);
+                event.currentTarget.style.height = 'auto';
+                event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
+              }}
+              rows={3}
+              placeholder="例: 対象条件をもう少し詳しく知りたい"
+              className="ui-textarea w-full resize-none pr-14 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleSendDeepDive}
+              disabled={isDeepDiveLoading || !deepDiveInput.trim()}
+              className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+              aria-label="送信"
+            >
+              {isDeepDiveLoading ? (
+                <span className="inline-flex h-5 w-5 items-center justify-center">
+                  <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
+                </span>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div
+          id={intentPanelId}
+          role="tabpanel"
+          aria-labelledby={intentTabId}
+          hidden={chatMode !== 'intent'}
+          className="space-y-0"
+        >
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4 pr-24">
             <div className="max-w-xl">
               <h3 className="ui-heading text-lg">最終的に実現したいことを一文で</h3>
               <p className="mt-1 text-sm text-slate-600">
                 実現したいことを入力すると、具体的なチェックリストと漫画が提供されます。
               </p>
             </div>
+          </div>
+
+          <div className="relative">
+            <textarea
+              value={intentInput}
+              onChange={(event) => {
+                setIntentInput(event.target.value);
+                if (intentError) {
+                  setIntentError(null);
+                }
+                event.currentTarget.style.height = 'auto';
+                event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
+              }}
+              rows={3}
+              placeholder="例: 私が対象かどうかと申請方法を知りたい"
+              disabled={isIntentGenerating || isIntentLocked}
+              className="ui-textarea w-full resize-none pr-14 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+            />
+            <button
+              type="button"
+              onClick={handleConfirmIntent}
+              disabled={isIntentGenerating || isIntentLocked || !intentInput.trim()}
+              className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+              aria-label="意図を確定"
+            >
+              {isIntentGenerating ? (
+                <span className="inline-flex h-5 w-5 items-center justify-center">
+                  <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
+                </span>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {intentError && <div className="ui-callout ui-callout-error mt-3">{intentError}</div>}
+          {canShowIntentEditButton && (
+            <button
+              type="button"
+              onClick={() => setIsIntentLocked(false)}
+              className="-mt-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+              aria-label="意図を編集"
+              disabled={isIntentGenerating}
+            >
+              <span className="text-base" aria-hidden="true">
+                ✎
+              </span>
+              メッセージを編集する
+            </button>
           )}
         </div>
-
-        {chatMode === 'deepDive' && (
-          <>
-            <div className="mb-4 space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={`${message.role}-${index}`}
-                  className={`rounded-xl px-4 py-3 border ${
-                    message.role === 'user'
-                      ? 'bg-stone-100 border-stone-300 text-stone-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
-                >
-                  <p className="mb-1 text-xs font-semibold tracking-wide">
-                    {message.role === 'user' ? 'あなた' : 'AIアシスタント'}
-                  </p>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
-                </div>
-              ))}
-            </div>
-
-            {deepDiveError && (
-              <div className="ui-callout ui-callout-error mb-4">{deepDiveError}</div>
-            )}
-
-            <div className="relative">
-              <textarea
-                value={deepDiveInput}
-                onChange={(event) => {
-                  setDeepDiveInput(event.target.value);
-                  event.currentTarget.style.height = 'auto';
-                  event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
-                }}
-                rows={3}
-                placeholder="例: 対象条件をもう少し詳しく知りたい"
-                className="ui-textarea w-full resize-none pr-14 text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleSendDeepDive}
-                disabled={isDeepDiveLoading || !deepDiveInput.trim()}
-                className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
-                aria-label="送信"
-              >
-                {isDeepDiveLoading ? (
-                  <span className="inline-flex h-5 w-5 items-center justify-center">
-                    <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
-                  </span>
-                ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </>
-        )}
-
-        {chatMode === 'intent' && (
-          <div className="space-y-0">
-            <div className="relative">
-              <textarea
-                value={intentInput}
-                onChange={(event) => {
-                  setIntentInput(event.target.value);
-                  if (intentError) {
-                    setIntentError(null);
-                  }
-                  event.currentTarget.style.height = 'auto';
-                  event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
-                }}
-                rows={3}
-                placeholder="例: 私が対象かどうかと申請方法を知りたい"
-                disabled={isIntentGenerating || isIntentLocked}
-                className="ui-textarea w-full resize-none pr-14 text-sm disabled:bg-slate-50 disabled:text-slate-500"
-              />
-              <button
-                type="button"
-                onClick={handleConfirmIntent}
-                disabled={isIntentGenerating || isIntentLocked || !intentInput.trim()}
-                className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
-                aria-label="意図を確定"
-              >
-                {isIntentGenerating ? (
-                  <span className="inline-flex h-5 w-5 items-center justify-center">
-                    <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
-                  </span>
-                ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                )}
-              </button>
-            </div>
-            {intentError && <div className="ui-callout ui-callout-error mt-3">{intentError}</div>}
-            {canShowIntentEditButton && (
-              <button
-                type="button"
-                onClick={() => setIsIntentLocked(false)}
-                className="-mt-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
-                aria-label="意図を編集"
-                disabled={isIntentGenerating}
-              >
-                <span className="text-base" aria-hidden="true">
-                  ✎
-                </span>
-                メッセージを編集する
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* 回答生成開始 */}
