@@ -185,7 +185,9 @@ export function FlowStageIndicator({
     const step = stepMap.get(stepId);
     return step ? [step] : [];
   });
-  const mergedCompletedCount = mergedSteps.filter((step) => step.status === 'completed').length;
+  const mergedCompletedCount = mergedSteps.filter(
+    (step) => step.status === 'completed' || (step.id === model.currentStepId && step.status === 'in_progress')
+  ).length;
   const mergedTotalCount = mergedSteps.length;
   const completedPercentage = mergedTotalCount > 0
     ? Math.round((mergedCompletedCount / mergedTotalCount) * 100)

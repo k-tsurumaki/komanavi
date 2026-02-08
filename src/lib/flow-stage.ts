@@ -171,9 +171,6 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   const mangaStep = findStepById(requiredSteps, 'manga_review');
   const deepDiveStep = findStepById(optionalSteps, 'deep_dive');
   const isIntentStepCompleted = Boolean(context.hasIntentInput);
-  const isDeepDiveStepCompleted = Boolean(
-    context.hasDeepDiveStepVisited || context.hasDeepDiveMessages
-  );
   const hasReachedIntentStage = Boolean(
     context.hasIntentStepVisited ||
     isIntentStepCompleted ||
@@ -211,15 +208,19 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
     deepDiveStep.status = 'not_started';
     deepDiveStep.available = false;
     deepDiveStep.helperText = '要点表示後に利用できます';
-  } else if (isDeepDiveStepCompleted || hasReachedIntentStage) {
+  } else if (hasReachedIntentStage) {
     // 要件: 意図入力ステップ以上へ進んだら「深掘りする（任意）」は完了扱いにする
     deepDiveStep.status = 'completed';
     deepDiveStep.available = true;
     deepDiveStep.helperText = context.hasDeepDiveMessages
       ? '深掘りの履歴があります'
-      : hasReachedIntentStage
-        ? '意図入力へ進んだため完了扱い'
-        : '深掘りを開始しました';
+      : '意図入力へ進んだため完了扱い';
+  } else if (context.hasDeepDiveStepVisited || context.hasDeepDiveMessages) {
+    deepDiveStep.status = 'in_progress';
+    deepDiveStep.available = true;
+    deepDiveStep.helperText = context.hasDeepDiveMessages
+      ? '深掘り中です'
+      : '意図入力に進むと完了します';
   } else {
     deepDiveStep.status = 'not_started';
     deepDiveStep.available = true;
