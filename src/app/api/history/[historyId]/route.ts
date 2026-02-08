@@ -3,6 +3,7 @@ import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireUserId, toIsoString, compact } from '@/app/api/history/utils';
 import type { ChecklistItem } from '@/lib/types/intermediate';
 import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
+import { generateSignedUrl } from '@/lib/cloud-storage';
 
 export const runtime = 'nodejs';
 
@@ -91,9 +92,31 @@ export async function GET(
       if (mangaSnap.exists) {
         const mangaData = mangaSnap.data();
         if (mangaData?.userId === userId) {
+          // 署名付きURLを再生成（期限切れ対策）
+          let updatedResult = mangaData.result;
+          if (mangaData.result && mangaData.storageUrl) {
+            try {
+              const newSignedUrl = await generateSignedUrl(mangaData.storageUrl);
+              updatedResult = {
+                ...mangaData.result,
+                imageUrls: [newSignedUrl],
+              };
+
+              // Firestoreも更新（古いURLを残さない）
+              await mangaRef.update({
+                'result.imageUrls': [newSignedUrl],
+                updatedAt: new Date(),
+              });
+            } catch (error) {
+              console.error('Failed to generate signed URL:', error);
+              // エラーが発生しても処理は続行（既存のURLを使う）
+            }
+          }
+
           manga = {
             id: mangaSnap.id,
             ...mangaData,
+            result: updatedResult,
             createdAt: toIsoString(mangaData.createdAt),
             updatedAt: toIsoString(mangaData.updatedAt),
           };
