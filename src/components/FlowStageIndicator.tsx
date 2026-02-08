@@ -176,7 +176,7 @@ export function FlowStageIndicator({
     <section className={`ui-card rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 ${className ?? ''}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div role="status" aria-live="polite" className="max-w-2xl">
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-slate-600">進行ガイド</p>
+          <p className="text-[11px] font-semibold tracking-[0.08em] text-slate-600">ステップマップ</p>
           <p className="mt-1.5 text-sm font-semibold leading-relaxed text-slate-900 sm:text-[15px]">
             {model.statusText}
           </p>
@@ -188,14 +188,16 @@ export function FlowStageIndicator({
         </div>
 
         <div className="w-full max-w-xs">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-600">
-            <span>{mergedCompletedCount}/{mergedTotalCount}</span>
-          </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
-            <div
-              className="h-full rounded-full bg-stone-600 transition-[width] duration-300"
-              style={{ width: `${completedPercentage}%` }}
-            />
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-stone-600 transition-[width] duration-300"
+                style={{ width: `${completedPercentage}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium text-slate-600 tabular-nums">
+              {mergedCompletedCount}/{mergedTotalCount}
+            </span>
           </div>
         </div>
       </div>
