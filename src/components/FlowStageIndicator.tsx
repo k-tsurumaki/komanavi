@@ -20,7 +20,7 @@ const FLOW_STEP_DISPLAY_ORDER: FlowStepId[] = [
 ];
 
 function getStatusLabel(status: FlowStepStatus): string | null {
-  if (status === 'completed') return '完了';
+  if (status === 'completed') return null;
   if (status === 'in_progress') return null;
   if (status === 'error') return '要対応';
   if (status === 'skipped') return 'スキップ';
