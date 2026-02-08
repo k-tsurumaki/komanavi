@@ -6,6 +6,27 @@ type TimestampLike = {
   toDate: () => Date;
 };
 
+const PROFILE_STRING_FIELDS = [
+  'displayName',
+  'gender',
+  'occupation',
+  'nationality',
+  'location',
+  'visualTraits',
+  'personality',
+] as const;
+
+type ProfileResponse = {
+  displayName: string;
+  birthDate: string | null;
+  gender: string;
+  occupation: string;
+  nationality: string;
+  location: string;
+  visualTraits: string;
+  personality: string;
+};
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -19,11 +40,99 @@ function isTimestampLike(value: unknown): value is TimestampLike {
   );
 }
 
-function normalizeTimestampField(target: Record<string, unknown>, key: string) {
-  const field = target[key];
-  if (isTimestampLike(field)) {
-    target[key] = field.toDate().toISOString();
+function getDefaultProfile(): ProfileResponse {
+  return {
+    displayName: '',
+    birthDate: null,
+    gender: '',
+    occupation: '',
+    nationality: '日本',
+    location: '',
+    visualTraits: '',
+    personality: '',
+  };
+}
+
+function normalizeBirthDateToIso(value: unknown): string | null {
+  if (isTimestampLike(value)) {
+    return value.toDate().toISOString();
   }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+  return null;
+}
+
+function normalizeProfileString(value: unknown): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim();
+}
+
+function buildProfileResponse(data: unknown): ProfileResponse {
+  const profile = getDefaultProfile();
+  if (!isPlainObject(data)) {
+    return profile;
+  }
+
+  for (const field of PROFILE_STRING_FIELDS) {
+    const normalized = normalizeProfileString(data[field]);
+    if (field === 'nationality') {
+      profile.nationality = normalized || '日本';
+      continue;
+    }
+    profile[field] = normalized;
+  }
+
+  profile.birthDate = normalizeBirthDateToIso(data.birthDate);
+  return profile;
+}
+
+function buildProfileUpdatePayload(body: Record<string, unknown>):
+  | { ok: true; saveData: Record<string, unknown> }
+  | { ok: false; error: string } {
+  const saveData: Record<string, unknown> = {};
+
+  for (const field of PROFILE_STRING_FIELDS) {
+    if (!(field in body)) {
+      continue;
+    }
+    const normalized = normalizeProfileString(body[field]);
+    if (field === 'nationality') {
+      saveData.nationality = normalized || '日本';
+      continue;
+    }
+    saveData[field] = normalized;
+  }
+
+  if ('birthDate' in body) {
+    const birthDate = body.birthDate;
+    if (birthDate == null || (typeof birthDate === 'string' && birthDate.trim().length === 0)) {
+      saveData.birthDate = null;
+    } else if (typeof birthDate === 'string') {
+      const parsedBirthDate = new Date(birthDate);
+      if (Number.isNaN(parsedBirthDate.getTime())) {
+        return { ok: false, error: 'Invalid birthDate' };
+      }
+      saveData.birthDate = parsedBirthDate;
+    } else {
+      return { ok: false, error: 'Invalid birthDate' };
+    }
+  }
+
+  if (Object.keys(saveData).length === 0) {
+    return { ok: false, error: 'No updatable profile fields provided' };
+  }
+
+  saveData.updatedAt = new Date();
+  return { ok: true, saveData };
 }
 
 export async function GET() {
@@ -40,15 +149,10 @@ export async function GET() {
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      return NextResponse.json({ nationality: '日本' });
+      return NextResponse.json(getDefaultProfile());
     }
 
-    const data = docSnap.data();
-    const responseData: Record<string, unknown> = isPlainObject(data) ? { ...data } : {};
-    normalizeTimestampField(responseData, 'birthDate');
-    normalizeTimestampField(responseData, 'updatedAt');
-
-    return NextResponse.json(responseData);
+    return NextResponse.json(buildProfileResponse(docSnap.data()));
   } catch (error) {
     console.error('Error fetching profile:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -68,24 +172,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection('users').doc(session.user.id);
-    const saveData: Record<string, unknown> = { ...body };
-
-    const birthDate = saveData.birthDate;
-    if (typeof birthDate === 'string' && birthDate.trim().length > 0) {
-      const parsedBirthDate = new Date(birthDate);
-      if (Number.isNaN(parsedBirthDate.getTime())) {
-        return NextResponse.json({ error: 'Invalid birthDate' }, { status: 400 });
-      }
-      saveData.birthDate = parsedBirthDate;
-    } else {
-      saveData.birthDate = null;
+    const payloadResult = buildProfileUpdatePayload(body);
+    if (!payloadResult.ok) {
+      return NextResponse.json({ error: payloadResult.error }, { status: 400 });
     }
 
-    saveData.updatedAt = new Date();
-
-    await docRef.set(saveData, { merge: true });
+    const db = getAdminFirestore();
+    const docRef = db.collection('users').doc(session.user.id);
+    await docRef.set(payloadResult.saveData, { merge: true });
 
     return NextResponse.json({ success: true });
   } catch (error) {
