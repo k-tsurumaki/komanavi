@@ -12,8 +12,7 @@ const MODEL_ID = 'gemini-3-pro-image-preview';
 const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
 const LOCATION = 'global';
 
-const PROMPT =
-  'ピーナッツバター&ジャムサンドの作り方を４コマ漫画で説明して下さい';
+const PROMPT = 'ピーナッツバター&ジャムサンドの作り方を４コマ漫画で説明して下さい';
 
 type InlineData = {
   mimeType: string;
@@ -69,7 +68,7 @@ async function main() {
     apiVersion: 'v1',
   });
 
-  const result = (await ai.models.generateContent({
+  const requestPayload = {
     model: MODEL_ID,
     contents: [
       {
@@ -90,7 +89,10 @@ async function main() {
         threshold: 'BLOCK_MEDIUM_AND_ABOVE',
       },
     ],
-  } as any)) as GenerateContentResponse;
+  };
+  const result = (await ai.models.generateContent(
+    requestPayload as unknown as Parameters<typeof ai.models.generateContent>[0]
+  )) as GenerateContentResponse;
 
   const parts = result.candidates?.[0]?.content?.parts ?? [];
 

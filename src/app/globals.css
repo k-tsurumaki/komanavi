@@ -1,52 +1,372 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --background: #eeebea;
+  --surface: #fcfbfa;
+  --surface-soft: #f4efed;
+  --surface-muted: #ece6e3;
+  --foreground: #0d0d0d;
+  --foreground-soft: #5a4641;
+  --foreground-muted: #7f7470;
+  --border: #c7bbb7;
+  --border-soft: #ddd3d0;
+  --primary: #260801;
+  --accent: #73534c;
+  --accent-soft: #9c817b;
+  --state-info-bg: #f3ece9;
+  --state-info-border: #c8b6b0;
+  --state-info-text: #5d4641;
+  --state-error-bg: #f1dfdb;
+  --state-error-border: #956d64;
+  --state-error-text: #260801;
+  --state-success-bg: #f2ece9;
+  --state-success-border: #bcaca7;
+  --state-success-text: #503b36;
+  --shadow-soft: 0 12px 28px rgba(13, 13, 13, 0.08);
+  --shadow-float: 0 22px 52px rgba(13, 13, 13, 0.14);
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground-soft: var(--foreground-soft);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-slate-50: #f9f6f5;
+  --color-slate-100: #f1ebe9;
+  --color-slate-200: #e4dad7;
+  --color-slate-300: #cdbfba;
+  --color-slate-400: #ae9b95;
+  --color-slate-500: #8f7973;
+  --color-slate-600: #73534c;
+  --color-slate-700: #5c433d;
+  --color-slate-800: #412c27;
+  --color-slate-900: #260801;
+  --color-slate-950: #0d0d0d;
+  --color-stone-50: #f9f6f5;
+  --color-stone-100: #f1ebe9;
+  --color-stone-200: #e4dad7;
+  --color-stone-300: #cdbfba;
+  --color-stone-400: #ae9b95;
+  --color-stone-500: #8f7973;
+  --color-stone-600: #73534c;
+  --color-stone-700: #5c433d;
+  --color-stone-800: #412c27;
+  --color-stone-900: #260801;
+  --color-stone-950: #0d0d0d;
   --font-sans: var(--font-noto-sans-jp), 'Noto Sans JP', sans-serif;
 }
 
 html {
-  font-size: 18px; /* アクセシビリティ：大きめの基本フォントサイズ */
+  font-size: 17px;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-noto-sans-jp), 'Noto Sans JP', sans-serif;
-  line-height: 1.8;
+  line-height: 1.65;
+  min-height: 100vh;
+  letter-spacing: 0.01em;
+  text-rendering: optimizeLegibility;
 }
 
-/* フォーカス時のアウトライン（アクセシビリティ） */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(115, 83, 76, 0.15), transparent 42%),
+    radial-gradient(circle at 100% 0%, rgba(38, 8, 1, 0.08), transparent 40%);
+}
+
 *:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: 2px solid rgba(115, 83, 76, 0.62);
+  outline-offset: 3px;
+  border-radius: 10px;
 }
 
-/* リンクのスタイル */
 a {
-  color: var(--primary);
+  color: var(--accent);
   text-decoration: none;
+  transition: color 180ms ease;
 }
 
 a:hover {
-  text-decoration: underline;
+  color: var(--primary);
 }
 
-/* ボタンの基本スタイル */
 button {
   cursor: pointer;
 }
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.56;
+}
+
+::selection {
+  background: rgba(115, 83, 76, 0.24);
+  color: #0d0d0d;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #a6a6a6 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #a6a6a6;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ui-page {
+  width: min(100%, 1024px);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.ui-page-wide {
+  width: min(100%, 1160px);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.ui-shell-gap {
+  padding-block: clamp(1rem, 2vw, 1.5rem);
+}
+
+.ui-card {
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.ui-card-soft {
+  border: 1px solid var(--border-soft);
+  background: var(--surface-soft);
+  border-radius: var(--radius-lg);
+}
+
+.ui-card-float {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+}
+
+.ui-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--foreground-soft);
+}
+
+.ui-heading {
+  color: var(--foreground);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ui-muted {
+  color: var(--foreground-soft);
+}
+
+.ui-subtle {
+  color: var(--foreground-muted);
+}
+
+.ui-callout {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 0.72rem 0.9rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.ui-callout-info {
+  border-color: var(--state-info-border);
+  background: var(--state-info-bg);
+  color: var(--state-info-text);
+}
+
+.ui-callout-error {
+  border-color: var(--state-error-border);
+  background: var(--state-error-bg);
+  color: var(--state-error-text);
+}
+
+.ui-callout-success {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+.ui-spinner {
+  border-style: solid;
+  border-color: var(--accent);
+  border-right-color: transparent;
+}
+
+.ui-panel-error {
+  border-color: var(--state-error-border);
+  background: var(--state-error-bg);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.2;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.ui-btn:active {
+  transform: translateY(0.5px);
+}
+
+.ui-btn-primary {
+  color: white;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow: 0 10px 22px rgba(38, 8, 1, 0.28);
+}
+
+.ui-btn-primary:hover {
+  background: linear-gradient(135deg, #331009, #8a6860);
+  box-shadow: 0 12px 26px rgba(38, 8, 1, 0.34);
+}
+
+.ui-btn-secondary {
+  color: var(--foreground-soft);
+  background: #fcfbfa;
+  border-color: var(--border);
+}
+
+.ui-btn-secondary:hover {
+  background: #f3efed;
+  border-color: #b9ada8;
+}
+
+.ui-btn-ghost {
+  color: var(--foreground-muted);
+  background: transparent;
+  border-color: #d9d1cd;
+}
+
+.ui-btn-ghost:hover {
+  color: var(--foreground-soft);
+  background: #f3efed;
+}
+
+.ui-input,
+.ui-select,
+.ui-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  color: var(--foreground);
+  transition:
+    border-color 170ms ease,
+    box-shadow 170ms ease,
+    background-color 170ms ease;
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder {
+  color: #9a8f8b;
+}
+
+.ui-input:focus,
+.ui-select:focus,
+.ui-textarea:focus {
+  border-color: rgba(115, 83, 76, 0.55);
+  box-shadow: 0 0 0 4px rgba(115, 83, 76, 0.2);
+  outline: none;
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f3eeeb;
+  padding: 0.24rem 0.62rem;
+  font-size: 0.76rem;
+  font-weight: 550;
+  color: var(--foreground-soft);
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(115, 83, 76, 0.16);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.58rem;
+}
+
+.animate-fade-up {
+  animation: fade-up 460ms ease forwards;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

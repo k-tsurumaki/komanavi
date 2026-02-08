@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { MangaJobResponse, MangaRequest } from '@/lib/types/intermediate';
 import { requireUserId } from '@/app/api/history/utils';
-import { createConversationManga, getConversationManga } from '@/lib/manga-job-store';
-import { enqueueMangaTask, isCloudTasksEnabled } from '@/lib/cloud-tasks';
+import {
+  createConversationManga,
+  getConversationManga,
+  updateConversationMangaError,
+} from '@/lib/manga-job-store';
+import { enqueueMangaTask, getMissingCloudTasksEnvVars } from '@/lib/cloud-tasks';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 
 const POLL_TIMEOUT_MS = 60 * 1000;
@@ -29,7 +33,6 @@ globalState.__mangaUsageByClient = usageByClient;
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
-
 
 function getClientId(headers: Headers): string {
   const forwarded = headers.get('x-forwarded-for');
@@ -106,11 +109,23 @@ export async function POST(request: NextRequest) {
 
     const body: MangaRequest = await request.json();
 
-    // resultId, historyId のバリデーション追加
+    // resultId, historyId のバリデーション
     if (!body.url || !body.title || !body.summary || !body.resultId || !body.historyId) {
       return NextResponse.json(
         { error: '必要な情報が不足しています', errorCode: 'validation_error' },
         { status: 400 }
+      );
+    }
+
+    const missingCloudTasksEnvVars = getMissingCloudTasksEnvVars();
+    if (missingCloudTasksEnvVars.length > 0) {
+      console.warn(
+        '[Manga API] Cloud Tasks is not enabled. Missing env vars:',
+        missingCloudTasksEnvVars
+      );
+      return NextResponse.json(
+        { error: 'Cloud Tasks が設定されていません', errorCode: 'api_error' },
+        { status: 500 }
       );
     }
 
@@ -119,12 +134,14 @@ export async function POST(request: NextRequest) {
     // 並行リクエストチェック
     if (await hasActiveJob(clientId)) {
       return NextResponse.json(
-        { error: '現在ほかの漫画生成が進行中です。完了後に再度お試しください。', errorCode: 'concurrent' },
+        {
+          error: '現在ほかの漫画生成が進行中です。完了後に再度お試しください。',
+          errorCode: 'concurrent',
+        },
         { status: 409 }
       );
     }
 
-    // resultId を使用（jobId の代わり）
     const { resultId, historyId } = body;
 
     // resultId と historyId の整合性を検証
@@ -157,22 +174,23 @@ export async function POST(request: NextRequest) {
     // Firestore に conversation_manga を作成
     await createConversationManga(resultId, historyId, body, userId);
 
-    // Cloud Tasks にタスクをエンキュー（resultId を渡す）
-    if (isCloudTasksEnabled()) {
+    // Cloud Tasks にタスクをエンキュー
+    try {
+      await enqueueMangaTask(resultId, body, userId);
+      console.log(`[Manga API] Task enqueued: ${resultId}`);
+    } catch (enqueueError) {
+      console.error('[Manga API] Failed to enqueue task:', enqueueError);
       try {
-        await enqueueMangaTask(resultId, body, userId);
-        console.log(`[Manga API] Task enqueued: ${resultId}`);
-      } catch (enqueueError) {
-        console.error('[Manga API] Failed to enqueue task:', enqueueError);
-        return NextResponse.json(
-          { error: '漫画生成の開始に失敗しました', errorCode: 'api_error' },
-          { status: 500 }
+        await updateConversationMangaError(
+          resultId,
+          'api_error',
+          'Cloud Tasks への登録に失敗したため、漫画生成を開始できませんでした。'
         );
+      } catch (updateError) {
+        console.error('[Manga API] Failed to update job status to error:', updateError);
       }
-    } else {
-      console.warn('[Manga API] Cloud Tasks is not enabled.');
       return NextResponse.json(
-        { error: 'Cloud Tasks が設定されていません', errorCode: 'api_error' },
+        { error: '漫画生成の開始に失敗しました', errorCode: 'api_error' },
         { status: 500 }
       );
     }
@@ -180,7 +198,6 @@ export async function POST(request: NextRequest) {
     // アクティブジョブとして記録（resultId を使用）
     setActiveJob(clientId, resultId, body.url);
 
-    // レスポンスは jobId の代わりに resultId を返す
     const response: MangaJobResponse = { jobId: resultId };
     return NextResponse.json(response);
   } catch (error) {

@@ -6,6 +6,15 @@ import { UrlInput } from '@/components/UrlInput';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
+const supportedTopics = [
+  '児童手当',
+  '転入届',
+  '介護保険',
+  '国民健康保険',
+  'パスポート申請',
+  '各種届出',
+];
+
 export default function AnalyzePage() {
   const router = useRouter();
   const { status, error, analyze, reset } = useAnalyzeStore();
@@ -43,93 +52,50 @@ export default function AnalyzePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* 免責同意モーダル */}
+    <div className="ui-page ui-shell-gap space-y-6">
       <DisclaimerModal />
 
-      {/* ヒーローセクション */}
-      <section className="text-center mb-12">
-        <h2 className="text-3xl font-bold mb-4">行政情報をわかりやすく</h2>
-        <p className="text-lg text-gray-600 mb-2">
-          難しい行政ページのURLを入力するだけで、
-          <br className="hidden sm:inline" />
-          わかりやすい要約とやることリストを作成します。
+      <section className="animate-fade-up">
+        <h2 className="ui-heading text-2xl sm:text-3xl">行政情報を、短時間で理解する</h2>
+        <p className="ui-muted mt-3 max-w-3xl text-sm sm:text-base">
+          行政ページのURLを入力すると、AIが要点を再構成し、次の行動がわかる形で提示します。
         </p>
       </section>
 
-      {/* URL入力フォーム */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-12">
+      <section className="ui-card-float p-5 sm:p-6">
         <UrlInput onSubmit={handleSubmit} isLoading={status === 'loading'} />
 
-        {/* ローディング表示 */}
-        {status === 'loading' && (
-          <div className="mt-6 text-center">
-            <div className="inline-flex items-center gap-3 px-6 py-4 bg-blue-50 rounded-lg">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
-              <span className="text-blue-700">
-                ページを解析しています...<br />
-                <span className="text-sm text-blue-600">（30秒〜1分程度かかります）</span>
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* エラー表示 */}
         {status === 'error' && error && (
-          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700">{error}</p>
-          </div>
+          <div className="ui-callout ui-callout-error mt-5">{error}</div>
         )}
       </section>
 
-      {/* 使い方説明 */}
-      <section className="mb-12">
-        <h3 className="text-xl font-bold mb-6 text-center">使い方</h3>
-        <div className="grid sm:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg p-6 text-center border border-gray-200">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">1</span>
-            </div>
-            <h4 className="font-bold mb-2">URLを入力</h4>
-            <p className="text-gray-600 text-base">
-              調べたい行政ページのURLをコピーして貼り付けます
-            </p>
-          </div>
-          <div className="bg-white rounded-lg p-6 text-center border border-gray-200">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">2</span>
-            </div>
-            <h4 className="font-bold mb-2">AIが解析</h4>
-            <p className="text-gray-600 text-base">
-              AIがページの内容を読み取り、要点を抽出します
-            </p>
-          </div>
-          <div className="bg-white rounded-lg p-6 text-center border border-gray-200">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">3</span>
-            </div>
-            <h4 className="font-bold mb-2">結果を確認</h4>
-            <p className="text-gray-600 text-base">
-              わかりやすい要約とやることリストを確認できます
-            </p>
-          </div>
-        </div>
+      <section className="grid gap-4 md:grid-cols-3">
+        <article className="ui-card p-5">
+          <p className="ui-badge">1</p>
+          <h3 className="ui-heading mt-3 text-base">URLを入力</h3>
+          <p className="ui-muted mt-2 text-sm">対象ページのURLを貼り付けます。</p>
+        </article>
+        <article className="ui-card p-5">
+          <p className="ui-badge">2</p>
+          <h3 className="ui-heading mt-3 text-base">AIが解析</h3>
+          <p className="ui-muted mt-2 text-sm">本文を読み取り、要点を抽出します。</p>
+        </article>
+        <article className="ui-card p-5">
+          <p className="ui-badge">3</p>
+          <h3 className="ui-heading mt-3 text-base">結果を確認</h3>
+          <p className="ui-muted mt-2 text-sm">チェックリストと補足解説を確認します。</p>
+        </article>
       </section>
 
-      {/* 対応例 */}
-      <section>
-        <h3 className="text-xl font-bold mb-6 text-center">こんな情報に対応</h3>
-        <div className="flex flex-wrap justify-center gap-3">
-          {['児童手当', '転入届', '介護保険', '国民健康保険', 'パスポート申請', '各種届出'].map(
-            (tag) => (
-              <span
-                key={tag}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-base"
-              >
-                {tag}
-              </span>
-            )
-          )}
+      <section className="ui-card p-5">
+        <h3 className="ui-heading text-base">対応しやすいテーマ例</h3>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {supportedTopics.map((tag) => (
+            <span key={tag} className="ui-chip">
+              {tag}
+            </span>
+          ))}
         </div>
       </section>
     </div>

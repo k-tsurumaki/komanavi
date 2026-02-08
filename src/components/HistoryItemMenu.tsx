@@ -51,7 +51,7 @@ export function HistoryItemMenu({
         aria-haspopup="menu"
         aria-expanded={isOpen}
         onClick={toggleMenu}
-        className={`inline-flex h-8 w-8 items-center justify-center text-gray-700 hover:text-gray-900 ${
+        className={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 ${
           buttonClassName || ''
         }`}
         disabled={disabled}
@@ -66,13 +66,13 @@ export function HistoryItemMenu({
       {isOpen && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-32 rounded-md border border-gray-200 bg-white shadow-lg"
+          className="ui-card absolute right-0 mt-2 w-32 rounded-xl border border-slate-200/80 bg-white"
         >
           <button
             type="button"
             role="menuitem"
             onClick={handleDeleteClick}
-            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+            className="w-full rounded-xl px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100"
             disabled={disabled}
           >
             削除
