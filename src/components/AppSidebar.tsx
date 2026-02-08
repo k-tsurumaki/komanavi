@@ -93,7 +93,6 @@ export function AppSidebar({
             >
               KOMANAVI
             </Link>
-            <p className="mt-1 text-xs text-slate-500">行政情報をわかりやすく</p>
           </div>
           {showCloseButton && (
             <button

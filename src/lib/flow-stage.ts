@@ -63,7 +63,7 @@ const REQUIRED_STEPS: Array<Pick<FlowStepView, 'id' | 'label'>> = [
   { id: 'analyze_url', label: 'URLを解析' },
   { id: 'review_summary', label: '要点を確認' },
   { id: 'input_intent', label: '意図を入力' },
-  { id: 'generate_answer', label: 'あなた向け回答を作成' },
+  { id: 'generate_answer', label: 'あなた向けの回答を作成' },
   { id: 'review_checklist', label: 'チェックリストを確認' },
   { id: 'manga_review', label: '漫画で確認' },
 ];
@@ -270,7 +270,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
       intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
       answerStep.status = 'in_progress';
       currentStepId = 'generate_answer';
-      statusText = 'あなた向け回答を作成しています';
+      statusText = 'あなた向けの回答を作成しています';
       nextAction = undefined;
     } else if (context.hasIntentGenerationError) {
       intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
