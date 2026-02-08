@@ -211,9 +211,8 @@ roles/secretmanager.secretAccessor
 | **ビルド構成** | Cloud Build 構成ファイル（yaml または json） |
 | **Cloud Build 構成ファイルの場所** | `cloudbuild.yaml` |
 | **サービスアカウント** | `komanavi-cloud-build@zenn-ai-agent-hackathon-vol4.iam.gserviceaccount.com` |
-| **置換変数**（オプション） | `_FIREBASE_API_KEY` = `AIzaSyC29gGNXK7v-mJdcUHRPu8oMDuFYmfeaVA` |
-
-**注意**: 置換変数はcloudbuild.yamlにデフォルト値が設定されているため、トリガー作成時に設定しなくても動作します。
+| **置換変数**（必須） | `_FIREBASE_API_KEY` = `AIzaSyC29gGNXK7v-mJdcUHRPu8oMDuFYmfeaVA` |
+**注意**: `cloudbuild.yaml` 側には `_FIREBASE_API_KEY` のデフォルト値は定義されていないため、トリガー作成時に必ず上記の置換変数を設定してください。
 
 ### オプション B: gcloud CLI で作成（GitHub 接続済みの場合）
 
@@ -538,7 +537,7 @@ Cloud Build の無料枠:
 
 **コスト削減のヒント:**
 - 不要なトリガーは無効化
-- ビルドマシンのスペックを適切に設定（現在: `E2_HIGHCPU_8`）
+- ビルドマシンのスペックを適切に設定（デフォルト: `E2_MEDIUM`）
 - キャッシュを活用（Docker layer cache）
 
 ```bash
