@@ -832,6 +832,8 @@ function ResultContent() {
             title={intermediate.title}
             summary={intermediate.summary}
             keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+            resultId={result.id}
+            historyId={effectiveHistoryId || ''}
           />
 
           {/* Google Search 引用表示 */}

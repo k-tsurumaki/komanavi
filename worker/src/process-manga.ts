@@ -224,37 +224,37 @@ async function generateMangaImage(
  * 漫画生成のメイン処理
  */
 export async function processManga(
-  jobId: string,
+  resultId: string,
   request: MangaRequest,
   userId: string
 ): Promise<void> {
-  console.log(`[Worker] Starting job ${jobId}`, {
+  console.log(`[Worker] Starting job ${resultId}`, {
     title: request.title,
     userId,
   });
 
   try {
     // 1. ステータス更新: processing (30%)
-    await updateMangaJobStatus(jobId, "processing", 30);
-    console.log(`[Worker] Job ${jobId}: Status updated to processing (30%)`);
+    await updateMangaJobStatus(resultId, "processing", 30);
+    console.log(`[Worker] Job ${resultId}: Status updated to processing (30%)`);
 
     // 2. パネル構成を生成
     const baseResult = buildPanels(request);
 
     // 3. ステータス更新: processing (50%)
-    await updateMangaJobStatus(jobId, "processing", 50);
+    await updateMangaJobStatus(resultId, "processing", 50);
 
     // 4. Gemini API で漫画画像を生成
-    console.log(`[Worker] Job ${jobId}: Calling Gemini API...`);
+    console.log(`[Worker] Job ${resultId}: Calling Gemini API...`);
     const { imageUrls } = await generateMangaImage(request, baseResult.panels);
-    console.log(`[Worker] Job ${jobId}: Generated ${imageUrls.length} images`);
+    console.log(`[Worker] Job ${resultId}: Generated ${imageUrls.length} images`);
 
     // 5. ステータス更新: processing (70%)
-    await updateMangaJobStatus(jobId, "processing", 70);
+    await updateMangaJobStatus(resultId, "processing", 70);
 
     // 6. Cloud Storage へアップロード
-    console.log(`[Worker] Job ${jobId}: Uploading to Cloud Storage...`);
-    await updateMangaJobStatus(jobId, "processing", 85);
+    console.log(`[Worker] Job ${resultId}: Uploading to Cloud Storage...`);
+    await updateMangaJobStatus(resultId, "processing", 85);
 
     const uploadResult = await uploadMangaImageAndGetUrl(
       userId,
@@ -269,7 +269,7 @@ export async function processManga(
     const finalImageUrls = [uploadResult.signedUrl];
     const storageUrl = uploadResult.storageUrl;
     console.log(
-      `[Worker] Job ${jobId}: Uploaded to ${uploadResult.storageUrl}`
+      `[Worker] Job ${resultId}: Uploaded to ${uploadResult.storageUrl}`
     );
 
     // 7. 完了
@@ -279,10 +279,10 @@ export async function processManga(
       storageUrl,
     };
 
-    await updateMangaJobResult(jobId, finalResult, storageUrl);
-    console.log(`[Worker] Job ${jobId}: Completed successfully`);
+    await updateMangaJobResult(resultId, finalResult, storageUrl);
+    console.log(`[Worker] Job ${resultId}: Completed successfully`);
   } catch (error) {
-    console.error(`[Worker] ジョブ ${jobId}: 処理エラー:`, error);
+    console.error(`[Worker] ジョブ ${resultId}: 処理エラー:`, error);
 
     const status = (error as { status?: number })?.status;
     const errorCode = status === HTTP_STATUS_TOO_MANY_REQUESTS ? "rate_limited" : "api_error";
@@ -293,7 +293,7 @@ export async function processManga(
 
     // エラーを Firestore に記録
     await updateMangaJobError(
-      jobId,
+      resultId,
       errorCode,
       errorMessage,
       buildFallback(request)

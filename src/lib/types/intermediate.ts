@@ -413,6 +413,10 @@ export interface MangaRequest {
   title: string;
   summary: string;
   keyPoints?: string[];
+
+  // 会話履歴との紐づけ
+  resultId: string;   // 解析結果のID（必須）
+  historyId: string;  // 会話履歴のID（必須）
 }
 
 /** 漫画ジョブレスポンス */
@@ -443,4 +447,21 @@ export interface HistoryItem {
   title: string;
   createdAt: string | null;
   resultId: string;
+}
+
+/** 会話履歴に紐づく漫画ドキュメント */
+export interface ConversationMangaDocument {
+  id: string;          // ドキュメントID = resultId
+  resultId: string;    // 解析結果のID
+  historyId: string;   // 会話履歴のID
+  userId: string;      // 所有ユーザーID
+  status: MangaJobStatus;
+  progress: number;
+  request: MangaRequest;
+  result?: MangaResult;
+  error?: string;
+  errorCode?: MangaJobStatusResponse['errorCode'];
+  storageUrl?: string;
+  createdAt: import('firebase-admin/firestore').Timestamp;
+  updatedAt: import('firebase-admin/firestore').Timestamp;
 }

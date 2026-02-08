@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireUserId, toIsoString } from '@/app/api/history/utils';
+import { requireUserId, toIsoString, compact } from '@/app/api/history/utils';
 import type { ChecklistItem } from '@/lib/types/intermediate';
 import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 
@@ -18,16 +18,6 @@ type PatchHistoryRequest = {
   intentAnswer?: string;
   guidanceUnlocked?: boolean;
 };
-
-function compact<T extends Record<string, unknown>>(data: T): T {
-  const next = { ...data } as Record<string, unknown>;
-  Object.keys(next).forEach((key) => {
-    if (next[key] === undefined) {
-      delete next[key];
-    }
-  });
-  return next as T;
-}
 
 export async function GET(
   _request: NextRequest,
@@ -123,12 +113,29 @@ export async function DELETE(
   }
 
   const resultId = historyData.resultId as string | undefined;
+
+  // resultId の所有権確認（セキュリティ強化）
+  if (resultId) {
+    const resultRef = db.collection(COLLECTIONS.results).doc(resultId);
+    const resultSnap = await resultRef.get();
+
+    if (resultSnap.exists) {
+      const resultData = resultSnap.data();
+      if (resultData?.userId !== userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+  }
+
   const batch = db.batch();
   batch.delete(historyRef);
 
   if (resultId) {
     batch.delete(db.collection(COLLECTIONS.results).doc(resultId));
     batch.delete(db.collection(COLLECTIONS.intermediates).doc(resultId));
+
+    // 漫画データも削除（セキュリティ課題の解決）
+    batch.delete(db.collection('conversation_manga').doc(resultId));
   }
 
   await batch.commit();

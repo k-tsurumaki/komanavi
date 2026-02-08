@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { MangaJobResponse, MangaRequest } from '@/lib/types/intermediate';
-import { auth } from '@/lib/auth';
-import { createMangaJob, getMangaJob } from '@/lib/manga-job-store';
+import { requireUserId } from '@/app/api/history/utils';
+import { createConversationManga, getConversationManga } from '@/lib/manga-job-store';
 import { enqueueMangaTask, isCloudTasksEnabled } from '@/lib/cloud-tasks';
 
 const POLL_TIMEOUT_MS = 60 * 1000;
@@ -29,15 +29,6 @@ function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function extractUserId(): Promise<string | null> {
-  try {
-    const session = await auth();
-    return session?.user?.id ?? null;
-  } catch (error) {
-    console.error('Session retrieval failed:', error);
-    return null;
-  }
-}
 
 function getClientId(headers: Headers): string {
   const forwarded = headers.get('x-forwarded-for');
@@ -89,8 +80,8 @@ async function hasActiveJob(clientId: string): Promise<boolean> {
 
   // Firestore でジョブの状態を確認
   try {
-    const job = await getMangaJob(jobId);
-    if (!job || job.status === 'done' || job.status === 'error') {
+    const manga = await getConversationManga(jobId);
+    if (!manga || manga.status === 'done' || manga.status === 'error') {
       clearActiveJob(clientId, jobId);
       return false;
     }
@@ -104,7 +95,7 @@ async function hasActiveJob(clientId: string): Promise<boolean> {
 export async function POST(request: NextRequest) {
   try {
     // 認証検証（必須）
-    const userId = await extractUserId();
+    const userId = await requireUserId();
     if (!userId) {
       return NextResponse.json(
         { error: '認証が必要です', errorCode: 'unauthorized' },
@@ -114,7 +105,8 @@ export async function POST(request: NextRequest) {
 
     const body: MangaRequest = await request.json();
 
-    if (!body.url || !body.title || !body.summary) {
+    // resultId, historyId のバリデーション追加
+    if (!body.url || !body.title || !body.summary || !body.resultId || !body.historyId) {
       return NextResponse.json(
         { error: '必要な情報が不足しています', errorCode: 'validation_error' },
         { status: 400 }
@@ -131,39 +123,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const jobId = crypto.randomUUID();
+    // resultId を使用（jobId の代わり）
+    const { resultId, historyId } = body;
 
-    // Firestore にジョブを作成
-    await createMangaJob(jobId, body, userId, clientId);
+    // Firestore に conversation_manga を作成
+    await createConversationManga(resultId, historyId, body, userId);
 
-    // Cloud Tasks にタスクをエンキュー
+    // Cloud Tasks にタスクをエンキュー（resultId を渡す）
     if (isCloudTasksEnabled()) {
       try {
-        await enqueueMangaTask(jobId, body, userId);
-        console.log(`[Manga API] Task enqueued: ${jobId}`);
+        await enqueueMangaTask(resultId, body, userId);
+        console.log(`[Manga API] Task enqueued: ${resultId}`);
       } catch (enqueueError) {
         console.error('[Manga API] Failed to enqueue task:', enqueueError);
-        // エンキュー失敗時は 500 エラーを返す
-        // Firestore のジョブは残るが、処理されないのでエラー状態にする
         return NextResponse.json(
           { error: '漫画生成の開始に失敗しました', errorCode: 'api_error' },
           { status: 500 }
         );
       }
     } else {
-      // Cloud Tasks が無効の場合はエラー
-      // 開発時は Firebase エミュレータ + Worker のローカル起動で対応
-      console.warn('[Manga API] Cloud Tasks is not enabled. Set MANGA_WORKER_URL and CLOUD_TASKS_QUEUE.');
+      console.warn('[Manga API] Cloud Tasks is not enabled.');
       return NextResponse.json(
         { error: 'Cloud Tasks が設定されていません', errorCode: 'api_error' },
         { status: 500 }
       );
     }
 
-    // アクティブジョブとして記録
-    setActiveJob(clientId, jobId, body.url);
+    // アクティブジョブとして記録（resultId を使用）
+    setActiveJob(clientId, resultId, body.url);
 
-    const response: MangaJobResponse = { jobId };
+    // レスポンスは jobId の代わりに resultId を返す
+    const response: MangaJobResponse = { jobId: resultId };
     return NextResponse.json(response);
   } catch (error) {
     console.error('Manga API error:', error);

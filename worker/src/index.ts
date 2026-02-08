@@ -7,7 +7,7 @@ app.use(express.json());
 
 // Cloud Tasks からのリクエストボディ
 interface ProcessRequest {
-  jobId: string;
+  resultId: string;  // jobId から resultId に変更
   request: MangaRequest;
   userId: string;
 }
@@ -18,37 +18,37 @@ interface ProcessRequest {
  */
 app.post("/process", async (req: Request, res: Response) => {
   const startTime = Date.now();
-  const { jobId, request, userId } = req.body as ProcessRequest;
+  const { resultId, request, userId } = req.body as ProcessRequest;
 
   // Cloud Tasks ヘッダーを確認（デバッグ用）
   const taskName = req.headers["x-cloudtasks-taskname"];
   const queueName = req.headers["x-cloudtasks-queuename"];
   const retryCount = req.headers["x-cloudtasks-taskretrycount"];
 
-  console.log(`[Worker] Processing job: ${jobId}`, {
+  console.log(`[Worker] Processing job: ${resultId}`, {
     taskName,
     queueName,
     retryCount,
     title: request?.title,
   });
 
-  if (!jobId || !request || !userId) {
+  if (!resultId || !request || !userId) {
     console.error("[Worker] Invalid request: missing required fields");
     res.status(400).json({ success: false, error: "Missing required fields" });
     return;
   }
 
   try {
-    await processManga(jobId, request, userId);
+    await processManga(resultId, request, userId);
 
     const duration = Date.now() - startTime;
-    console.log(`[Worker] Job ${jobId} completed successfully in ${duration}ms`);
+    console.log(`[Worker] Job ${resultId} completed successfully in ${duration}ms`);
 
     res.json({ success: true, duration });
   } catch (error) {
     const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[Worker] Job ${jobId} failed after ${duration}ms:`, error);
+    console.error(`[Worker] Job ${resultId} failed after ${duration}ms:`, error);
 
     // Cloud Tasks はステータスコード >= 500 でリトライする
     // 一時的なエラー（レート制限など）は 500 を返してリトライ

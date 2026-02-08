@@ -88,7 +88,7 @@ gcloud secrets list --project=zenn-ai-agent-hackathon-vol4
 
 ### 3. GitHub リポジトリ
 
-- リポジトリ: `komanabi`
+- リポジトリ: `komanavi`
 - ブランチ: `dev`（自動デプロイ対象）
 - Cloud Build と GitHub の連携設定が必要（初回のみ）
 
@@ -197,7 +197,7 @@ roles/secretmanager.secretAccessor
 2. 「トリガーを作成」をクリック
 3. 「ソースを接続」で GitHub を選択
 4. GitHub アカウントで認証し、リポジトリへのアクセスを許可
-5. リポジトリ `komanabi` を選択
+5. リポジトリ `komanavi` を選択
 
 #### A-2. トリガーを作成
 
@@ -206,7 +206,7 @@ roles/secretmanager.secretAccessor
 | **名前** | `deploy-komanavi-dev` |
 | **説明** | `dev ブランチへの push 時にメインアプリと Worker をデプロイ` |
 | **イベント** | ブランチに push |
-| **ソース** | GitHub リポジトリ `komanabi` |
+| **ソース** | GitHub リポジトリ `komanavi` |
 | **ブランチ** | `^dev$`（正規表現） |
 | **ビルド構成** | Cloud Build 構成ファイル（yaml または json） |
 | **Cloud Build 構成ファイルの場所** | `cloudbuild.yaml` |
@@ -231,7 +231,7 @@ gcloud builds repositories list --project=zenn-ai-agent-hackathon-vol4
 gcloud builds triggers create github \
   --name=deploy-komanavi-dev \
   --description="dev ブランチへの push 時にメインアプリと Worker をデプロイ" \
-  --repo-name=komanabi \
+  --repo-name=komanavi \
   --repo-owner=<GitHub ユーザー名> \
   --branch-pattern=^dev$ \
   --build-config=cloudbuild.yaml \
@@ -602,7 +602,7 @@ steps:
 # 本番用トリガーを作成（タグベース）
 gcloud builds triggers create github \
   --name=deploy-komanavi-production \
-  --repo-name=komanabi \
+  --repo-name=komanavi \
   --repo-owner=<GitHub ユーザー名> \
   --tag-pattern=^v[0-9]+\.[0-9]+\.[0-9]+$ \
   --build-config=cloudbuild.yaml \

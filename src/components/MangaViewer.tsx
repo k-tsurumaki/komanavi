@@ -15,6 +15,8 @@ interface MangaViewerProps {
   title: string;
   summary: string;
   keyPoints?: string[];
+  resultId: string;   // 解析結果のID
+  historyId: string;  // 会話履歴のID
 }
 
 const USAGE_KEY = 'komanavi-manga-usage';
@@ -65,6 +67,8 @@ function buildRequest(props: MangaViewerProps): MangaRequest {
     title: props.title,
     summary: props.summary,
     keyPoints: props.keyPoints,
+    resultId: props.resultId,
+    historyId: props.historyId,
   };
 }
 

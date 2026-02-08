@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { MangaJobStatusResponse } from '@/lib/types/intermediate';
-import { getMangaJob } from '@/lib/manga-job-store';
+import { getConversationManga } from '@/lib/manga-job-store';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
+  { params }: { params: Promise<{ resultId: string }> }
 ) {
-  const { jobId } = await params;
+  const { resultId } = await params;
 
   try {
-    const job = await getMangaJob(jobId);
+    const manga = await getConversationManga(resultId);
 
-    if (!job) {
+    if (!manga) {
       return NextResponse.json(
         {
           status: 'error',
@@ -24,11 +24,11 @@ export async function GET(
 
     return NextResponse.json(
       {
-        status: job.status,
-        progress: job.progress,
-        result: job.result,
-        error: job.error,
-        errorCode: job.errorCode,
+        status: manga.status,
+        progress: manga.progress,
+        result: manga.result,
+        error: manga.error,
+        errorCode: manga.errorCode,
       } satisfies MangaJobStatusResponse
     );
   } catch (error) {

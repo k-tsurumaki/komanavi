@@ -59,7 +59,7 @@ function getTasksClient(): CloudTasksClient {
  * Cloud Tasks ペイロード
  */
 interface MangaTaskPayload {
-  jobId: string;
+  resultId: string;  // jobId から resultId に変更
   request: MangaRequest;
   userId: string;
 }
@@ -67,12 +67,12 @@ interface MangaTaskPayload {
 /**
  * 漫画生成タスクを Cloud Tasks にエンキュー
  *
- * @param jobId ジョブID（Firestore のドキュメントID）
+ * @param resultId 解析結果ID（Firestore のドキュメントID）
  * @param request 漫画生成リクエスト
  * @param userId 認証済みユーザーID
  */
 export async function enqueueMangaTask(
-  jobId: string,
+  resultId: string,
   request: MangaRequest,
   userId: string
 ): Promise<string> {
@@ -90,7 +90,7 @@ export async function enqueueMangaTask(
   const parent = client.queuePath(projectId, location, queueName);
 
   const payload: MangaTaskPayload = {
-    jobId,
+    resultId,
     request,
     userId,
   };
@@ -111,18 +111,18 @@ export async function enqueueMangaTask(
       },
     },
     // タスク名を指定（重複防止）
-    name: `${parent}/tasks/${jobId}`,
+    name: `${parent}/tasks/${resultId}`,
   };
 
   try {
     const [response] = await client.createTask({ parent, task });
     console.log(`[Cloud Tasks] タスク作成: ${response.name}`);
-    return response.name ?? jobId;
+    return response.name ?? resultId;
   } catch (error) {
     // 同じ名前のタスクが既に存在する場合は無視
     if ((error as { code?: number }).code === GRPC_STATUS_ALREADY_EXISTS) {
-      console.log(`[Cloud Tasks] タスク既存: ${jobId}`);
-      return `${parent}/tasks/${jobId}`;
+      console.log(`[Cloud Tasks] タスク既存: ${resultId}`);
+      return `${parent}/tasks/${resultId}`;
     }
     throw error;
   }
