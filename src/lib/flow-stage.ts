@@ -176,6 +176,31 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
       context.hasIntentGenerationError ||
       context.guidanceUnlocked
   );
+  const canReviewSummary = Boolean(context.hasIntermediate);
+  const canUseInteractionSteps = Boolean(context.hasIntermediate);
+  const canReviewChecklist = Boolean(
+    context.hasIntermediate && context.guidanceUnlocked && !context.isIntentGenerating
+  );
+
+  reviewStep.available = canReviewSummary;
+  if (!canReviewSummary) {
+    reviewStep.helperText = 'URL解析後に利用できます';
+  }
+
+  intentStep.available = canUseInteractionSteps;
+  if (!canUseInteractionSteps) {
+    intentStep.helperText = '要点確認後に利用できます';
+  }
+
+  answerStep.available = canUseInteractionSteps;
+  if (!canUseInteractionSteps) {
+    answerStep.helperText = '意図入力後に利用できます';
+  }
+
+  checklistStep.available = canReviewChecklist;
+  if (!canReviewChecklist) {
+    checklistStep.helperText = '回答生成後に利用できます';
+  }
 
   if (!context.hasIntermediate) {
     deepDiveStep.status = 'not_started';
@@ -196,7 +221,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
 
   const normalizedManga = normalizeMangaState(
     context.manga,
-    Boolean(context.guidanceUnlocked && context.hasIntermediate)
+    Boolean(context.guidanceUnlocked && context.hasIntermediate && !context.isIntentGenerating)
   );
   mangaStep.status = normalizedManga.status;
   mangaStep.available = normalizedManga.available;

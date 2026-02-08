@@ -97,7 +97,7 @@ function StepButton({
   index: number;
   compact?: boolean;
 }) {
-  const canNavigate = Boolean(onStepSelect);
+  const canNavigate = Boolean(onStepSelect && step.available !== false);
   const statusTone = getStatusTone(step.status);
   const statusLabel = getStatusLabel(step.status);
   const markerLabel = step.status === 'completed' ? '✓' : index + 1;
@@ -114,13 +114,15 @@ function StepButton({
     <button
       type="button"
       onClick={() => {
-        if (onStepSelect) {
+        if (canNavigate && onStepSelect) {
           onStepSelect(step.id);
         }
       }}
+      aria-disabled={!canNavigate}
+      disabled={!canNavigate}
       tabIndex={canNavigate ? 0 : -1}
       aria-current={isCurrent ? 'step' : undefined}
-      className={`relative w-full rounded-xl border text-left transition ${
+      className={`flow-step-button relative w-full rounded-xl border text-left transition ${
         statusTone.card
       } ${
         isCurrent ? 'border-stone-500 shadow-[inset_0_0_0_1px_rgba(115,83,76,0.35)]' : ''
@@ -130,7 +132,7 @@ function StepButton({
         compact ? 'px-2 py-2' : 'px-3 py-2.5'
       } ${
         canNavigate ? '' : 'cursor-default'
-      }`}
+      } disabled:opacity-100 disabled:[-webkit-text-fill-color:currentColor]`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className={`flex min-w-0 items-center ${compact ? 'gap-1.5' : 'gap-2.5'}`}>

@@ -122,6 +122,12 @@ button:disabled {
   opacity: 0.56;
 }
 
+.flow-step-button:disabled {
+  opacity: 1 !important;
+  -webkit-text-fill-color: currentColor;
+  filter: none;
+}
+
 ::selection {
   background: rgba(115, 83, 76, 0.24);
   color: #0d0d0d;
