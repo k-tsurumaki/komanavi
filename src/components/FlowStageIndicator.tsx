@@ -190,7 +190,6 @@ export function FlowStageIndicator({
         <div className="w-full max-w-xs">
           <div className="flex items-center justify-between text-xs font-medium text-slate-600">
             <span>{mergedCompletedCount}/{mergedTotalCount}</span>
-            <span>{completedPercentage}%</span>
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
             <div
