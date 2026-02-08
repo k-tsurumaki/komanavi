@@ -210,6 +210,7 @@ export function MangaViewer(props: MangaViewerProps) {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const isPollingRef = useRef(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const isLoggedIn = !!session;
 
   const canGenerateMessage = useMemo(() => {
@@ -365,6 +366,31 @@ export function MangaViewer(props: MangaViewerProps) {
     }
   }, [props, startPolling]);
 
+  const handleRegenerate = useCallback(async () => {
+    // すでに再生成中または処理中なら無視
+    if (isRegenerating || isPolling) {
+      return;
+    }
+
+    setIsRegenerating(true);
+
+    // 全ての状態をクリア
+    setImageUrl('');
+    setResult(null);
+    setError(null);
+    setProgress(0);
+    clearPolling();
+    clearActiveJob();
+
+    try {
+      // すぐに生成を開始
+      await handleGenerate();
+    } finally {
+      // 最小200ms待機（視覚的フィードバック）
+      setTimeout(() => setIsRegenerating(false), 200);
+    }
+  }, [handleGenerate, clearPolling, clearActiveJob, isRegenerating, isPolling]);
+
   useEffect(() => {
     const usage = loadUsage();
     if (usage.activeJob && usage.activeJob.url === props.url) {
@@ -458,18 +484,10 @@ export function MangaViewer(props: MangaViewerProps) {
             <button
               type="button"
               className="ui-btn ui-btn-ghost px-4 py-2 text-sm"
-              onClick={() => {
-                // 全ての状態をクリア
-                setImageUrl('');
-                setResult(null);
-                setError(null);
-                setProgress(0);
-                clearPolling();
-                // localStorageのactiveJobをクリア
-                clearActiveJob();
-              }}
+              onClick={handleRegenerate}
+              disabled={isRegenerating || isPolling}
             >
-              もう一度生成する
+              {isRegenerating ? '再生成中...' : 'もう一度生成する'}
             </button>
           </div>
         </div>

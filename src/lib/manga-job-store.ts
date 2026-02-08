@@ -38,9 +38,17 @@ export async function createConversationManga(
     if (existingData.userId !== userId || existingData.historyId !== historyId) {
       throw new Error('Forbidden: resultId or historyId mismatch');
     }
-    // 処理中のジョブは上書き不可
+    // 処理中のジョブは上書き不可（ただしタイムアウト経過していればOK）
     if (existingData.status === 'queued' || existingData.status === 'processing') {
-      throw new Error('Job is already in progress');
+      const now = Timestamp.now();
+      const elapsedMs = now.toMillis() - existingData.createdAt.toMillis();
+      const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10分
+
+      if (elapsedMs <= STALE_THRESHOLD_MS) {
+        throw new Error('Job is already in progress');
+      }
+      // 10分以上経過していれば上書き許可（暗黙的なクリーンアップ）
+      console.log(`[Manga Store] Stale job detected, allowing overwrite: ${resultId}`);
     }
   }
 

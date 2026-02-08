@@ -5,9 +5,6 @@
 import { CloudTasksClient, protos } from '@google-cloud/tasks';
 import type { MangaRequest } from './types/intermediate';
 
-// gRPC ステータスコード
-const GRPC_STATUS_ALREADY_EXISTS = 6;
-
 type CloudTasksRequiredEnvVar =
   | 'GCP_PROJECT_ID'
   | 'CLOUD_TASKS_LOCATION'
@@ -115,6 +112,11 @@ export async function enqueueMangaTask(
   };
 
   // タスクを作成
+  // タスク名にタイムスタンプを付与して一意にする
+  // Cloud Tasks は完了済みタスクと同じ名前を最大1時間再利用できない（トゥームストーン）ため、
+  // 再生成時の ALREADY_EXISTS エラーを回避する
+  // 重複防止は Firestore 側の status チェックで行う
+  const taskName = `${parent}/tasks/${resultId}-${Date.now()}`;
   const task: protos.google.cloud.tasks.v2.ITask = {
     httpRequest: {
       httpMethod: 'POST',
@@ -129,22 +131,12 @@ export async function enqueueMangaTask(
         audience: workerUrl,
       },
     },
-    // タスク名を指定（重複防止）
-    name: `${parent}/tasks/${resultId}`,
+    name: taskName,
   };
 
-  try {
-    const [response] = await client.createTask({ parent, task });
-    console.log(`[Cloud Tasks] タスク作成: ${response.name}`);
-    return response.name ?? resultId;
-  } catch (error) {
-    // 同じ名前のタスクが既に存在する場合は無視
-    if ((error as { code?: number }).code === GRPC_STATUS_ALREADY_EXISTS) {
-      console.log(`[Cloud Tasks] タスク既存: ${resultId}`);
-      return `${parent}/tasks/${resultId}`;
-    }
-    throw error;
-  }
+  const [response] = await client.createTask({ parent, task });
+  console.log(`[Cloud Tasks] タスク作成: ${response.name}`);
+  return response.name ?? resultId;
 }
 
 export function getMissingCloudTasksEnvVars(): CloudTasksRequiredEnvVar[] {
