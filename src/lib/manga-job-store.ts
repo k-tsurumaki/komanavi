@@ -30,6 +30,16 @@ export async function createConversationManga(
   const db = getAdminFirestore();
   const now = Timestamp.now();
 
+  // 既存のドキュメントをチェック
+  const existingDoc = await db.collection(CONVERSATION_MANGA_COLLECTION).doc(resultId).get();
+  if (existingDoc.exists) {
+    const existingData = existingDoc.data() as ConversationMangaDocument;
+    // 所有権とhistoryIdの整合性を確認
+    if (existingData.userId !== userId || existingData.historyId !== historyId) {
+      throw new Error('Forbidden: resultId or historyId mismatch');
+    }
+  }
+
   const mangaDoc: ConversationMangaDocument = {
     id: resultId,
     resultId,

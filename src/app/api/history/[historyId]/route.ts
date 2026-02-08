@@ -170,7 +170,7 @@ export async function DELETE(
     batch.delete(db.collection(COLLECTIONS.intermediates).doc(resultId));
 
     // 漫画データも削除（セキュリティ課題の解決）
-    batch.delete(db.collection('conversation_manga').doc(resultId));
+    batch.delete(db.collection(COLLECTIONS.manga).doc(resultId));
   }
 
   await batch.commit();

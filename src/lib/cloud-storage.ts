@@ -4,7 +4,6 @@
 
 import { Storage } from "@google-cloud/storage";
 
-const BUCKET_NAME = process.env.GCS_MANGA_BUCKET || "komanavi-manga-images";
 const SIGNED_URL_TTL_MINUTES = parseInt(
   process.env.GCS_SIGNED_URL_TTL_MINUTES ?? "60",
   10
@@ -27,24 +26,17 @@ function getStorage(): Storage {
 }
 
 /**
- * gs:// 形式のURLからobjectPathを抽出
- */
-export function parseStorageUrl(storageUrl: string): string | null {
-  const match = storageUrl.match(/^gs:\/\/[^/]+\/(.+)$/);
-  return match ? match[1] : null;
-}
-
-/**
  * 署名付き URL を生成
  */
 export async function generateSignedUrl(storageUrl: string): Promise<string> {
-  const objectPath = parseStorageUrl(storageUrl);
-  if (!objectPath) {
+  const match = storageUrl.match(/^gs:\/\/([^/]+)\/(.+)$/);
+  if (!match) {
     throw new Error(`Invalid storage URL: ${storageUrl}`);
   }
+  const [, bucketName, objectPath] = match;
 
   const storageClient = getStorage();
-  const bucket = storageClient.bucket(BUCKET_NAME);
+  const bucket = storageClient.bucket(bucketName);
   const file = bucket.file(objectPath);
 
   const [url] = await file.getSignedUrl({

@@ -163,7 +163,7 @@ gcloud storage buckets update gs://komanavi-manga-images \
 cat > /tmp/cors.json << 'EOF'
 [
   {
-    "origin": ["http://localhost:3000","https://komanavi-worker-30981781876.asia-northeast1.run.app","https://komanavi-30981781876.asia-northeast1.run.app/"],
+    "origin": ["http://localhost:3000","https://komanavi-worker-30981781876.asia-northeast1.run.app","https://komanavi-30981781876.asia-northeast1.run.app"],
     "method": ["GET", "HEAD"],
     "responseHeader": ["Content-Type", "Content-Length", "Content-Disposition", "Cache-Control"],
     "maxAgeSeconds": 3600

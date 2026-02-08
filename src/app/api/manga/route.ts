@@ -3,6 +3,7 @@ import type { MangaJobResponse, MangaRequest } from '@/lib/types/intermediate';
 import { requireUserId } from '@/app/api/history/utils';
 import { createConversationManga, getConversationManga } from '@/lib/manga-job-store';
 import { enqueueMangaTask, isCloudTasksEnabled } from '@/lib/cloud-tasks';
+import { getAdminFirestore } from '@/lib/firebase-admin';
 
 const POLL_TIMEOUT_MS = 60 * 1000;
 
@@ -125,6 +126,33 @@ export async function POST(request: NextRequest) {
 
     // resultId を使用（jobId の代わり）
     const { resultId, historyId } = body;
+
+    // resultId と historyId の整合性を検証
+    const db = getAdminFirestore();
+    const resultRef = db.collection('conversation_results').doc(resultId);
+    const resultSnap = await resultRef.get();
+
+    if (!resultSnap.exists) {
+      return NextResponse.json(
+        { error: '指定された解析結果が見つかりません', errorCode: 'not_found' },
+        { status: 404 }
+      );
+    }
+
+    const resultData = resultSnap.data();
+    if (resultData?.userId !== userId) {
+      return NextResponse.json(
+        { error: '不正な resultId が指定されました', errorCode: 'forbidden' },
+        { status: 403 }
+      );
+    }
+
+    if (resultData?.historyId && resultData.historyId !== historyId) {
+      return NextResponse.json(
+        { error: '不正な historyId が指定されました', errorCode: 'forbidden' },
+        { status: 403 }
+      );
+    }
 
     // Firestore に conversation_manga を作成
     await createConversationManga(resultId, historyId, body, userId);

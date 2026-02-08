@@ -836,15 +836,17 @@ function ResultContent() {
           </div>
 
           {/* 漫画ビューア（Phase 2） */}
-          <MangaViewer
-            url={intermediate.metadata.source_url}
-            title={intermediate.title}
-            summary={intermediate.summary}
-            keyPoints={intermediate.keyPoints?.map((point) => point.text)}
-            resultId={result.id}
-            historyId={effectiveHistoryId || ''}
-            initialMangaResult={savedMangaResult}
-          />
+          {effectiveHistoryId && (
+            <MangaViewer
+              url={intermediate.metadata.source_url}
+              title={intermediate.title}
+              summary={intermediate.summary}
+              keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+              resultId={result.id}
+              historyId={effectiveHistoryId}
+              initialMangaResult={savedMangaResult}
+            />
+          )}
 
           {/* Google Search 引用表示 */}
           {intermediate.metadata.groundingMetadata && (
