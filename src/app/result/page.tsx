@@ -518,11 +518,11 @@ function ResultContent() {
   const renderAnswerEntryCard = (
     title: string,
     entry: IntentAnswerEntry,
-    toneClassName = 'border-slate-200 bg-white'
+    toneClassName = 'border-stone-200 bg-white'
   ) => (
     <section className={`rounded-xl border p-4 ${toneClassName}`}>
-      <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
-      <p className="mt-2 text-sm leading-relaxed text-slate-900">{entry.text}</p>
+      <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{title}</h4>
+      <p className="mt-2 text-[15px] leading-relaxed text-slate-900">{entry.text}</p>
     </section>
   );
   const canShowIntentEditButton = guidanceUnlocked && isIntentLocked && !isIntentGenerating;
@@ -724,45 +724,56 @@ function ResultContent() {
 
       {/* 回答生成開始 */}
       {shouldShowGuidanceSection && (
-        <div className="ui-card mb-6 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-white p-6">
+        <div className="ui-card mb-6 rounded-2xl border-stone-300/80 bg-stone-50/60 p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center">
               <div>
+                <span className="inline-flex items-center rounded-full border border-stone-300 bg-white px-2.5 py-1 text-[0.68rem] font-semibold tracking-[0.08em] text-slate-600">
+                  あなた向け
+                </span>
                 <h3 className="ui-heading text-lg">回答</h3>
-                <p className="text-xs text-slate-500">あなたの意図とパーソナル情報に基づく回答</p>
+                <p className="text-xs text-slate-600">あなたの意図とパーソナル情報に基づく回答</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mt-4 rounded-xl border border-stone-300 bg-white p-4">
             {!isIntentGenerating && result.intentAnswer ? (
               structuredIntentAnswer ? (
-                <div className="space-y-4">
-                  <p className="text-sm font-semibold leading-relaxed text-slate-900">
-                    {structuredIntentAnswer.headline}
-                  </p>
+                <div className="space-y-3.5">
+                  <section className="rounded-xl border border-stone-300 bg-white px-4 py-3.5">
+                    <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
+                      結論
+                    </h4>
+                    <p className="mt-2 text-[15px] font-semibold leading-relaxed text-slate-900">
+                      {structuredIntentAnswer.headline}
+                    </p>
+                  </section>
 
                   {renderAnswerEntryCard(
                     'あなたは対象になりそうですか？',
                     structuredIntentAnswer.finalJudgment,
-                    'border-stone-300 bg-stone-100'
+                    'border-stone-300 bg-white'
                   )}
                   {renderAnswerEntryCard(
                     '最優先の1手',
                     structuredIntentAnswer.firstPriorityAction,
-                    'border-stone-300 bg-stone-100'
+                    'border-stone-300 bg-white'
                   )}
 
-                  <section className="rounded-xl border border-stone-300 bg-stone-100 p-4">
-                    <h4 className="text-sm font-semibold text-stone-900">
+                  <section className="rounded-xl border border-stone-300 bg-stone-50 p-4">
+                    <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-900">
                       見落とすと申請で困るポイント
                     </h4>
-                    <ul className="mt-3 space-y-2">
+                    <ul className="mt-3 space-y-2.5">
                       {structuredIntentAnswer.failureRisks.map((risk, index) => (
                         <li
                           key={`failure-risk-${index}`}
-                          className="rounded-lg border border-stone-300 bg-white px-3 py-2"
+                          className="flex items-start gap-2.5 rounded-lg border border-stone-200 bg-white px-3 py-2.5"
                         >
+                          <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-stone-200 text-[11px] font-semibold text-stone-800">
+                            {index + 1}
+                          </span>
                           <p className="text-sm leading-relaxed text-slate-900">{risk.text}</p>
                         </li>
                       ))}
@@ -770,34 +781,40 @@ function ResultContent() {
                   </section>
                 </div>
               ) : (
-                <div className="space-y-3 text-sm text-slate-800 leading-relaxed">
+                <div className="space-y-3 text-sm leading-relaxed text-slate-800">
                   {rawIntentAnswerLines.length > 1 ? (
                     <ul className="space-y-2">
                       {rawIntentAnswerLines.map((line, index) => (
-                        <li key={index} className="flex gap-2">
-                          <span className="mt-0.5 text-slate-400" aria-hidden="true">
-                            ▪︎
-                          </span>
+                        <li
+                          key={index}
+                          className="flex gap-2 rounded-lg border border-stone-200 bg-stone-50/60 px-3 py-2.5"
+                        >
+                          <span
+                            className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-stone-500"
+                            aria-hidden="true"
+                          />
                           <span>{line}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p>{result.intentAnswer}</p>
+                    <p className="rounded-lg border border-stone-200 bg-stone-50/60 px-3 py-2.5">
+                      {result.intentAnswer}
+                    </p>
                   )}
                 </div>
               )
             ) : isIntentGenerating ? (
-              <div className="space-y-2">
-                <p className="text-sm text-slate-500">
+              <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50/70 px-4 py-3">
+                <p className="text-sm text-slate-700">
                   あなた向けの回答を作成しています。まもなくご確認いただけます。
                 </p>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full w-1/3 animate-pulse rounded-full bg-slate-300" />
+                <div className="h-2 w-full overflow-hidden rounded-full bg-stone-200">
+                  <div className="h-full w-1/3 animate-pulse rounded-full bg-stone-500/70" />
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">
+              <p className="rounded-xl border border-dashed border-stone-300 bg-stone-50/60 px-4 py-3 text-sm text-slate-600">
                 回答はまだ生成されていません。意図を入力して生成してください。
               </p>
             )}
