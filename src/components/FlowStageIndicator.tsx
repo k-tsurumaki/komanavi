@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { FlowStageModel, FlowStepId, FlowStepStatus, FlowStepView } from '@/lib/flow-stage';
 
 interface FlowStageIndicatorProps {
@@ -18,6 +18,8 @@ const FLOW_STEP_DISPLAY_ORDER: FlowStepId[] = [
   'review_checklist',
   'manga_review',
 ];
+const STICKY_NAV_GAP_PX = 8;
+const STICKY_NAV_MEDIA_QUERY = '(min-width: 1024px)';
 
 function getStatusLabel(status: FlowStepStatus): string | null {
   if (status === 'completed') return null;
@@ -169,6 +171,11 @@ export function FlowStageIndicator({
   onStepSelect,
   className,
 }: FlowStageIndicatorProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const [showStickySummary, setShowStickySummary] = useState(false);
+  const [stickySummaryBounds, setStickySummaryBounds] = useState({ left: 0, width: 0 });
+  const [stickyTopOffset, setStickyTopOffset] = useState(STICKY_NAV_GAP_PX);
+
   const stepMap = new Map<FlowStepId, FlowStepView>(
     [...model.requiredSteps, ...model.optionalSteps].map((step) => [step.id, step] as const)
   );
@@ -183,70 +190,184 @@ export function FlowStageIndicator({
     : 0;
   const optionalInProgress = model.optionalSteps.filter((step) => step.status === 'in_progress');
 
-  return (
-    <section className={`ui-card rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 ${className ?? ''}`}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div role="status" aria-live="polite" className="max-w-2xl">
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-slate-600">ステップナビ</p>
-          <p className="mt-1.5 text-sm font-semibold leading-relaxed text-slate-900 sm:text-[15px]">
-            {model.statusText}
-          </p>
-          {optionalInProgress.length > 0 && (
-            <p className="mt-1.5 text-xs text-slate-600">
-              任意タスク: {optionalInProgress.map((step) => step.label).join(' / ')}
-            </p>
-          )}
-        </div>
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
 
-        <div className="w-full max-w-xs">
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+    const mediaQuery = window.matchMedia(STICKY_NAV_MEDIA_QUERY);
+    const headerElement = document.querySelector('header.sticky') as HTMLElement | null;
+    let frameId = 0;
+    let resizeObserver: ResizeObserver | undefined;
+
+    const resolveStickyTopOffset = () => {
+      if (!headerElement) {
+        return STICKY_NAV_GAP_PX;
+      }
+      return Math.round(headerElement.getBoundingClientRect().height + STICKY_NAV_GAP_PX);
+    };
+
+    const updateStickySummary = () => {
+      const section = sectionRef.current;
+      const nextTopOffset = resolveStickyTopOffset();
+      setStickyTopOffset((prev) => (prev === nextTopOffset ? prev : nextTopOffset));
+
+      if (!section || !mediaQuery.matches) {
+        setShowStickySummary(false);
+        return;
+      }
+
+      const rect = section.getBoundingClientRect();
+      const nextVisible = rect.bottom <= nextTopOffset + STICKY_NAV_GAP_PX;
+      const nextLeft = Math.round(rect.left);
+      const nextWidth = Math.round(rect.width);
+
+      setShowStickySummary((prev) => (prev === nextVisible ? prev : nextVisible));
+      setStickySummaryBounds((prev) =>
+        prev.left === nextLeft && prev.width === nextWidth
+          ? prev
+          : { left: nextLeft, width: nextWidth }
+      );
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId) {
+        return;
+      }
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+        updateStickySummary();
+      });
+    };
+
+    updateStickySummary();
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+    mediaQuery.addEventListener('change', scheduleUpdate);
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        scheduleUpdate();
+      });
+      if (sectionRef.current) {
+        resizeObserver.observe(sectionRef.current);
+      }
+      if (headerElement) {
+        resizeObserver.observe(headerElement);
+      }
+    }
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+      mediaQuery.removeEventListener('change', scheduleUpdate);
+      resizeObserver?.disconnect();
+    };
+  }, []);
+
+  return (
+    <>
+      {showStickySummary && stickySummaryBounds.width > 0 && (
+        <div
+          className="pointer-events-none fixed z-20 hidden lg:block"
+          style={{
+            top: stickyTopOffset,
+            left: stickySummaryBounds.left,
+            width: stickySummaryBounds.width,
+          }}
+          aria-hidden="true"
+        >
+          <div className="rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.08)] backdrop-blur">
+            <div className="flex items-center gap-3">
+              <p className="shrink-0 text-[10px] font-semibold tracking-[0.08em] text-slate-600">
+                ステップナビ
+              </p>
+              <p className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">
+                {model.statusText}
+              </p>
+              <span className="text-xs font-medium text-slate-600 tabular-nums">
+                {mergedCompletedCount}/{mergedTotalCount}
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-stone-600 transition-[width] duration-300"
                 style={{ width: `${completedPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-medium text-slate-600 tabular-nums">
-              {mergedCompletedCount}/{mergedTotalCount}
-            </span>
           </div>
         </div>
-      </div>
+      )}
 
-      <ol className="mt-4 hidden items-start gap-1.5 lg:flex" aria-label="進行ステップ">
-        {mergedSteps.map((step, index) => (
-          <Fragment key={step.id}>
-            <li className="min-w-0 flex-1">
+      <section
+        ref={sectionRef}
+        className={`ui-card rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 ${className ?? ''}`}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div role="status" aria-live="polite" className="max-w-2xl">
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-slate-600">ステップナビ</p>
+            <p className="mt-1.5 text-sm font-semibold leading-relaxed text-slate-900 sm:text-[15px]">
+              {model.statusText}
+            </p>
+            {optionalInProgress.length > 0 && (
+              <p className="mt-1.5 text-xs text-slate-600">
+                任意タスク: {optionalInProgress.map((step) => step.label).join(' / ')}
+              </p>
+            )}
+          </div>
+
+          <div className="w-full max-w-xs">
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full rounded-full bg-stone-600 transition-[width] duration-300"
+                  style={{ width: `${completedPercentage}%` }}
+                />
+              </div>
+              <span className="text-xs font-medium text-slate-600 tabular-nums">
+                {mergedCompletedCount}/{mergedTotalCount}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <ol className="mt-4 hidden items-start gap-1.5 lg:flex" aria-label="進行ステップ">
+          {mergedSteps.map((step, index) => (
+            <Fragment key={step.id}>
+              <li className="min-w-0 flex-1">
+                <StepButton
+                  step={step}
+                  isCurrent={step.id === model.currentStepId}
+                  onStepSelect={onStepSelect}
+                  index={index}
+                  compact
+                />
+              </li>
+              {index < mergedSteps.length - 1 && (
+                <li
+                  aria-hidden="true"
+                  className={`mt-6 h-px w-3 shrink-0 rounded-full ${getConnectorTone(step.status)}`}
+                />
+              )}
+            </Fragment>
+          ))}
+        </ol>
+
+        <ol className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:hidden" aria-label="進行ステップ">
+          {mergedSteps.map((step, index) => (
+            <li key={step.id}>
               <StepButton
                 step={step}
                 isCurrent={step.id === model.currentStepId}
                 onStepSelect={onStepSelect}
                 index={index}
-                compact
               />
             </li>
-            {index < mergedSteps.length - 1 && (
-              <li
-                aria-hidden="true"
-                className={`mt-6 h-px w-3 shrink-0 rounded-full ${getConnectorTone(step.status)}`}
-              />
-            )}
-          </Fragment>
-        ))}
-      </ol>
-
-      <ol className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:hidden" aria-label="進行ステップ">
-        {mergedSteps.map((step, index) => (
-          <li key={step.id}>
-            <StepButton
-              step={step}
-              isCurrent={step.id === model.currentStepId}
-              onStepSelect={onStepSelect}
-              index={index}
-            />
-          </li>
-        ))}
-      </ol>
-    </section>
+          ))}
+        </ol>
+      </section>
+    </>
   );
 }
