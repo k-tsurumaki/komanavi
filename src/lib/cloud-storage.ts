@@ -9,16 +9,22 @@ const SIGNED_URL_TTL_MINUTES = parseInt(
   process.env.GCS_SIGNED_URL_TTL_MINUTES ?? "60",
   10
 );
-const PROJECT_ID = process.env.GCP_PROJECT_ID;
 
-if (!PROJECT_ID) {
-  throw new Error("GCP_PROJECT_ID environment variable is required");
+// Storage クライアントの遅延初期化
+let storage: Storage | null = null;
+
+function getStorage(): Storage {
+  if (!storage) {
+    const PROJECT_ID = process.env.GCP_PROJECT_ID;
+    if (!PROJECT_ID) {
+      throw new Error("GCP_PROJECT_ID environment variable is required");
+    }
+    storage = new Storage({
+      projectId: PROJECT_ID,
+    });
+  }
+  return storage;
 }
-
-// Storage クライアントを初期化
-const storage = new Storage({
-  projectId: PROJECT_ID,
-});
 
 /**
  * gs:// 形式のURLからobjectPathを抽出
@@ -37,7 +43,8 @@ export async function generateSignedUrl(storageUrl: string): Promise<string> {
     throw new Error(`Invalid storage URL: ${storageUrl}`);
   }
 
-  const bucket = storage.bucket(BUCKET_NAME);
+  const storageClient = getStorage();
+  const bucket = storageClient.bucket(BUCKET_NAME);
   const file = bucket.file(objectPath);
 
   const [url] = await file.getSignedUrl({
