@@ -37,7 +37,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen flex text-slate-900">
       {session && (
         <AppSidebar
-          className={isSidebarVisible ? 'hidden md:flex' : 'hidden md:hidden'}
+          className={isSidebarVisible ? 'hidden md:flex' : 'hidden'}
           showCloseButton={isSidebarVisible}
           onClose={() => setIsSidebarVisible(false)}
         />
@@ -52,16 +52,16 @@ export function AppShell({ children }: AppShellProps) {
                   <button
                     type="button"
                     onClick={handleSidebarOpen}
-                    className="ui-btn ui-btn-secondary h-9 w-9 p-0"
+                    className="ui-btn ui-btn-secondary h-12 w-12 p-0"
                     aria-label="サイドバーを開く"
                   >
                     <svg
                       viewBox="0 0 24 24"
                       aria-hidden="true"
-                      className="h-5 w-5 text-slate-700"
+                      className="h-10 w-10 text-slate-500"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="1.8"
+                      strokeWidth="3"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >

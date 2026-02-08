@@ -547,7 +547,6 @@ function ResultContent() {
         >
           新しいURLを解析
         </Link>
-        <div className="flex flex-wrap items-center gap-2" />
       </div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h3 className="ui-heading text-lg">1分でわかる平易化サマリー</h3>
@@ -583,8 +582,7 @@ function ResultContent() {
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4 pr-24">
           {chatMode === 'deepDive' && (
             <div>
-              <div className="ui-kicker">Deep Dive</div>
-              <h3 className="ui-heading mt-3 text-lg">気になる点を深掘り</h3>
+              <h3 className="ui-heading text-lg">気になる点を深掘り</h3>
               <p className="mt-1 text-sm text-slate-600">
                 「ここが分からない」をAIに質問して解消しましょう。
               </p>
@@ -592,8 +590,7 @@ function ResultContent() {
           )}
           {chatMode === 'intent' && (
             <div className="max-w-xl">
-              <div className="ui-kicker">Intent</div>
-              <h3 className="ui-heading mt-3 text-lg">最終的に実現したいことを一文で</h3>
+              <h3 className="ui-heading text-lg">最終的に実現したいことを一文で</h3>
               <p className="mt-1 text-sm text-slate-600">
                 実現したいことを入力すると、具体的なチェックリストと漫画が提供されます。
               </p>
@@ -743,10 +740,7 @@ function ResultContent() {
       {shouldShowGuidanceSection && (
         <div className="ui-card mb-6 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-white p-6">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="ui-badge" aria-hidden="true">
-                GUIDE
-              </span>
+            <div className="flex items-center">
               <div>
                 <h3 className="ui-heading text-lg">回答</h3>
                 <p className="text-xs text-slate-500">あなたの意図とパーソナル情報に基づく回答</p>

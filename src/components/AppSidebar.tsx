@@ -100,21 +100,21 @@ export function AppSidebar({
             <button
               type="button"
               onClick={onClose}
-              className="ui-btn ui-btn-secondary h-9 w-9 p-0"
+              className="ui-btn ui-btn-secondary h-12 w-12 p-0"
               aria-label="サイドバーを閉じる"
             >
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
-                className="h-4 w-4 text-slate-600"
+                className="h-9 w-9 text-slate-500"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2.2"
+                strokeWidth="3.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M7 7l10 10" />
-                <path d="M17 7 7 17" />
+                <path d="M6.5 6.5l11 11" />
+                <path d="M17.5 6.5 6.5 17.5" />
               </svg>
             </button>
           )}

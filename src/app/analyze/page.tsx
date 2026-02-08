@@ -56,8 +56,7 @@ export default function AnalyzePage() {
       <DisclaimerModal />
 
       <section className="animate-fade-up">
-        <span className="ui-kicker">Analyze</span>
-        <h2 className="ui-heading mt-3 text-2xl sm:text-3xl">行政情報を、短時間で理解する</h2>
+        <h2 className="ui-heading text-2xl sm:text-3xl">行政情報を、短時間で理解する</h2>
         <p className="ui-muted mt-3 max-w-3xl text-sm sm:text-base">
           行政ページのURLを入力すると、AIが要点を再構成し、次の行動がわかる形で提示します。
         </p>
