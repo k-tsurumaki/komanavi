@@ -54,6 +54,8 @@ export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
               setUrl(e.target.value);
               if (error) setError('');
             }}
+            autoComplete="off"
+            spellCheck={false}
             placeholder="https://www.city.example.lg.jp/..."
             className="ui-input flex-1 px-4 py-3 text-base"
             disabled={isLoading}
