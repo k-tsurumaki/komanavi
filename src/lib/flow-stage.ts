@@ -169,18 +169,29 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   const checklistStep = findStepById(requiredSteps, 'review_checklist');
   const mangaStep = findStepById(requiredSteps, 'manga_review');
   const deepDiveStep = findStepById(optionalSteps, 'deep_dive');
+  const isIntentStepCompleted = Boolean(context.hasIntentInput || context.hasIntentStepVisited);
+  const hasReachedIntentStage = Boolean(
+    isIntentStepCompleted ||
+      context.isIntentGenerating ||
+      context.hasIntentGenerationError ||
+      context.guidanceUnlocked
+  );
 
   if (!context.hasIntermediate) {
     deepDiveStep.status = 'not_started';
     deepDiveStep.available = false;
     deepDiveStep.helperText = '要点表示後に利用できます';
-  } else {
+  } else if (hasReachedIntentStage) {
     // 要件: 意図入力ステップ以上へ進んだら「深掘りする（任意）」は完了扱いにする
     deepDiveStep.status = 'completed';
     deepDiveStep.available = true;
     deepDiveStep.helperText = context.hasDeepDiveMessages
       ? '深掘りの履歴があります'
       : '意図入力へ進んだため完了扱い';
+  } else {
+    deepDiveStep.status = context.hasDeepDiveMessages ? 'in_progress' : 'not_started';
+    deepDiveStep.available = true;
+    deepDiveStep.helperText = context.hasDeepDiveMessages ? '深掘りの履歴があります' : '必要に応じて深掘りできます';
   }
 
   const normalizedManga = normalizeMangaState(
@@ -190,14 +201,11 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   mangaStep.status = normalizedManga.status;
   mangaStep.available = normalizedManga.available;
   mangaStep.helperText = normalizedManga.helperText;
-  const isIntentStepCompleted = Boolean(context.hasIntentInput || context.hasIntentStepVisited);
 
-  let currentStepId: FlowStepId = 'analyze_url';
-  let statusText = 'URLを入力して解析を開始できます';
-  let nextAction: FlowNextAction | undefined = {
-    stepId: 'analyze_url',
-    label: context.canStartAnalyzeFromUrl ? 'このURLを解析する' : 'URLを入力する',
-  };
+  const analyzeActionLabel = context.canStartAnalyzeFromUrl ? 'このURLを解析する' : 'URLを入力する';
+  let currentStepId: FlowStepId;
+  let statusText: string;
+  let nextAction: FlowNextAction | undefined;
 
   if (context.isHistoryResolving) {
     analyzeStep.status = 'in_progress';
@@ -219,7 +227,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
     statusText = '解析を開始する準備ができています';
     nextAction = {
       stepId: 'analyze_url',
-      label: context.canStartAnalyzeFromUrl ? 'このURLを解析する' : 'URLを入力する',
+      label: analyzeActionLabel,
     };
   } else {
     analyzeStep.status = 'completed';

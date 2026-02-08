@@ -61,7 +61,9 @@ function saveUsage(state: MangaUsageState) {
   localStorage.setItem(USAGE_KEY, JSON.stringify(state));
 }
 
-function buildRequest(props: MangaViewerProps): MangaRequest {
+function buildRequest(
+  props: Pick<MangaViewerProps, 'url' | 'title' | 'summary' | 'keyPoints' | 'resultId' | 'historyId'>
+): MangaRequest {
   return {
     url: props.url,
     title: props.title,
@@ -204,12 +206,13 @@ function renderManga(result: MangaResult): string {
 }
 
 export function MangaViewer(props: MangaViewerProps) {
+  const { url, title, summary, keyPoints, resultId, historyId, initialMangaResult, onFlowStateChange } =
+    props;
   const { data: session } = useSession();
-  const { onFlowStateChange } = props;
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
-  const [result, setResult] = useState<MangaResult | null>(props.initialMangaResult || null);
+  const [result, setResult] = useState<MangaResult | null>(initialMangaResult || null);
   const [isPolling, setIsPolling] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number | null>(null);
@@ -228,27 +231,40 @@ export function MangaViewer(props: MangaViewerProps) {
     [onFlowStateChange]
   );
 
+  const mangaRequest = useMemo(
+    () =>
+      buildRequest({
+        url,
+        title,
+        summary,
+        keyPoints,
+        resultId,
+        historyId,
+      }),
+    [historyId, keyPoints, resultId, summary, title, url]
+  );
+
   const canGenerateMessage = useMemo(() => {
     const usage = loadUsage();
     if (
       usage.activeJob &&
-      usage.activeJob.url !== props.url &&
+      usage.activeJob.url !== url &&
       Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS
     ) {
       return '現在ほかの漫画生成が進行中です。完了後に再度お試しください。';
     }
     return null;
-  }, [props.url]);
+  }, [url]);
 
   const fallbackTexts = useMemo(() => {
     if (result?.panels?.length) {
       return result.panels.map((panel) => panel.text).filter(Boolean);
     }
-    if (props.keyPoints && props.keyPoints.length > 0) {
-      return props.keyPoints.filter(Boolean);
+    if (keyPoints && keyPoints.length > 0) {
+      return keyPoints.filter(Boolean);
     }
-    return [props.summary].filter(Boolean);
-  }, [props.keyPoints, props.summary, result?.panels]);
+    return [summary].filter(Boolean);
+  }, [keyPoints, summary, result?.panels]);
 
   const clearPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -340,13 +356,13 @@ export function MangaViewer(props: MangaViewerProps) {
   );
 
   const startPolling = useCallback(
-    (job: string) => {
+    (job: string, initialProgress = 0) => {
       if (isPollingRef.current) return;
       isPollingRef.current = true;
       setIsPolling(true);
       notifyFlowState({
         status: 'in_progress',
-        progress: 0,
+        progress: initialProgress,
       });
       startedAtRef.current = Date.now();
       pollingRef.current = setInterval(() => {
@@ -373,7 +389,7 @@ export function MangaViewer(props: MangaViewerProps) {
 
     if (
       usage.activeJob &&
-      usage.activeJob.url !== props.url &&
+      usage.activeJob.url !== url &&
       Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS
     ) {
       setError('現在ほかの漫画生成が進行中です。完了後に再度お試しください。');
@@ -396,7 +412,7 @@ export function MangaViewer(props: MangaViewerProps) {
       const response = await fetch('/api/manga', {
         method: 'POST',
         headers,
-        body: JSON.stringify(buildRequest(props)),
+        body: JSON.stringify(mangaRequest),
       });
 
       if (!response.ok) {
@@ -415,7 +431,7 @@ export function MangaViewer(props: MangaViewerProps) {
         ...usage,
         count: usage.count + 1,
         urlCooldowns: usage.urlCooldowns,
-        activeJob: { jobId: data.jobId, startedAt: Date.now(), url: props.url, progress: 0 },
+        activeJob: { jobId: data.jobId, startedAt: Date.now(), url, progress: 0 },
       };
       saveUsage(nextUsage);
 
@@ -427,7 +443,7 @@ export function MangaViewer(props: MangaViewerProps) {
         errorCode: 'unknown',
       });
     }
-  }, [notifyFlowState, props, startPolling]);
+  }, [mangaRequest, notifyFlowState, startPolling, url]);
 
   const handleRegenerate = useCallback(async () => {
     // すでに再生成中または処理中なら無視
@@ -461,13 +477,14 @@ export function MangaViewer(props: MangaViewerProps) {
 
   useEffect(() => {
     const usage = loadUsage();
-    if (usage.activeJob && usage.activeJob.url === props.url) {
+    if (usage.activeJob && usage.activeJob.url === url) {
       // localStorageから進捗を復元（0%フラッシュを防止）
-      if (usage.activeJob.progress > 0) {
-        setProgress(usage.activeJob.progress);
+      const restoredProgress = Math.max(0, usage.activeJob.progress || 0);
+      if (restoredProgress > 0) {
+        setProgress(restoredProgress);
       }
-      startPolling(usage.activeJob.jobId);
-    } else if (props.initialMangaResult) {
+      startPolling(usage.activeJob.jobId, restoredProgress);
+    } else if (initialMangaResult) {
       notifyFlowState({
         status: 'completed',
         progress: 100,
@@ -485,25 +502,25 @@ export function MangaViewer(props: MangaViewerProps) {
         clearTimeout(regeneratingTimeoutRef.current);
       }
     };
-  }, [clearPolling, notifyFlowState, props.initialMangaResult, props.url, startPolling]);
+  }, [clearPolling, initialMangaResult, notifyFlowState, startPolling, url]);
 
   // 履歴から復元した漫画データを初期表示（再生成中・ポーリング中は復元しない）
   useEffect(() => {
-    if (props.initialMangaResult && !imageUrl && !isPolling && !isRegenerating) {
-      setResult(props.initialMangaResult);
+    if (initialMangaResult && !imageUrl && !isPolling && !isRegenerating) {
+      setResult(initialMangaResult);
       setProgress(100);
       notifyFlowState({
         status: 'completed',
         progress: 100,
       });
-      if (props.initialMangaResult.imageUrls && props.initialMangaResult.imageUrls.length > 0) {
-        setImageUrl(props.initialMangaResult.imageUrls[0]);
+      if (initialMangaResult.imageUrls && initialMangaResult.imageUrls.length > 0) {
+        setImageUrl(initialMangaResult.imageUrls[0]);
       } else {
-        const pngUrl = renderManga(props.initialMangaResult);
+        const pngUrl = renderManga(initialMangaResult);
         setImageUrl(pngUrl);
       }
     }
-  }, [props.initialMangaResult, imageUrl, isPolling, isRegenerating, notifyFlowState]);
+  }, [initialMangaResult, imageUrl, isPolling, isRegenerating, notifyFlowState]);
 
   return (
     <div className="ui-card mb-6 rounded-2xl p-5 sm:p-6">
@@ -523,7 +540,7 @@ export function MangaViewer(props: MangaViewerProps) {
           {/* eslint-disable-next-line @next/next/no-img-element -- 署名付きURLとdata URLの両方をそのまま表示するため */}
           <img
             src={imageUrl}
-            alt={`${props.title}の漫画`}
+            alt={`${title}の漫画`}
             className="w-full rounded-xl border border-slate-200"
           />
           <div className="flex flex-wrap items-center gap-3">
@@ -538,14 +555,14 @@ export function MangaViewer(props: MangaViewerProps) {
                     const blobUrl = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = blobUrl;
-                    link.download = `${props.title}-manga.png`;
+                    link.download = `${title}-manga.png`;
                     link.click();
                     URL.revokeObjectURL(blobUrl);
                   } else {
                     // Base64 Data URLの場合はそのまま
                     const link = document.createElement('a');
                     link.href = imageUrl;
-                    link.download = `${props.title}-manga.png`;
+                    link.download = `${title}-manga.png`;
                     link.click();
                   }
                 } catch (err) {
@@ -644,7 +661,7 @@ export function MangaViewer(props: MangaViewerProps) {
         <div className="mt-4 space-y-2 text-sm text-slate-600">
           <p>テキスト要約にフォールバックしました。</p>
           <ul className="list-disc pl-5">
-            {(result?.panels ?? [{ id: 'summary', text: props.summary }]).map((panel) => (
+            {(result?.panels ?? [{ id: 'summary', text: summary }]).map((panel) => (
               <li key={panel.id}>{panel.text}</li>
             ))}
           </ul>

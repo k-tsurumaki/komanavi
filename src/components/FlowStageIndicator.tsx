@@ -119,6 +119,7 @@ function StepButton({
         }
       }}
       aria-disabled={!canNavigate}
+      disabled={!canNavigate}
       tabIndex={canNavigate ? 0 : -1}
       aria-current={isCurrent ? 'step' : undefined}
       className={`relative w-full rounded-xl border text-left transition ${

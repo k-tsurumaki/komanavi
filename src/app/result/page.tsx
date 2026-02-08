@@ -367,10 +367,10 @@ function ResultContent() {
     };
   }, [shouldObserveChecklist]);
 
-  const scrollToSection = (target: HTMLElement | null) => {
+  const scrollToSection = useCallback((target: HTMLElement | null) => {
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  }, []);
 
   const handleFlowStepNavigation = useCallback(
     (stepId: FlowStepId) => {
@@ -426,7 +426,7 @@ function ResultContent() {
 
       scrollToSection(mangaSectionRef.current ?? checklistSectionRef.current);
     },
-    [analyze, canAnalyzeFromUrl, reset, router, url]
+    [analyze, canAnalyzeFromUrl, reset, router, scrollToSection, url]
   );
 
   const renderFlowIndicator = () => (
