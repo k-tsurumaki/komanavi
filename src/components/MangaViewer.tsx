@@ -256,6 +256,9 @@ export function MangaViewer(props: MangaViewerProps) {
       try {
         const response = await fetch(`/api/manga/${job}`);
         if (response.status === 404) {
+          // ジョブが見つからない場合はポーリングを停止
+          clearPolling();
+          clearActiveJob(job);
           return;
         }
         if (!response.ok) {
