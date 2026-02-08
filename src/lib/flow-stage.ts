@@ -24,6 +24,7 @@ export interface FlowStageContext {
   hasIntermediate: boolean;
   hasIntentInput: boolean;
   hasIntentStepVisited?: boolean;
+  hasDeepDiveStepVisited?: boolean;
   hasIntentGenerationError: boolean;
   isIntentGenerating: boolean;
   guidanceUnlocked: boolean;
@@ -169,8 +170,12 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   const checklistStep = findStepById(requiredSteps, 'review_checklist');
   const mangaStep = findStepById(requiredSteps, 'manga_review');
   const deepDiveStep = findStepById(optionalSteps, 'deep_dive');
-  const isIntentStepCompleted = Boolean(context.hasIntentInput || context.hasIntentStepVisited);
+  const isIntentStepCompleted = Boolean(context.hasIntentInput);
+  const isDeepDiveStepCompleted = Boolean(
+    context.hasDeepDiveStepVisited || context.hasDeepDiveMessages
+  );
   const hasReachedIntentStage = Boolean(
+    context.hasIntentStepVisited ||
     isIntentStepCompleted ||
       context.isIntentGenerating ||
       context.hasIntentGenerationError ||
@@ -206,17 +211,19 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
     deepDiveStep.status = 'not_started';
     deepDiveStep.available = false;
     deepDiveStep.helperText = '要点表示後に利用できます';
-  } else if (hasReachedIntentStage) {
+  } else if (isDeepDiveStepCompleted || hasReachedIntentStage) {
     // 要件: 意図入力ステップ以上へ進んだら「深掘りする（任意）」は完了扱いにする
     deepDiveStep.status = 'completed';
     deepDiveStep.available = true;
     deepDiveStep.helperText = context.hasDeepDiveMessages
       ? '深掘りの履歴があります'
-      : '意図入力へ進んだため完了扱い';
+      : hasReachedIntentStage
+        ? '意図入力へ進んだため完了扱い'
+        : '深掘りを開始しました';
   } else {
-    deepDiveStep.status = context.hasDeepDiveMessages ? 'in_progress' : 'not_started';
+    deepDiveStep.status = 'not_started';
     deepDiveStep.available = true;
-    deepDiveStep.helperText = context.hasDeepDiveMessages ? '深掘りの履歴があります' : '必要に応じて深掘りできます';
+    deepDiveStep.helperText = '必要に応じて深掘りできます';
   }
 
   const normalizedManga = normalizeMangaState(
@@ -303,6 +310,11 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
         statusText = '漫画で確認して理解を定着させましょう';
         nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
       }
+    } else if (context.hasDeepDiveStepVisited) {
+      intentStep.status = isIntentStepCompleted ? 'completed' : 'not_started';
+      currentStepId = 'deep_dive';
+      statusText = '気になる点を深掘りできます';
+      nextAction = { stepId: 'deep_dive', label: '深掘りする' };
     } else {
       intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
       currentStepId = 'input_intent';
