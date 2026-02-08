@@ -65,8 +65,7 @@ function LoginForm() {
   return (
     <div className="ui-card-float p-6 sm:p-8">
       <div className="mb-6 text-center">
-        <span className="ui-kicker">Account</span>
-        <h1 className="ui-heading mt-3 text-2xl">{mode === 'login' ? 'ログイン' : '新規登録'}</h1>
+        <h1 className="ui-heading text-2xl">{mode === 'login' ? 'ログイン' : '新規登録'}</h1>
       </div>
 
       {error && <div className="ui-callout ui-callout-error mb-5">{error}</div>}
