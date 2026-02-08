@@ -176,7 +176,7 @@ export function FlowStageIndicator({
     <section className={`ui-card rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 ${className ?? ''}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div role="status" aria-live="polite" className="max-w-2xl">
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-slate-600">ステップマップ</p>
+          <p className="text-[11px] font-semibold tracking-[0.08em] text-slate-600">ステップナビ</p>
           <p className="mt-1.5 text-sm font-semibold leading-relaxed text-slate-900 sm:text-[15px]">
             {model.statusText}
           </p>
