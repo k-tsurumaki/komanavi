@@ -235,13 +235,13 @@ function ResultContent() {
 
   if (!historyId && !url && !result) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-700 mb-4">URLが指定されていません</p>
+      <div className="ui-page ui-shell-gap">
+        <div className="ui-card rounded-2xl border-rose-200 bg-rose-50 p-6 text-center">
+          <p className="mb-4 text-rose-700">URLが指定されていません</p>
           <Link
             href="/analyze"
             onClick={handleBackToHome}
-            className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="ui-btn ui-btn-primary px-6 py-2 text-sm !text-white"
           >
             トップページに戻る
           </Link>
@@ -253,11 +253,11 @@ function ResultContent() {
   // ローディング中（意図入力の再解析中は画面を維持）
   if (status === 'loading' && !isIntentGenerating) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="ui-page ui-shell-gap">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-          <p className="text-lg text-gray-700">ページを解析しています...</p>
-          <p className="text-sm text-gray-500 mt-2">（30秒〜1分程度かかります）</p>
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600" />
+          <p className="text-lg text-slate-700">ページを解析しています...</p>
+          <p className="mt-2 text-sm text-slate-500">（30秒〜1分程度かかります）</p>
         </div>
       </div>
     );
@@ -266,13 +266,13 @@ function ResultContent() {
   // エラー
   if (status === 'error') {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-700 mb-4">{error || '解析に失敗しました'}</p>
+      <div className="ui-page ui-shell-gap">
+        <div className="ui-card rounded-2xl border-rose-200 bg-rose-50 p-6 text-center">
+          <p className="mb-4 text-rose-700">{error || '解析に失敗しました'}</p>
           <Link
             href="/analyze"
             onClick={handleBackToHome}
-            className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="ui-btn ui-btn-primary px-6 py-2 text-sm !text-white"
           >
             トップページに戻る
           </Link>
@@ -285,15 +285,15 @@ function ResultContent() {
   if (!result || !result.intermediate) {
     const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving);
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="ui-page ui-shell-gap">
         <div className="flex flex-col items-center justify-center py-12">
           {canAnalyzeFromUrl ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-6 text-center max-w-xl">
-              <p className="text-lg font-semibold text-gray-800">このURLの結果はまだ表示されていません</p>
+            <div className="ui-card max-w-xl rounded-2xl p-6 text-center">
+              <p className="text-lg font-semibold text-slate-800">このURLの結果はまだ表示されていません</p>
               {error && (
                 <p className="mt-2 text-sm text-amber-700">{error}</p>
               )}
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="mt-2 text-sm text-slate-600">
                 自動では解析しません。必要な場合のみ手動で解析を開始してください。
               </p>
               <button
@@ -303,15 +303,15 @@ function ResultContent() {
                     analyze(url);
                   }
                 }}
-                className="mt-4 inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                className="ui-btn ui-btn-primary mt-4 px-5 py-2.5 text-sm !text-white"
               >
                 このURLを解析する
               </button>
             </div>
           ) : (
             <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-              <p className="text-lg text-gray-700">データを読み込んでいます...</p>
+              <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600" />
+              <p className="text-lg text-slate-700">データを読み込んでいます...</p>
             </>
           )}
         </div>
@@ -534,33 +534,29 @@ function ResultContent() {
     guidanceUnlocked && isIntentLocked && !isIntentGenerating;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* 免責バナー */}
+    <div className="ui-page ui-shell-gap">
       <DisclaimerBanner
         sourceUrl={intermediate.metadata.source_url}
         fetchedAt={intermediate.metadata.fetched_at}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/analyze"
           onClick={handleBackToHome}
-          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+          className="ui-btn ui-btn-secondary px-3 py-2 text-sm"
         >
-          <span aria-hidden="true">←</span>
           新しいURLを解析
         </Link>
         <div className="flex flex-wrap items-center gap-2" />
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h3 className="text-lg font-bold">1分でわかる！平易化されたWebページ</h3>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="ui-heading text-lg">1分でわかる平易化サマリー</h3>
       </div>
 
-      {/* 既存要約表示 */}
       <SummaryViewer data={intermediate} overview={overview} hideDetails />
 
-      {/* 深掘りチャット */}
-        <div className="group relative rounded-2xl border border-slate-200 bg-white/90 px-6 pt-6 pb-2 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
-          <div className="absolute right-6 top-6">
+      <div className="group ui-card relative mb-6 rounded-2xl px-6 pb-3 pt-6">
+        <div className="absolute right-6 top-6">
             <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
               <button
                 type="button"
@@ -583,182 +579,176 @@ function ResultContent() {
                 意図入力
               </button>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-5 pr-24">
-            {chatMode === 'deepDive' && (
-              <div>
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <span aria-hidden="true">💬</span>
-                  深掘りチャット
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 mt-2">気になる点を深掘り</h3>
-                <p className="text-sm text-slate-600">
-                  「ここが分からない」をAIアシスタントに質問して解消しましょう。
-                </p>
-              </div>
-            )}
-            {chatMode === 'intent' && (
-              <div className="max-w-xl">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <span aria-hidden="true">🎯</span>
-                  意図入力
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 mt-2">最終的に実現したいことを一文で</h3>
-                <p className="text-sm text-slate-600">
-                  実現したいことを入力すると、具体的なチェックリストと漫画が提供されます。
-                </p>
-              </div>
-            )}
-          </div>
-
+        </div>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4 pr-24">
           {chatMode === 'deepDive' && (
-            <>
-              <div className="space-y-4 mb-4">
-                {messages.map((message, index) => (
-                  <div
-                    key={`${message.role}-${index}`}
-                    className={`rounded-xl px-4 py-3 border ${
-                      message.role === 'user'
-                        ? 'bg-blue-50 border-blue-200 text-blue-900'
-                        : 'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
-                  >
-                    <p className="text-xs font-semibold mb-1 tracking-wide">
-                      {message.role === 'user' ? 'あなた' : 'AIアシスタント'}
-                    </p>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
-                  </div>
-                ))}
-              </div>
-
-              {deepDiveError && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {deepDiveError}
-                </div>
-              )}
-
-              <div className="relative">
-                <textarea
-                  value={deepDiveInput}
-                  onChange={(event) => {
-                    setDeepDiveInput(event.target.value);
-                    event.currentTarget.style.height = 'auto';
-                    event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
-                  }}
-                  rows={3}
-                  placeholder="例: 対象条件をもう少し詳しく知りたい"
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendDeepDive}
-                  disabled={isDeepDiveLoading || !deepDiveInput.trim()}
-                  className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
-                  aria-label="送信"
-                >
-                  {isDeepDiveLoading ? (
-                    <span className="inline-flex h-5 w-5 items-center justify-center">
-                      <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
-                    </span>
-                  ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <line x1="22" y1="2" x2="11" y2="13" />
-                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </>
+            <div>
+              <div className="ui-kicker">Deep Dive</div>
+              <h3 className="ui-heading mt-3 text-lg">気になる点を深掘り</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                「ここが分からない」をAIに質問して解消しましょう。
+              </p>
+            </div>
           )}
-
           {chatMode === 'intent' && (
-            <div className="space-y-0">
-              <div className="relative">
-                <textarea
-                  value={intentInput}
-                  onChange={(event) => {
-                    setIntentInput(event.target.value);
-                    if (intentError) {
-                      setIntentError(null);
-                    }
-                    event.currentTarget.style.height = 'auto';
-                    event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
-                  }}
-                  rows={3}
-                  placeholder="例: 私が対象かどうかと申請方法を知りたい"
-                  disabled={isIntentGenerating || isIntentLocked}
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-14 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleConfirmIntent}
-                  disabled={isIntentGenerating || isIntentLocked || !intentInput.trim()}
-                  className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
-                  aria-label="意図を確定"
-                >
-                  {isIntentGenerating ? (
-                    <span className="inline-flex h-5 w-5 items-center justify-center">
-                      <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
-                    </span>
-                  ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <line x1="22" y1="2" x2="11" y2="13" />
-                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {intentError && (
-                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {intentError}
-                </div>
-              )}
-              {canShowIntentEditButton && (
-                <button
-                  type="button"
-                  onClick={() => setIsIntentLocked(false)}
-                  className="-mt-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
-                  aria-label="意図を編集"
-                  disabled={isIntentGenerating}
-                >
-                  <span className="text-base" aria-hidden="true">
-                    ✎
-                  </span>
-                  メッセージを編集する
-                </button>
-              )}
+            <div className="max-w-xl">
+              <div className="ui-kicker">Intent</div>
+              <h3 className="ui-heading mt-3 text-lg">最終的に実現したいことを一文で</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                実現したいことを入力すると、具体的なチェックリストと漫画が提供されます。
+              </p>
             </div>
           )}
         </div>
 
+        {chatMode === 'deepDive' && (
+          <>
+            <div className="mb-4 space-y-4">
+              {messages.map((message, index) => (
+                <div
+                  key={`${message.role}-${index}`}
+                  className={`rounded-xl px-4 py-3 border ${
+                    message.role === 'user'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <p className="mb-1 text-xs font-semibold tracking-wide">
+                    {message.role === 'user' ? 'あなた' : 'AIアシスタント'}
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                </div>
+              ))}
+            </div>
+
+            {deepDiveError && (
+              <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {deepDiveError}
+              </div>
+            )}
+
+            <div className="relative">
+              <textarea
+                value={deepDiveInput}
+                onChange={(event) => {
+                  setDeepDiveInput(event.target.value);
+                  event.currentTarget.style.height = 'auto';
+                  event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
+                }}
+                rows={3}
+                placeholder="例: 対象条件をもう少し詳しく知りたい"
+                className="ui-textarea w-full resize-none pr-14 text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleSendDeepDive}
+                disabled={isDeepDiveLoading || !deepDiveInput.trim()}
+                className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+                aria-label="送信"
+              >
+                {isDeepDiveLoading ? (
+                  <span className="inline-flex h-5 w-5 items-center justify-center">
+                    <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
+                  </span>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+
+        {chatMode === 'intent' && (
+          <div className="space-y-0">
+            <div className="relative">
+              <textarea
+                value={intentInput}
+                onChange={(event) => {
+                  setIntentInput(event.target.value);
+                  if (intentError) {
+                    setIntentError(null);
+                  }
+                  event.currentTarget.style.height = 'auto';
+                  event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
+                }}
+                rows={3}
+                placeholder="例: 私が対象かどうかと申請方法を知りたい"
+                disabled={isIntentGenerating || isIntentLocked}
+                className="ui-textarea w-full resize-none pr-14 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+              />
+              <button
+                type="button"
+                onClick={handleConfirmIntent}
+                disabled={isIntentGenerating || isIntentLocked || !intentInput.trim()}
+                className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+                aria-label="意図を確定"
+              >
+                {isIntentGenerating ? (
+                  <span className="inline-flex h-5 w-5 items-center justify-center">
+                    <span className="h-3.5 w-3.5 rounded-[2px] bg-white" aria-hidden="true" />
+                  </span>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {intentError && (
+              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {intentError}
+              </div>
+            )}
+            {canShowIntentEditButton && (
+              <button
+                type="button"
+                onClick={() => setIsIntentLocked(false)}
+                className="-mt-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+                aria-label="意図を編集"
+                disabled={isIntentGenerating}
+              >
+                <span className="text-base" aria-hidden="true">
+                  ✎
+                </span>
+                メッセージを編集する
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* 回答生成開始 */}
       {shouldShowGuidanceSection && (
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] mb-6">
+        <div className="ui-card mb-6 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-white p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-2xl" aria-hidden="true">
-                ✨
+              <span className="ui-badge" aria-hidden="true">
+                GUIDE
               </span>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">回答</h3>
+                <h3 className="ui-heading text-lg">回答</h3>
                 <p className="text-xs text-slate-500">あなたの意図とパーソナル情報に基づく回答</p>
               </div>
             </div>
@@ -869,9 +859,9 @@ export default function ResultPage() {
   return (
     <Suspense
       fallback={
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="ui-page ui-shell-gap">
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600" />
           </div>
         </div>
       }

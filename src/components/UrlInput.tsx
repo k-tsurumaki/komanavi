@@ -42,7 +42,7 @@ export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <div className="flex flex-col gap-3">
-        <label htmlFor="url-input" className="text-lg font-medium">
+        <label htmlFor="url-input" className="text-sm font-semibold tracking-wide text-slate-700">
           行政ページのURLを入力してください
         </label>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -55,7 +55,7 @@ export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
               if (error) setError('');
             }}
             placeholder="https://www.city.example.lg.jp/..."
-            className="flex-1 px-4 py-3 text-lg border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+            className="ui-input flex-1 px-4 py-3 text-base"
             disabled={isLoading}
             aria-describedby={error ? 'url-error' : undefined}
             aria-invalid={error ? 'true' : 'false'}
@@ -63,11 +63,11 @@ export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
           <button
             type="submit"
             disabled={isLoading || !url.trim()}
-            className="px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="ui-btn ui-btn-primary min-w-32 px-6 py-3 text-sm font-semibold text-white"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -91,7 +91,7 @@ export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
           </button>
         </div>
         {error && (
-          <p id="url-error" className="text-red-600 text-base" role="alert">
+          <p id="url-error" className="text-sm text-rose-600" role="alert">
             {error}
           </p>
         )}

@@ -1,52 +1,299 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #f9fafb;
+  --background: #f3f5f9;
+  --surface: #ffffff;
+  --surface-soft: #f7f8fc;
+  --surface-muted: #eef2f7;
   --foreground: #111827;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --foreground-soft: #4b5563;
+  --foreground-muted: #6b7280;
+  --border: #d5dbe7;
+  --border-soft: #e6eaf1;
+  --primary: #10a37f;
+  --primary-hover: #0d8b6b;
+  --shadow-soft: 0 10px 28px rgba(17, 24, 39, 0.07);
+  --shadow-float: 0 20px 52px rgba(17, 24, 39, 0.1);
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground-soft: var(--foreground-soft);
+  --color-foreground-muted: var(--foreground-muted);
   --font-sans: var(--font-noto-sans-jp), 'Noto Sans JP', sans-serif;
 }
 
 html {
-  font-size: 18px; /* アクセシビリティ：大きめの基本フォントサイズ */
+  font-size: 17px;
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-noto-sans-jp), 'Noto Sans JP', sans-serif;
-  line-height: 1.8;
+  line-height: 1.65;
+  min-height: 100vh;
+  letter-spacing: 0.01em;
+  text-rendering: optimizeLegibility;
 }
 
-/* フォーカス時のアウトライン（アクセシビリティ） */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(16, 163, 127, 0.09), transparent 38%),
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.08), transparent 36%);
+}
+
 *:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: 2px solid rgba(16, 163, 127, 0.65);
+  outline-offset: 3px;
+  border-radius: 10px;
 }
 
-/* リンクのスタイル */
 a {
-  color: var(--primary);
+  color: #0f766e;
   text-decoration: none;
+  transition: color 180ms ease;
 }
 
 a:hover {
-  text-decoration: underline;
+  color: #0f5f59;
 }
 
-/* ボタンの基本スタイル */
 button {
   cursor: pointer;
 }
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.56;
+}
+
+::selection {
+  background: rgba(16, 163, 127, 0.18);
+  color: #0f172a;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c2cad8 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #c2cad8;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ui-page {
+  width: min(100%, 1024px);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.ui-page-wide {
+  width: min(100%, 1160px);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.ui-shell-gap {
+  padding-block: clamp(1rem, 2vw, 1.5rem);
+}
+
+.ui-card {
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.ui-card-soft {
+  border: 1px solid var(--border-soft);
+  background: var(--surface-soft);
+  border-radius: var(--radius-lg);
+}
+
+.ui-card-float {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+}
+
+.ui-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #0f172a;
+}
+
+.ui-heading {
+  color: #0f172a;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ui-muted {
+  color: var(--foreground-soft);
+}
+
+.ui-subtle {
+  color: var(--foreground-muted);
+}
+
+.ui-divider {
+  border-top: 1px solid var(--border-soft);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.2;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.ui-btn:active {
+  transform: translateY(0.5px);
+}
+
+.ui-btn-primary {
+  color: white;
+  background: linear-gradient(135deg, #10a37f, #0f8d70);
+  box-shadow: 0 8px 18px rgba(16, 163, 127, 0.3);
+}
+
+.ui-btn-primary:hover {
+  background: linear-gradient(135deg, #0f9676, #0d7f64);
+  box-shadow: 0 10px 22px rgba(16, 163, 127, 0.35);
+}
+
+.ui-btn-secondary {
+  color: #0f172a;
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.ui-btn-secondary:hover {
+  background: var(--surface-soft);
+  border-color: #c5cedc;
+}
+
+.ui-btn-ghost {
+  color: var(--foreground-soft);
+  background: transparent;
+  border-color: var(--border-soft);
+}
+
+.ui-btn-ghost:hover {
+  color: #0f172a;
+  background: var(--surface-soft);
+}
+
+.ui-input,
+.ui-select,
+.ui-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  color: #0f172a;
+  transition:
+    border-color 170ms ease,
+    box-shadow 170ms ease,
+    background-color 170ms ease;
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder {
+  color: #9aa3b2;
+}
+
+.ui-input:focus,
+.ui-select:focus,
+.ui-textarea:focus {
+  border-color: rgba(16, 163, 127, 0.62);
+  box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.16);
+  outline: none;
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  padding: 0.24rem 0.62rem;
+  font-size: 0.76rem;
+  font-weight: 550;
+  color: #374151;
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(16, 163, 127, 0.12);
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.58rem;
+}
+
+.animate-fade-up {
+  animation: fade-up 460ms ease forwards;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

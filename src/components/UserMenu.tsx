@@ -10,8 +10,8 @@ export function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // 外側クリックでメニューを閉じる
   useEffect(() => {
+    if (!isOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -19,11 +19,11 @@ export function UserMenu() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   if (status === "loading") {
     return (
-      <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
+      <div className="h-8 w-8 animate-pulse rounded-full bg-slate-200" />
     );
   }
 
@@ -31,7 +31,7 @@ export function UserMenu() {
     return (
       <Link
         href="/login"
-        className="inline-flex items-center px-4 py-2 text-sm font-medium !text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+        className="ui-btn ui-btn-primary px-4 py-2 text-sm !text-white"
       >
         ログイン
       </Link>
@@ -46,7 +46,7 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="flex items-center gap-2 rounded-full border border-transparent p-0.5 hover:border-slate-300"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
@@ -56,37 +56,37 @@ export function UserMenu() {
             alt={user.name || "ユーザー"}
             width={32}
             height={32}
-            className="rounded-full"
+            className="rounded-full border border-slate-200 object-cover"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
             {initials}
           </div>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-sm font-medium text-gray-900 truncate">
+        <div className="ui-card absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl py-1">
+          <div className="border-b border-slate-200/70 px-4 py-3">
+            <p className="truncate text-sm font-semibold text-slate-900">
               {user?.name || "ユーザー"}
             </p>
-            <p className="text-sm text-gray-500 truncate">{user?.email}</p>
+            <p className="truncate text-xs text-slate-500">{user?.email}</p>
           </div>
-          <div className="py-1">
+          <div className="py-1.5">
             <Link
               href="/mypage"
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
               onClick={() => setIsOpen(false)}
             >
               Myページ
             </Link>
           </div>
-          <div className="border-t border-gray-100 py-1">
+          <div className="border-t border-slate-200/70 py-1.5">
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+              className="block w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50/80"
             >
               ログアウト
             </button>

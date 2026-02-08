@@ -228,14 +228,14 @@ export function MangaViewer(props: MangaViewerProps) {
     return [props.summary].filter(Boolean);
   }, [props.keyPoints, props.summary, result?.panels]);
 
-  const clearPolling = () => {
+  const clearPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
     setIsPolling(false);
     isPollingRef.current = false;
-  };
+  }, []);
 
   const clearActiveJob = useCallback((job?: string) => {
     const usage = loadUsage();
@@ -283,7 +283,7 @@ export function MangaViewer(props: MangaViewerProps) {
         clearActiveJob(job);
       }
     },
-    [clearActiveJob]
+    [clearActiveJob, clearPolling]
   );
 
   const startPolling = useCallback(
@@ -302,7 +302,7 @@ export function MangaViewer(props: MangaViewerProps) {
         pollStatus(job);
       }, POLL_INTERVAL_MS);
     },
-    [pollStatus]
+    [clearActiveJob, clearPolling, pollStatus]
   );
 
   const handleGenerate = useCallback(async () => {
@@ -361,7 +361,7 @@ export function MangaViewer(props: MangaViewerProps) {
     return () => {
       clearPolling();
     };
-  }, [props.url, startPolling]);
+  }, [clearPolling, props.url, startPolling]);
 
   // 履歴から復元した漫画データを初期表示
   useEffect(() => {
@@ -378,22 +378,25 @@ export function MangaViewer(props: MangaViewerProps) {
   }, [props.initialMangaResult, imageUrl]);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-      <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-        <span aria-hidden="true">📖</span>
+    <div className="ui-card mb-6 rounded-2xl p-5 sm:p-6">
+      <h3 className="ui-heading mb-3 flex items-center gap-2 text-lg">
+        <span className="ui-badge" aria-hidden="true">
+          MANGA
+        </span>
         もっとわかりやすく（漫画で見る）
       </h3>
 
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="mb-4 text-sm text-slate-600">
         4〜8コマの漫画で制度の要点を整理します。生成には最大60秒かかる場合があります。
       </p>
 
       {imageUrl ? (
         <div className="space-y-4">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 署名付きURLとdata URLの両方をそのまま表示するため */}
           <img
             src={imageUrl}
             alt={`${props.title}の漫画`}
-            className="w-full border border-gray-200 rounded-lg"
+            className="w-full rounded-xl border border-slate-200"
           />
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -421,7 +424,7 @@ export function MangaViewer(props: MangaViewerProps) {
                   console.error('Download failed:', err);
                 }
               }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition"
+              className="ui-btn ui-btn-secondary px-5 py-2.5 text-sm"
             >
               <svg
                 aria-hidden="true"
@@ -441,7 +444,7 @@ export function MangaViewer(props: MangaViewerProps) {
             </button>
             <button
               type="button"
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="ui-btn ui-btn-ghost px-4 py-2 text-sm"
               onClick={() => {
                 setImageUrl('');
                 setResult(null);
@@ -456,25 +459,25 @@ export function MangaViewer(props: MangaViewerProps) {
           <button
             type="button"
             onClick={handleGenerate}
-            className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+            className="ui-btn ui-btn-primary px-5 py-3 text-sm !text-white"
             disabled={!!canGenerateMessage || isPolling}
           >
             漫画を生成する
           </button>
 
           {isPolling && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-slate-600">
               生成中... {progress}%
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
               {error}
               <div className="mt-2">
                 <button
                   type="button"
-                  className="text-blue-600 hover:text-blue-800"
+                  className="font-semibold text-emerald-700 hover:text-emerald-800"
                   onClick={() => {
                     setError(null);
                     handleGenerate();
@@ -487,11 +490,11 @@ export function MangaViewer(props: MangaViewerProps) {
           )}
 
           {error && fallbackTexts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <p className="text-sm font-semibold text-gray-700 mb-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="mb-2 text-sm font-semibold text-slate-700">
                 テキスト要約でご案内します
               </p>
-              <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
                 {fallbackTexts.map((text, index) => (
                   <li key={`${text}-${index}`}>{text}</li>
                 ))}
@@ -500,13 +503,13 @@ export function MangaViewer(props: MangaViewerProps) {
           )}
 
           {!error && canGenerateMessage && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
               {canGenerateMessage}
             </div>
           )}
 
           {!error && !isPolling && !canGenerateMessage && (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-slate-500">
               {isLoggedIn
                 ? '生成失敗時はテキスト要約を表示します。'
                 : 'ログインすると生成した漫画が履歴に保存されます。'}
@@ -516,9 +519,9 @@ export function MangaViewer(props: MangaViewerProps) {
       )}
 
       {(error || (result && !imageUrl)) && (
-        <div className="mt-4 space-y-2 text-sm text-gray-600">
+        <div className="mt-4 space-y-2 text-sm text-slate-600">
           <p>テキスト要約にフォールバックしました。</p>
-          <ul className="list-disc list-inside">
+          <ul className="list-disc pl-5">
             {(result?.panels ?? [{ id: 'summary', text: props.summary }]).map((panel) => (
               <li key={panel.id}>{panel.text}</li>
             ))}

@@ -22,20 +22,19 @@ export function GoogleSearchAttribution({ groundingMetadata }: GoogleSearchAttri
   }
 
   return (
-    <section className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-      <h3 className="text-lg font-semibold text-blue-800 mb-3">
+    <section className="mb-6 rounded-2xl border border-sky-200 bg-sky-50/70 p-5">
+      <h3 className="mb-3 text-lg font-semibold text-sky-900">
         Google検索による情報取得
       </h3>
 
-      {/* 検索クエリ */}
       {webSearchQueries && webSearchQueries.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-sm font-medium text-blue-700 mb-2">使用した検索クエリ</h4>
+          <h4 className="mb-2 text-sm font-medium text-sky-700">使用した検索クエリ</h4>
           <div className="flex flex-wrap gap-2">
             {webSearchQueries.map((query, index) => (
               <span
                 key={index}
-                className="inline-block px-3 py-1 bg-white text-blue-700 text-sm rounded-full border border-blue-300"
+                className="inline-flex rounded-full border border-sky-300 bg-white px-3 py-1 text-sm text-sky-700"
               >
                 {query}
               </span>
@@ -44,21 +43,20 @@ export function GoogleSearchAttribution({ groundingMetadata }: GoogleSearchAttri
         </div>
       )}
 
-      {/* 参照元 */}
       {groundingChunks && groundingChunks.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-sm font-medium text-blue-700 mb-2">参照した情報源</h4>
+          <h4 className="mb-2 text-sm font-medium text-sky-700">参照した情報源</h4>
           <ul className="space-y-2">
             {groundingChunks
               .filter((chunk) => chunk.web)
               .map((chunk, index) => (
                 <li key={index} className="flex items-start gap-2">
-                  <span className="text-blue-500 mt-1">&#8226;</span>
+                  <span className="mt-1 text-sky-500">&#8226;</span>
                   <a
                     href={chunk.web!.uri}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline text-sm break-all"
+                    className="break-all text-sm text-sky-700 underline underline-offset-2 hover:text-sky-900"
                   >
                     {chunk.web!.title || chunk.web!.uri}
                   </a>
@@ -68,7 +66,6 @@ export function GoogleSearchAttribution({ groundingMetadata }: GoogleSearchAttri
         </div>
       )}
 
-      {/* Google検索サジェスション（renderedContent） */}
       {searchEntryPoint?.renderedContent && (
         <div
           className="google-search-suggestions"
@@ -76,7 +73,7 @@ export function GoogleSearchAttribution({ groundingMetadata }: GoogleSearchAttri
         />
       )}
 
-      <p className="text-xs text-blue-600 mt-3">
+      <p className="mt-3 text-xs text-sky-700">
         この情報はGoogle検索を使用して取得されました。
       </p>
     </section>

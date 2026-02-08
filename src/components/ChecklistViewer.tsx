@@ -33,21 +33,22 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
   );
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <span aria-hidden="true">✅</span>
+    <div className="ui-card rounded-2xl p-5 sm:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="ui-heading flex items-center gap-2 text-lg">
+          <span className="ui-badge" aria-hidden="true">
+            TODO
+          </span>
           やることチェックリスト
         </h3>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-slate-600">
           {completedCount} / {totalCount} 完了
         </span>
       </div>
 
-      {/* プログレスバー */}
-      <div className="w-full h-2 bg-gray-200 rounded-full mb-6">
+      <div className="mb-6 h-2 w-full rounded-full bg-slate-200">
         <div
-          className="h-2 bg-green-500 rounded-full transition-all duration-300"
+          className="h-2 rounded-full bg-emerald-500 transition-all duration-300"
           style={{ width: `${progressPercent}%` }}
           role="progressbar"
           aria-valuenow={completedCount}
@@ -56,38 +57,39 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
         />
       </div>
 
-      {/* チェックリスト */}
       <div className="space-y-6">
         {Object.entries(groupedItems).map(([category, categoryItems]) => (
           <div key={category}>
             {Object.keys(groupedItems).length > 1 && (
-              <h4 className="text-sm font-medium text-gray-500 mb-2">{category}</h4>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {category}
+              </h4>
             )}
             <ul className="space-y-3">
               {categoryItems.map((item) => (
                 <li key={item.id}>
-                  <label className="flex items-start gap-3 cursor-pointer group">
+                  <label className="group flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/80 bg-slate-50/60 px-3 py-3 transition hover:border-slate-300 hover:bg-white">
                     <input
                       type="checkbox"
                       checked={item.completed}
                       onChange={() => handleToggle(item.id)}
-                      className="mt-1 w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="mt-0.5 h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                     />
                     <div className="flex-1">
                       <span
-                        className={`text-gray-800 ${
-                          item.completed ? 'line-through text-gray-400' : ''
+                        className={`text-sm text-slate-800 ${
+                          item.completed ? 'text-slate-400 line-through' : ''
                         }`}
                       >
                         {item.text}
                       </span>
                       {item.deadline && (
-                        <p className="text-sm text-red-600 mt-1">
-                          📅 {item.deadline}
+                        <p className="mt-1 text-xs text-rose-600">
+                          期限: {item.deadline}
                         </p>
                       )}
                       {item.priority === 'high' && !item.completed && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
+                        <span className="mt-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
                           重要
                         </span>
                       )}
@@ -100,12 +102,9 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
         ))}
       </div>
 
-      {/* 完了メッセージ */}
       {completedCount === totalCount && totalCount > 0 && (
-        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
-          <p className="text-green-700 font-medium">
-            🎉 すべてのタスクが完了しました！
-          </p>
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+          <p className="text-sm font-semibold text-emerald-700">すべてのタスクが完了しました。</p>
         </div>
       )}
     </div>
