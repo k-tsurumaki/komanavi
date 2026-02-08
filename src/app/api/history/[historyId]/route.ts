@@ -101,12 +101,7 @@ export async function GET(
                 ...mangaData.result,
                 imageUrls: [newSignedUrl],
               };
-
-              // Firestoreも更新（古いURLを残さない）
-              await mangaRef.update({
-                'result.imageUrls': [newSignedUrl],
-                updatedAt: new Date(),
-              });
+              // Firestoreへの書き込みは不要（レスポンスにのみ新しいURLを含める）
             } catch (error) {
               console.error('Failed to generate signed URL:', error);
               // エラーが発生しても処理は続行（既存のURLを使う）
