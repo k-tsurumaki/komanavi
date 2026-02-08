@@ -301,7 +301,7 @@ export function SummaryViewer({
               <ul className="mt-3 space-y-2">
                 {compactAchievableOutcomes.map((outcome, index) => (
                   <li key={`${outcome}-${index}`} className="flex gap-2 text-[15px] leading-relaxed text-slate-900">
-                    <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-bold text-emerald-700">
+                    <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-stone-300 bg-stone-100 text-[11px] font-bold text-stone-700">
                       ✓
                     </span>
                     <span>{outcome}</span>
@@ -343,8 +343,8 @@ export function SummaryViewer({
             </section>
           )}
 
-          <section className="rounded-2xl border border-amber-200/80 bg-amber-50 p-5 shadow-[0_6px_18px_rgba(146,64,14,0.08)]">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+          <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(146,64,14,0.08)]">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900">
               <span aria-hidden="true">⚠️</span>
               見落とすと困る注意点
             </h3>
@@ -353,9 +353,9 @@ export function SummaryViewer({
                 {compactCautions.map((caution, index) => (
                   <div
                     key={`${caution}-${index}`}
-                    className="grid grid-cols-[auto,1fr] items-start gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 text-sm text-slate-800"
+                    className="grid grid-cols-[auto,1fr] items-start gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-slate-800"
                   >
-                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-900">
+                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-200 text-[11px] font-bold text-stone-900">
                       {index + 1}
                     </span>
                     <span className="leading-relaxed">{caution}</span>
@@ -368,14 +368,14 @@ export function SummaryViewer({
           </section>
 
           {contactDetails.length > 0 && (
-            <section className="rounded-2xl border border-sky-200/80 bg-sky-50 p-5 shadow-[0_6px_18px_rgba(3,105,161,0.10)]">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-sky-900">
+            <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(3,105,161,0.10)]">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900">
                 <span aria-hidden="true">📞</span>
                 問い合わせ情報
               </h3>
-              <div className="mt-3 overflow-x-auto rounded-xl border border-sky-200 bg-white">
+              <div className="mt-3 overflow-x-auto rounded-xl border border-stone-300 bg-white">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-sky-50 text-slate-700">
+                  <thead className="bg-stone-100 text-slate-700">
                     <tr>
                       <th className="w-[32%] px-3 py-2 text-left font-semibold">項目</th>
                       <th className="px-3 py-2 text-left font-semibold">内容</th>
@@ -385,8 +385,8 @@ export function SummaryViewer({
                     {contactDetails.map((detail, index) => (
                       <tr
                         key={`${detail.label}-${index}`}
-                        className={`border-t border-sky-100 align-top text-slate-800 ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-sky-50/40'
+                        className={`border-t border-stone-200 align-top text-slate-800 ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-stone-100'
                         }`}
                       >
                         <td className="px-3 py-2.5 font-semibold text-slate-900">{detail.label}</td>
@@ -396,7 +396,7 @@ export function SummaryViewer({
                               href={detail.href}
                               target={detail.href.startsWith('http') ? '_blank' : undefined}
                               rel={detail.href.startsWith('http') ? 'noreferrer noopener' : undefined}
-                              className="text-sky-700 underline underline-offset-2 break-all hover:text-sky-800"
+                              className="text-stone-700 underline underline-offset-2 break-all hover:text-stone-800"
                             >
                               {detail.value}
                             </a>
@@ -459,9 +459,9 @@ export function SummaryViewer({
                     <span
                       className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-sm ${
                         point.importance === 'high'
-                          ? 'bg-rose-500'
+                          ? 'bg-stone-1000'
                           : point.importance === 'medium'
-                            ? 'bg-amber-500'
+                            ? 'bg-stone-1000'
                             : 'bg-slate-400'
                       }`}
                       aria-label={`重要度: ${point.importance}`}
@@ -543,7 +543,7 @@ export function SummaryViewer({
                           <p className="text-slate-600 text-sm mt-1">{step.details}</p>
                         )}
                         {step.note && (
-                          <p className="text-emerald-700 text-sm mt-1">💡 {step.note}</p>
+                          <p className="text-stone-700 text-sm mt-1">💡 {step.note}</p>
                         )}
                       </div>
                     </li>
@@ -571,8 +571,8 @@ export function SummaryViewer({
 
               {/* 期限 */}
               {data.procedure.deadline && (
-                <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
-                  <p className="text-rose-700 font-medium">
+                <div className="mt-3 rounded-lg border border-stone-300 bg-stone-100 p-3">
+                  <p className="text-stone-700 font-medium">
                     📅 期限: {data.procedure.deadline}
                   </p>
                 </div>
@@ -603,12 +603,12 @@ export function SummaryViewer({
 
           {/* 注意事項 */}
           {data.warnings && data.warnings.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <h4 className="font-medium text-amber-800 mb-2">⚠️ 注意事項</h4>
-              <ul className="space-y-2 text-amber-700">
+            <div className="rounded-xl border border-stone-300 bg-stone-100 p-4">
+              <h4 className="font-medium text-stone-800 mb-2">⚠️ 注意事項</h4>
+              <ul className="space-y-2 text-stone-700">
                 {data.warnings.map((warning, index) => (
                   <li key={index} className="flex items-start gap-2 rounded-md bg-white/80 px-3 py-2">
-                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-700">
+                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-200 text-xs font-semibold text-stone-700">
                       ⚠️
                     </span>
                     <span>{warning}</span>

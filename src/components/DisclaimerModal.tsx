@@ -62,9 +62,9 @@ export function DisclaimerModal({ onAccept }: DisclaimerModalProps) {
             KOMANAVI（コマナビ）は、行政情報をわかりやすくお伝えするサービスです。
           </p>
 
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <h3 className="mb-2 text-sm font-bold text-amber-900">重要なお知らせ</h3>
-            <ul className="list-disc space-y-2 pl-5 text-sm text-amber-800">
+          <div className="rounded-xl border border-stone-300 bg-stone-100 p-4">
+            <h3 className="mb-2 text-sm font-bold text-stone-900">重要なお知らせ</h3>
+            <ul className="list-disc space-y-2 pl-5 text-sm text-stone-800">
               <li>
                 本サービスはAIによる要約であり、<strong>正確性を保証するものではありません</strong>
               </li>

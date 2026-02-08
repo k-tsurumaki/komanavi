@@ -72,7 +72,7 @@ export function SourceReference({ sources, groundingMetadata }: SourceReferenceP
                   aria-expanded={expandedId === source.source_id}
                 >
                   <span className="font-medium text-slate-800">
-                    <span className="mr-2 text-emerald-700">[{source.source_id}]</span>
+                    <span className="mr-2 text-stone-700">[{source.source_id}]</span>
                     {source.section}
                   </span>
                   <span

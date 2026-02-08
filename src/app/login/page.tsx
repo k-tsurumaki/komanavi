@@ -70,7 +70,7 @@ function LoginForm() {
       </div>
 
       {error && (
-        <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mb-5 rounded-xl border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
           {error}
         </div>
       )}
@@ -139,7 +139,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setMode('register')}
-              className="font-semibold text-emerald-700 hover:text-emerald-800"
+              className="font-semibold text-stone-700 hover:text-stone-800"
             >
               新規登録
             </button>
@@ -150,7 +150,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setMode('login')}
-              className="font-semibold text-emerald-700 hover:text-emerald-800"
+              className="font-semibold text-stone-700 hover:text-stone-800"
             >
               ログイン
             </button>

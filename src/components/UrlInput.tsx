@@ -91,7 +91,7 @@ export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
           </button>
         </div>
         {error && (
-          <p id="url-error" className="text-sm text-rose-600" role="alert">
+          <p id="url-error" className="text-sm text-stone-700" role="alert">
             {error}
           </p>
         )}

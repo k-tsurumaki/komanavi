@@ -15,16 +15,16 @@ export function DisclaimerBanner({ sourceUrl, fetchedAt }: DisclaimerBannerProps
   });
 
   return (
-    <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+    <div className="mb-5 rounded-2xl border border-stone-300 bg-stone-100 p-4">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
+        <span className="mt-0.5 inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-stone-200 text-sm font-semibold text-stone-700">
           !
         </span>
         <div className="flex-1">
-          <p className="mb-1 text-sm font-semibold text-amber-900">
+          <p className="mb-1 text-sm font-semibold text-stone-900">
             この情報は {formattedDate} 時点のものです
           </p>
-          <p className="mb-3 text-sm text-amber-800">
+          <p className="mb-3 text-sm text-stone-800">
             正式な手続きの際は必ず公式情報をご確認ください。
           </p>
           <Link

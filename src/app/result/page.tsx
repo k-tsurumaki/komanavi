@@ -236,8 +236,8 @@ function ResultContent() {
   if (!historyId && !url && !result) {
     return (
       <div className="ui-page ui-shell-gap">
-        <div className="ui-card rounded-2xl border-rose-200 bg-rose-50 p-6 text-center">
-          <p className="mb-4 text-rose-700">URLが指定されていません</p>
+        <div className="ui-card rounded-2xl border-stone-300 bg-stone-100 p-6 text-center">
+          <p className="mb-4 text-stone-700">URLが指定されていません</p>
           <Link
             href="/analyze"
             onClick={handleBackToHome}
@@ -255,7 +255,7 @@ function ResultContent() {
     return (
       <div className="ui-page ui-shell-gap">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600" />
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-stone-700" />
           <p className="text-lg text-slate-700">ページを解析しています...</p>
           <p className="mt-2 text-sm text-slate-500">（30秒〜1分程度かかります）</p>
         </div>
@@ -267,8 +267,8 @@ function ResultContent() {
   if (status === 'error') {
     return (
       <div className="ui-page ui-shell-gap">
-        <div className="ui-card rounded-2xl border-rose-200 bg-rose-50 p-6 text-center">
-          <p className="mb-4 text-rose-700">{error || '解析に失敗しました'}</p>
+        <div className="ui-card rounded-2xl border-stone-300 bg-stone-100 p-6 text-center">
+          <p className="mb-4 text-stone-700">{error || '解析に失敗しました'}</p>
           <Link
             href="/analyze"
             onClick={handleBackToHome}
@@ -291,7 +291,7 @@ function ResultContent() {
             <div className="ui-card max-w-xl rounded-2xl p-6 text-center">
               <p className="text-lg font-semibold text-slate-800">このURLの結果はまだ表示されていません</p>
               {error && (
-                <p className="mt-2 text-sm text-amber-700">{error}</p>
+                <p className="mt-2 text-sm text-stone-700">{error}</p>
               )}
               <p className="mt-2 text-sm text-slate-600">
                 自動では解析しません。必要な場合のみ手動で解析を開始してください。
@@ -310,7 +310,7 @@ function ResultContent() {
             </div>
           ) : (
             <>
-              <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600" />
+              <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-stone-700" />
               <p className="text-lg text-slate-700">データを読み込んでいます...</p>
             </>
           )}
@@ -606,7 +606,7 @@ function ResultContent() {
                   key={`${message.role}-${index}`}
                   className={`rounded-xl px-4 py-3 border ${
                     message.role === 'user'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      ? 'bg-stone-100 border-stone-300 text-stone-900'
                       : 'bg-slate-50 border-slate-200 text-slate-800'
                   }`}
                 >
@@ -619,7 +619,7 @@ function ResultContent() {
             </div>
 
             {deepDiveError && (
-              <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <div className="mb-4 rounded-lg border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
                 {deepDiveError}
               </div>
             )}
@@ -714,7 +714,7 @@ function ResultContent() {
               </button>
             </div>
             {intentError && (
-              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <div className="mt-3 rounded-lg border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
                 {intentError}
               </div>
             )}
@@ -759,19 +759,19 @@ function ResultContent() {
                   {renderAnswerEntryCard(
                     'あなたは対象になりそうですか？',
                     structuredIntentAnswer.finalJudgment,
-                    'border-sky-200 bg-sky-50/70'
+                    'border-stone-300 bg-stone-100'
                   )}
                   {renderAnswerEntryCard(
                     '最優先の1手',
                     structuredIntentAnswer.firstPriorityAction,
-                    'border-emerald-200 bg-emerald-50/60'
+                    'border-stone-300 bg-stone-100'
                   )}
 
-                  <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-                    <h4 className="text-sm font-semibold text-amber-900">見落とすと申請で困るポイント</h4>
+                  <section className="rounded-xl border border-stone-300 bg-stone-100 p-4">
+                    <h4 className="text-sm font-semibold text-stone-900">見落とすと申請で困るポイント</h4>
                     <ul className="mt-3 space-y-2">
                       {structuredIntentAnswer.failureRisks.map((risk, index) => (
-                        <li key={`failure-risk-${index}`} className="rounded-lg border border-amber-200 bg-white px-3 py-2">
+                        <li key={`failure-risk-${index}`} className="rounded-lg border border-stone-300 bg-white px-3 py-2">
                           <p className="text-sm leading-relaxed text-slate-900">{risk.text}</p>
                         </li>
                       ))}
@@ -855,7 +855,7 @@ export default function ResultPage() {
       fallback={
         <div className="ui-page ui-shell-gap">
           <div className="flex items-center justify-center py-12">
-            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600" />
+            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-stone-700" />
           </div>
         </div>
       }

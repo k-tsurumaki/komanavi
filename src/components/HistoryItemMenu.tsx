@@ -72,7 +72,7 @@ export function HistoryItemMenu({
             type="button"
             role="menuitem"
             onClick={handleDeleteClick}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50/80"
+            className="w-full rounded-xl px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100"
             disabled={disabled}
           >
             削除

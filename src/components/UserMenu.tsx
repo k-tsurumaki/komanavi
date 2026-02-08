@@ -86,7 +86,7 @@ export function UserMenu() {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="block w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50/80"
+              className="block w-full px-4 py-2 text-left text-sm text-stone-700 hover:bg-stone-100"
             >
               ログアウト
             </button>

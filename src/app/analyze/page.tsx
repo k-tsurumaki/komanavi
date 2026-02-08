@@ -66,16 +66,16 @@ export default function AnalyzePage() {
         <UrlInput onSubmit={handleSubmit} isLoading={status === 'loading'} />
 
         {status === 'loading' && (
-          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="mt-5 rounded-xl border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-800">
             <div className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-r-transparent" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-stone-700 border-r-transparent" />
               ページを解析しています（30秒〜1分程度）
             </div>
           </div>
         )}
 
         {status === 'error' && error && (
-          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="mt-5 rounded-xl border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
             {error}
           </div>
         )}
