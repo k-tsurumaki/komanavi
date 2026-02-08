@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -24,9 +24,28 @@ export function AppShell({ children }: AppShellProps) {
   const showQuickAnalyzeButton = pathname === '/result' && !isSidebarOpen;
   const shouldHideQuickAnalyzeOnDesktop = Boolean(session && isSidebarVisible);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const handleMediaQueryChange = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleMediaQueryChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleMediaQueryChange);
+    };
+  }, []);
+
   const handleSidebarOpen = () => {
     if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
       setIsSidebarVisible(true);
+      setIsSidebarOpen(false);
       return;
     }
     setIsSidebarOpen(true);
