@@ -1,17 +1,27 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #ece9e7;
+  --background: #eeebea;
   --surface: #fcfbfa;
-  --surface-soft: #f5f1ee;
+  --surface-soft: #f4efed;
   --surface-muted: #ece6e3;
   --foreground: #0d0d0d;
-  --foreground-soft: #5f4a45;
-  --foreground-muted: #857c79;
-  --border: #c8bfbc;
-  --border-soft: #ddd5d1;
+  --foreground-soft: #5a4641;
+  --foreground-muted: #7f7470;
+  --border: #c7bbb7;
+  --border-soft: #ddd3d0;
   --primary: #260801;
   --accent: #73534c;
+  --accent-soft: #9c817b;
+  --state-info-bg: #f3ece9;
+  --state-info-border: #c8b6b0;
+  --state-info-text: #5d4641;
+  --state-error-bg: #f1dfdb;
+  --state-error-border: #956d64;
+  --state-error-text: #260801;
+  --state-success-bg: #f2ece9;
+  --state-success-border: #bcaca7;
+  --state-success-text: #503b36;
   --shadow-soft: 0 12px 28px rgba(13, 13, 13, 0.08);
   --shadow-float: 0 22px 52px rgba(13, 13, 13, 0.14);
   --radius-lg: 18px;
@@ -29,6 +39,29 @@
   --color-foreground-soft: var(--foreground-soft);
   --color-foreground-muted: var(--foreground-muted);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-slate-50: #f9f6f5;
+  --color-slate-100: #f1ebe9;
+  --color-slate-200: #e4dad7;
+  --color-slate-300: #cdbfba;
+  --color-slate-400: #ae9b95;
+  --color-slate-500: #8f7973;
+  --color-slate-600: #73534c;
+  --color-slate-700: #5c433d;
+  --color-slate-800: #412c27;
+  --color-slate-900: #260801;
+  --color-slate-950: #0d0d0d;
+  --color-stone-50: #f9f6f5;
+  --color-stone-100: #f1ebe9;
+  --color-stone-200: #e4dad7;
+  --color-stone-300: #cdbfba;
+  --color-stone-400: #ae9b95;
+  --color-stone-500: #8f7973;
+  --color-stone-600: #73534c;
+  --color-stone-700: #5c433d;
+  --color-stone-800: #412c27;
+  --color-stone-900: #260801;
+  --color-stone-950: #0d0d0d;
   --font-sans: var(--font-noto-sans-jp), 'Noto Sans JP', sans-serif;
 }
 
@@ -65,13 +98,13 @@ body::before {
 }
 
 a {
-  color: #73534c;
+  color: var(--accent);
   text-decoration: none;
   transition: color 180ms ease;
 }
 
 a:hover {
-  color: #260801;
+  color: var(--primary);
 }
 
 button {
@@ -150,17 +183,17 @@ button:disabled {
   align-items: center;
   gap: 0.45rem;
   border-radius: 999px;
-  border: 1px solid #c9beb9;
-  background: #f2ece8;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
   padding: 0.3rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 650;
   letter-spacing: 0.02em;
-  color: #4f3732;
+  color: var(--foreground-soft);
 }
 
 .ui-heading {
-  color: #0f172a;
+  color: var(--foreground);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -171,6 +204,43 @@ button:disabled {
 
 .ui-subtle {
   color: var(--foreground-muted);
+}
+
+.ui-callout {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 0.72rem 0.9rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.ui-callout-info {
+  border-color: var(--state-info-border);
+  background: var(--state-info-bg);
+  color: var(--state-info-text);
+}
+
+.ui-callout-error {
+  border-color: var(--state-error-border);
+  background: var(--state-error-bg);
+  color: var(--state-error-text);
+}
+
+.ui-callout-success {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+.ui-spinner {
+  border-style: solid;
+  border-color: var(--accent);
+  border-right-color: transparent;
+}
+
+.ui-panel-error {
+  border-color: var(--state-error-border);
+  background: var(--state-error-bg);
 }
 
 .ui-btn {
@@ -198,17 +268,17 @@ button:disabled {
 
 .ui-btn-primary {
   color: white;
-  background: linear-gradient(135deg, #260801, #73534c);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   box-shadow: 0 10px 22px rgba(38, 8, 1, 0.28);
 }
 
 .ui-btn-primary:hover {
-  background: linear-gradient(135deg, #331009, #7f5f58);
+  background: linear-gradient(135deg, #331009, #8a6860);
   box-shadow: 0 12px 26px rgba(38, 8, 1, 0.34);
 }
 
 .ui-btn-secondary {
-  color: #2f211d;
+  color: var(--foreground-soft);
   background: #fcfbfa;
   border-color: var(--border);
 }
@@ -219,13 +289,13 @@ button:disabled {
 }
 
 .ui-btn-ghost {
-  color: #6f5e59;
+  color: var(--foreground-muted);
   background: transparent;
   border-color: #d9d1cd;
 }
 
 .ui-btn-ghost:hover {
-  color: #2f211d;
+  color: var(--foreground-soft);
   background: #f3efed;
 }
 
@@ -237,7 +307,7 @@ button:disabled {
   background: var(--surface);
   border-radius: 12px;
   padding: 0.7rem 0.85rem;
-  color: #0f172a;
+  color: var(--foreground);
   transition:
     border-color 170ms ease,
     box-shadow 170ms ease,
@@ -266,7 +336,7 @@ button:disabled {
   padding: 0.24rem 0.62rem;
   font-size: 0.76rem;
   font-weight: 550;
-  color: #5b4944;
+  color: var(--foreground-soft);
 }
 
 .ui-badge {
@@ -274,7 +344,7 @@ button:disabled {
   align-items: center;
   border-radius: 999px;
   background: rgba(115, 83, 76, 0.16);
-  color: #5d413a;
+  color: var(--accent);
   font-size: 0.72rem;
   font-weight: 600;
   padding: 0.2rem 0.58rem;

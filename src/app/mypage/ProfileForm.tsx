@@ -114,10 +114,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
       {message && (
         <div
-          className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
-            message.type === 'success'
-              ? 'border-stone-300 bg-stone-100 text-stone-700'
-              : 'border-stone-300 bg-stone-100 text-stone-700'
+          className={`ui-callout mb-5 ${
+            message.type === 'success' ? 'ui-callout-success' : 'ui-callout-error'
           }`}
         >
           {message.text}
@@ -191,7 +189,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
             />
           </div>
           <div>
-            <label htmlFor="nationality" className="mb-1 block text-sm font-semibold text-slate-700">
+            <label
+              htmlFor="nationality"
+              className="mb-1 block text-sm font-semibold text-slate-700"
+            >
               国籍
             </label>
             <select

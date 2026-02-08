@@ -4,11 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import type {
-  MangaJobStatusResponse,
-  MangaRequest,
-  MangaResult,
-} from '@/lib/types/intermediate';
+import type { MangaJobStatusResponse, MangaRequest, MangaResult } from '@/lib/types/intermediate';
 
 interface MangaViewerProps {
   url: string;
@@ -179,7 +175,13 @@ function renderManga(result: MangaResult): string {
 
     ctx.fillStyle = '#eef2ff';
     ctx.beginPath();
-    ctx.arc(x + padding + panelSize * 0.15, y + padding + panelSize * 0.15, panelSize * 0.12, 0, Math.PI * 2);
+    ctx.arc(
+      x + padding + panelSize * 0.15,
+      y + padding + panelSize * 0.15,
+      panelSize * 0.12,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
 
     ctx.fillStyle = '#1f2937';
@@ -212,7 +214,11 @@ export function MangaViewer(props: MangaViewerProps) {
 
   const canGenerateMessage = useMemo(() => {
     const usage = loadUsage();
-    if (usage.activeJob && usage.activeJob.url !== props.url && Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS) {
+    if (
+      usage.activeJob &&
+      usage.activeJob.url !== props.url &&
+      Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS
+    ) {
       return '現在ほかの漫画生成が進行中です。完了後に再度お試しください。';
     }
     return null;
@@ -310,7 +316,11 @@ export function MangaViewer(props: MangaViewerProps) {
 
     const usage = loadUsage();
 
-    if (usage.activeJob && usage.activeJob.url !== props.url && Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS) {
+    if (
+      usage.activeJob &&
+      usage.activeJob.url !== props.url &&
+      Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS
+    ) {
       setError('現在ほかの漫画生成が進行中です。完了後に再度お試しください。');
       return;
     }
@@ -465,14 +475,10 @@ export function MangaViewer(props: MangaViewerProps) {
             漫画を生成する
           </button>
 
-          {isPolling && (
-            <div className="text-sm text-slate-600">
-              生成中... {progress}%
-            </div>
-          )}
+          {isPolling && <div className="text-sm text-slate-600">生成中... {progress}%</div>}
 
           {error && (
-            <div className="rounded-xl border border-stone-300 bg-stone-100 p-3 text-sm text-stone-700">
+            <div className="ui-callout ui-callout-error">
               {error}
               <div className="mt-2">
                 <button
@@ -503,9 +509,7 @@ export function MangaViewer(props: MangaViewerProps) {
           )}
 
           {!error && canGenerateMessage && (
-            <div className="rounded-xl border border-stone-300 bg-stone-100 p-3 text-sm text-stone-700">
-              {canGenerateMessage}
-            </div>
+            <div className="ui-callout ui-callout-info">{canGenerateMessage}</div>
           )}
 
           {!error && !isPolling && !canGenerateMessage && (

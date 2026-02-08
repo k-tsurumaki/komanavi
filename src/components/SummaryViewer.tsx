@@ -1,4 +1,3 @@
-
 'use client';
 
 import type {
@@ -24,9 +23,7 @@ export function SummaryViewer({
   const hasContactKeyword = (text: string): boolean =>
     /(問い合わせ|連絡先|窓口|電話|相談|コールセンター|contact)/i.test(text);
   const baseCautions =
-    overview?.cautions && overview.cautions.length > 0
-      ? overview.cautions
-      : (data.warnings ?? []);
+    overview?.cautions && overview.cautions.length > 0 ? overview.cautions : (data.warnings ?? []);
   const allCautions = baseCautions.filter((caution) => !hasContactKeyword(caution));
 
   const audienceText =
@@ -214,9 +211,7 @@ export function SummaryViewer({
           .filter((fact) => !hasContactKeyword(`${fact.item} ${fact.value}`))
       : [];
   const criticalFacts =
-    criticalFactsFromOverview.length > 0
-      ? criticalFactsFromOverview
-      : fallbackCriticalFacts;
+    criticalFactsFromOverview.length > 0 ? criticalFactsFromOverview : fallbackCriticalFacts;
   const targetCondition = data.target?.conditions?.[0] || data.target?.eligibility_summary;
   const achievableOutcomes = Array.from(
     new Set(
@@ -230,12 +225,8 @@ export function SummaryViewer({
           ? '必要書類と期限を把握できる'
           : '',
         (data.procedure?.steps?.length ?? 0) > 0 ? '手続きの流れを把握できる' : '',
-        data.benefits?.description || data.benefits?.amount
-          ? '受けられる支援内容を把握できる'
-          : '',
-        data.contact?.department || data.contact?.phone
-          ? '問い合わせ先を確認できる'
-          : '',
+        data.benefits?.description || data.benefits?.amount ? '受けられる支援内容を把握できる' : '',
+        data.contact?.department || data.contact?.phone ? '問い合わせ先を確認できる' : '',
       ].filter(Boolean)
     )
   );
@@ -250,7 +241,11 @@ export function SummaryViewer({
     { blockId: 'conclusion' as const, label: '30秒で把握', visible: true },
     { blockId: 'targetAudience' as const, label: 'だれ向けの情報か', visible: true },
     { blockId: 'achievableOutcomes' as const, label: 'このページで実現できること', visible: true },
-    { blockId: 'criticalFacts' as const, label: 'このページの最重要ポイント', visible: hasCriticalFactsSection },
+    {
+      blockId: 'criticalFacts' as const,
+      label: 'このページの最重要ポイント',
+      visible: hasCriticalFactsSection,
+    },
     { blockId: 'cautions' as const, label: '見落とすと困る注意点', visible: true },
     { blockId: 'contactInfo' as const, label: '問い合わせ情報', visible: hasContactInfoSection },
   ]
@@ -262,7 +257,7 @@ export function SummaryViewer({
     .filter((section) => section.urls.length > 0);
 
   return (
-    <div className="mb-6 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_16px_44px_rgba(15,23,42,0.10)]">
+    <div className="mb-6 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_16px_44px_rgba(13,13,13,0.11)]">
       {/* タイトル */}
       {showTitle && (
         <div className="mb-6 border-b border-slate-200/70 pb-4">
@@ -275,9 +270,12 @@ export function SummaryViewer({
       {/* ページ概要 */}
       <div className="mb-6 rounded-[24px] border border-slate-200/80 bg-slate-50 p-5 sm:p-6">
         <div className="space-y-4 sm:space-y-5">
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.06)] sm:p-6">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_22px_rgba(13,13,13,0.08)] sm:p-6">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <span aria-hidden="true">📌</span>
+              <span
+                aria-hidden="true"
+                className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
+              />
               30秒で把握
             </div>
             <p className="mt-3 text-lg font-semibold leading-relaxed text-slate-900 sm:text-xl">
@@ -286,21 +284,30 @@ export function SummaryViewer({
           </section>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span aria-hidden="true">👥</span>
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
+                />
                 だれ向けの情報か
               </h3>
               <p className="mt-3 text-[15px] leading-relaxed text-slate-900">{audienceText}</p>
             </section>
-            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span aria-hidden="true">🧭</span>
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
+                />
                 このページで実現できること
               </h3>
               <ul className="mt-3 space-y-2">
                 {compactAchievableOutcomes.map((outcome, index) => (
-                  <li key={`${outcome}-${index}`} className="flex gap-2 text-[15px] leading-relaxed text-slate-900">
+                  <li
+                    key={`${outcome}-${index}`}
+                    className="flex gap-2 text-[15px] leading-relaxed text-slate-900"
+                  >
                     <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-stone-300 bg-stone-100 text-[11px] font-bold text-stone-700">
                       ✓
                     </span>
@@ -312,9 +319,12 @@ export function SummaryViewer({
           </div>
 
           {criticalFacts.length > 0 && (
-            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span aria-hidden="true">🔎</span>
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
+                />
                 このページの最重要ポイント
               </h3>
               <div className="mt-3 overflow-x-auto rounded-xl">
@@ -334,7 +344,9 @@ export function SummaryViewer({
                       >
                         <td className="px-3 py-2.5 font-semibold text-slate-900">{fact.item}</td>
                         <td className="px-3 py-2.5 leading-relaxed">{fact.value}</td>
-                        <td className="px-3 py-2.5 leading-relaxed text-slate-700">{fact.reason}</td>
+                        <td className="px-3 py-2.5 leading-relaxed text-slate-700">
+                          {fact.reason}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -343,9 +355,12 @@ export function SummaryViewer({
             </section>
           )}
 
-          <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(146,64,14,0.08)]">
+          <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(38,8,1,0.10)]">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-              <span aria-hidden="true">⚠️</span>
+              <span
+                aria-hidden="true"
+                className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-700"
+              />
               見落とすと困る注意点
             </h3>
             {compactCautions.length > 0 ? (
@@ -368,9 +383,12 @@ export function SummaryViewer({
           </section>
 
           {contactDetails.length > 0 && (
-            <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(3,105,161,0.10)]">
+            <section className="rounded-2xl border border-stone-300 bg-stone-100 p-5 shadow-[0_6px_18px_rgba(38,8,1,0.10)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-                <span aria-hidden="true">📞</span>
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-700"
+                />
                 問い合わせ情報
               </h3>
               <div className="mt-3 overflow-x-auto rounded-xl border border-stone-300 bg-white">
@@ -395,7 +413,9 @@ export function SummaryViewer({
                             <a
                               href={detail.href}
                               target={detail.href.startsWith('http') ? '_blank' : undefined}
-                              rel={detail.href.startsWith('http') ? 'noreferrer noopener' : undefined}
+                              rel={
+                                detail.href.startsWith('http') ? 'noreferrer noopener' : undefined
+                              }
                               className="text-stone-700 underline underline-offset-2 break-all hover:text-stone-800"
                             >
                               {detail.value}
@@ -413,9 +433,12 @@ export function SummaryViewer({
           )}
 
           {evidenceSections.length > 0 && (
-            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span aria-hidden="true">🔗</span>
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-2.5 w-2.5 rounded-full bg-stone-400"
+                />
                 証跡URL
               </h3>
               <div className="mt-3 space-y-4">
@@ -455,14 +478,17 @@ export function SummaryViewer({
               <h3 className="text-lg font-bold mb-3 text-slate-900">ポイント</h3>
               <ul className="space-y-4">
                 {data.keyPoints.map((point) => (
-                  <li key={point.id} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
+                  <li
+                    key={point.id}
+                    className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4"
+                  >
                     <span
                       className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-sm ${
                         point.importance === 'high'
-                          ? 'bg-stone-1000'
+                          ? 'bg-stone-900'
                           : point.importance === 'medium'
-                            ? 'bg-stone-1000'
-                            : 'bg-slate-400'
+                            ? 'bg-stone-700'
+                            : 'bg-stone-500'
                       }`}
                       aria-label={`重要度: ${point.importance}`}
                     >
@@ -485,10 +511,14 @@ export function SummaryViewer({
               {data.target.conditions && data.target.conditions.length > 0 && (
                 <ul className="space-y-2 text-slate-700">
                   {data.target.conditions.map((condition, index) => (
-                    <li key={index} className="flex items-start gap-2 rounded-md bg-slate-50 px-3 py-2">
-                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">
-                        ●
-                      </span>
+                    <li
+                      key={index}
+                      className="flex items-start gap-2 rounded-md bg-slate-50 px-3 py-2"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-slate-400"
+                      />
                       <span>{condition}</span>
                     </li>
                   ))}
@@ -499,10 +529,14 @@ export function SummaryViewer({
                   <p className="text-sm font-medium text-slate-600 mb-1">例外・注意事項</p>
                   <ul className="space-y-2 text-slate-600 text-sm">
                     {data.target.exceptions.map((exception, index) => (
-                      <li key={index} className="flex items-start gap-2 rounded-md bg-white px-3 py-2">
-                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">
-                          ●
-                        </span>
+                      <li
+                        key={index}
+                        className="flex items-start gap-2 rounded-md bg-white px-3 py-2"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-slate-400"
+                        />
                         <span>{exception}</span>
                       </li>
                     ))}
@@ -533,7 +567,10 @@ export function SummaryViewer({
               {data.procedure.steps && data.procedure.steps.length > 0 && (
                 <ol className="space-y-3">
                   {data.procedure.steps.map((step) => (
-                    <li key={step.order} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                    <li
+                      key={step.order}
+                      className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4"
+                    >
                       <span className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">
                         {step.order}
                       </span>
@@ -543,7 +580,9 @@ export function SummaryViewer({
                           <p className="text-slate-600 text-sm mt-1">{step.details}</p>
                         )}
                         {step.note && (
-                          <p className="text-stone-700 text-sm mt-1">💡 {step.note}</p>
+                          <p className="text-stone-700 text-sm mt-1">
+                            <span className="font-semibold">注記:</span> {step.note}
+                          </p>
                         )}
                       </div>
                     </li>
@@ -558,9 +597,12 @@ export function SummaryViewer({
                     <h4 className="font-medium mb-2 text-slate-800">必要な書類</h4>
                     <ul className="space-y-2 text-slate-700">
                       {data.procedure.required_documents.map((doc, index) => (
-                        <li key={index} className="flex items-start gap-2 rounded-md bg-white px-3 py-2">
+                        <li
+                          key={index}
+                          className="flex items-start gap-2 rounded-md bg-white px-3 py-2"
+                        >
                           <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
-                            📄
+                            {index + 1}
                           </span>
                           <span>{doc}</span>
                         </li>
@@ -572,9 +614,7 @@ export function SummaryViewer({
               {/* 期限 */}
               {data.procedure.deadline && (
                 <div className="mt-3 rounded-lg border border-stone-300 bg-stone-100 p-3">
-                  <p className="text-stone-700 font-medium">
-                    📅 期限: {data.procedure.deadline}
-                  </p>
+                  <p className="text-stone-700 font-medium">期限: {data.procedure.deadline}</p>
                 </div>
               )}
             </div>
@@ -595,21 +635,22 @@ export function SummaryViewer({
                   </a>
                 </p>
               )}
-              {data.contact.hours && (
-                <p className="text-slate-500 text-sm">{data.contact.hours}</p>
-              )}
+              {data.contact.hours && <p className="text-slate-500 text-sm">{data.contact.hours}</p>}
             </div>
           )}
 
           {/* 注意事項 */}
           {data.warnings && data.warnings.length > 0 && (
             <div className="rounded-xl border border-stone-300 bg-stone-100 p-4">
-              <h4 className="font-medium text-stone-800 mb-2">⚠️ 注意事項</h4>
+              <h4 className="font-medium text-stone-800 mb-2">注意事項</h4>
               <ul className="space-y-2 text-stone-700">
                 {data.warnings.map((warning, index) => (
-                  <li key={index} className="flex items-start gap-2 rounded-md bg-white/80 px-3 py-2">
+                  <li
+                    key={index}
+                    className="flex items-start gap-2 rounded-md bg-white/80 px-3 py-2"
+                  >
                     <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-200 text-xs font-semibold text-stone-700">
-                      ⚠️
+                      !
                     </span>
                     <span>{warning}</span>
                   </li>

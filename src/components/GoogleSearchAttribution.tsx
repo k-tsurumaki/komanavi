@@ -23,9 +23,7 @@ export function GoogleSearchAttribution({ groundingMetadata }: GoogleSearchAttri
 
   return (
     <section className="mb-6 rounded-2xl border border-stone-300 bg-stone-100 p-5">
-      <h3 className="mb-3 text-lg font-semibold text-stone-900">
-        Google検索による情報取得
-      </h3>
+      <h3 className="mb-3 text-lg font-semibold text-stone-900">Google検索による情報取得</h3>
 
       {webSearchQueries && webSearchQueries.length > 0 && (
         <div className="mb-4">
@@ -51,7 +49,7 @@ export function GoogleSearchAttribution({ groundingMetadata }: GoogleSearchAttri
               .filter((chunk) => chunk.web)
               .map((chunk, index) => (
                 <li key={index} className="flex items-start gap-2">
-                  <span className="mt-1 text-stone-1000">&#8226;</span>
+                  <span className="mt-1 text-stone-700">&#8226;</span>
                   <a
                     href={chunk.web!.uri}
                     target="_blank"
@@ -73,9 +71,7 @@ export function GoogleSearchAttribution({ groundingMetadata }: GoogleSearchAttri
         />
       )}
 
-      <p className="mt-3 text-xs text-stone-700">
-        この情報はGoogle検索を使用して取得されました。
-      </p>
+      <p className="mt-3 text-xs text-stone-700">この情報はGoogle検索を使用して取得されました。</p>
     </section>
   );
 }

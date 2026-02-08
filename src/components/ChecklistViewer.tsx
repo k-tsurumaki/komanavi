@@ -48,7 +48,7 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
 
       <div className="mb-6 h-2 w-full rounded-full bg-slate-200">
         <div
-          className="h-2 rounded-full bg-stone-1000 transition-all duration-300"
+          className="h-2 rounded-full bg-stone-700 transition-all duration-300"
           style={{ width: `${progressPercent}%` }}
           role="progressbar"
           aria-valuenow={completedCount}
@@ -73,7 +73,7 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
                       type="checkbox"
                       checked={item.completed}
                       onChange={() => handleToggle(item.id)}
-                      className="mt-0.5 h-5 w-5 rounded border-slate-300 text-stone-700 focus:ring-stone-1000"
+                      className="mt-0.5 h-5 w-5 rounded border-slate-300 text-stone-700 focus:ring-stone-600"
                     />
                     <div className="flex-1">
                       <span
@@ -84,9 +84,7 @@ export function ChecklistViewer({ items, onToggle }: ChecklistViewerProps) {
                         {item.text}
                       </span>
                       {item.deadline && (
-                        <p className="mt-1 text-xs text-stone-700">
-                          期限: {item.deadline}
-                        </p>
+                        <p className="mt-1 text-xs text-stone-700">期限: {item.deadline}</p>
                       )}
                       {item.priority === 'high' && !item.completed && (
                         <span className="mt-1 inline-block rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-700">

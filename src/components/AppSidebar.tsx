@@ -33,9 +33,8 @@ export function AppSidebar({
   };
 
   const handleDelete = async (historyId: string) => {
-    const confirmed = typeof window === 'undefined'
-      ? false
-      : window.confirm('この履歴を削除しますか？');
+    const confirmed =
+      typeof window === 'undefined' ? false : window.confirm('この履歴を削除しますか？');
     if (!confirmed) return;
 
     try {
@@ -81,7 +80,7 @@ export function AppSidebar({
 
   return (
     <aside
-      className={`flex min-h-screen w-72 flex-col border-r border-slate-200/80 bg-[#f7f9fc]/95 text-slate-900 backdrop-blur ${
+      className={`flex min-h-screen w-72 flex-col border-r border-slate-200/80 bg-slate-50/95 text-slate-900 backdrop-blur ${
         className || ''
       }`}
     >
@@ -155,9 +154,7 @@ export function AppSidebar({
                       {item.title}
                     </p>
                     <p className="mt-1 text-[0.7rem] text-slate-500">
-                      {item.createdAt
-                        ? new Date(item.createdAt).toLocaleDateString('ja-JP')
-                        : '-'}
+                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString('ja-JP') : '-'}
                     </p>
                   </Link>
                   <HistoryItemMenu

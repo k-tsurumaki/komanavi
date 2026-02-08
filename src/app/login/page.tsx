@@ -69,11 +69,7 @@ function LoginForm() {
         <h1 className="ui-heading mt-3 text-2xl">{mode === 'login' ? 'ログイン' : '新規登録'}</h1>
       </div>
 
-      {error && (
-        <div className="mb-5 rounded-xl border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="ui-callout ui-callout-error mb-5">{error}</div>}
 
       <button
         type="button"
@@ -87,7 +83,9 @@ function LoginForm() {
 
       <div className="my-5 flex items-center gap-3">
         <div className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs font-medium uppercase tracking-[0.13em] text-slate-400">または</span>
+        <span className="text-xs font-medium uppercase tracking-[0.13em] text-slate-400">
+          または
+        </span>
         <div className="h-px flex-1 bg-slate-200" />
       </div>
 

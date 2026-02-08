@@ -63,29 +63,32 @@ function ResultContent() {
     reset();
   };
 
-  const flushPendingHistoryPatch = useCallback(async (options?: { keepalive?: boolean }) => {
-    if (!effectiveHistoryId) return;
+  const flushPendingHistoryPatch = useCallback(
+    async (options?: { keepalive?: boolean }) => {
+      if (!effectiveHistoryId) return;
 
-    if (patchTimeoutRef.current !== null && typeof window !== 'undefined') {
-      window.clearTimeout(patchTimeoutRef.current);
-      patchTimeoutRef.current = null;
-    }
+      if (patchTimeoutRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(patchTimeoutRef.current);
+        patchTimeoutRef.current = null;
+      }
 
-    const payload = pendingHistoryPatchRef.current;
-    pendingHistoryPatchRef.current = {};
+      const payload = pendingHistoryPatchRef.current;
+      pendingHistoryPatchRef.current = {};
 
-    if (Object.keys(payload).length === 0) return;
+      if (Object.keys(payload).length === 0) return;
 
-    try {
-      await patchHistoryResult(effectiveHistoryId, payload, options);
-    } catch (patchError) {
-      pendingHistoryPatchRef.current = {
-        ...payload,
-        ...pendingHistoryPatchRef.current,
-      };
-      console.warn('履歴の更新に失敗しました', patchError);
-    }
-  }, [effectiveHistoryId]);
+      try {
+        await patchHistoryResult(effectiveHistoryId, payload, options);
+      } catch (patchError) {
+        pendingHistoryPatchRef.current = {
+          ...payload,
+          ...pendingHistoryPatchRef.current,
+        };
+        console.warn('履歴の更新に失敗しました', patchError);
+      }
+    },
+    [effectiveHistoryId]
+  );
 
   const scheduleHistoryPatch = (patch: {
     checklist?: ChecklistItem[];
@@ -207,16 +210,7 @@ function ResultContent() {
     };
 
     loadDetail();
-  }, [
-    analyze,
-    historyId,
-    resetDeepDiveState,
-    setError,
-    setResult,
-    setStatus,
-    setUrl,
-    url,
-  ]);
+  }, [analyze, historyId, resetDeepDiveState, setError, setResult, setStatus, setUrl, url]);
 
   useEffect(() => {
     if (!result?.id || handledResultIdRef.current === result.id) return;
@@ -236,8 +230,8 @@ function ResultContent() {
   if (!historyId && !url && !result) {
     return (
       <div className="ui-page ui-shell-gap">
-        <div className="ui-card rounded-2xl border-stone-300 bg-stone-100 p-6 text-center">
-          <p className="mb-4 text-stone-700">URLが指定されていません</p>
+        <div className="ui-card ui-panel-error rounded-2xl p-6 text-center">
+          <p className="mb-4 text-stone-900">URLが指定されていません</p>
           <Link
             href="/analyze"
             onClick={handleBackToHome}
@@ -255,7 +249,7 @@ function ResultContent() {
     return (
       <div className="ui-page ui-shell-gap">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-stone-700" />
+          <div className="ui-spinner mb-4 h-12 w-12 animate-spin rounded-full border-2" />
           <p className="text-lg text-slate-700">ページを解析しています...</p>
           <p className="mt-2 text-sm text-slate-500">（30秒〜1分程度かかります）</p>
         </div>
@@ -267,8 +261,8 @@ function ResultContent() {
   if (status === 'error') {
     return (
       <div className="ui-page ui-shell-gap">
-        <div className="ui-card rounded-2xl border-stone-300 bg-stone-100 p-6 text-center">
-          <p className="mb-4 text-stone-700">{error || '解析に失敗しました'}</p>
+        <div className="ui-card ui-panel-error rounded-2xl p-6 text-center">
+          <p className="mb-4 text-stone-900">{error || '解析に失敗しました'}</p>
           <Link
             href="/analyze"
             onClick={handleBackToHome}
@@ -289,10 +283,10 @@ function ResultContent() {
         <div className="flex flex-col items-center justify-center py-12">
           {canAnalyzeFromUrl ? (
             <div className="ui-card max-w-xl rounded-2xl p-6 text-center">
-              <p className="text-lg font-semibold text-slate-800">このURLの結果はまだ表示されていません</p>
-              {error && (
-                <p className="mt-2 text-sm text-stone-700">{error}</p>
-              )}
+              <p className="text-lg font-semibold text-slate-800">
+                このURLの結果はまだ表示されていません
+              </p>
+              {error && <p className="mt-2 text-sm text-stone-700">{error}</p>}
               <p className="mt-2 text-sm text-slate-600">
                 自動では解析しません。必要な場合のみ手動で解析を開始してください。
               </p>
@@ -310,7 +304,7 @@ function ResultContent() {
             </div>
           ) : (
             <>
-              <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-stone-700" />
+              <div className="ui-spinner mb-4 h-12 w-12 animate-spin rounded-full border-2" />
               <p className="text-lg text-slate-700">データを読み込んでいます...</p>
             </>
           )}
@@ -324,7 +318,10 @@ function ResultContent() {
   const overview = result.overview;
   const structuredIntentAnswer = parseStructuredIntentAnswer(result.intentAnswer);
   const rawIntentAnswerLines = result.intentAnswer
-    ? result.intentAnswer.split('\n').map((line) => line.trim()).filter(Boolean)
+    ? result.intentAnswer
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
     : [];
   const { checklist } = result;
   const overviewTexts = [
@@ -342,9 +339,7 @@ function ResultContent() {
   const shouldShowChecklistSection = guidanceUnlocked && !isIntentGenerating;
 
   const handleChecklistToggle = (id: string, completed: boolean) => {
-    const nextChecklist = checklist.map((item) => (
-      item.id === id ? { ...item, completed } : item
-    ));
+    const nextChecklist = checklist.map((item) => (item.id === id ? { ...item, completed } : item));
     setResult({
       ...result,
       checklist: nextChecklist,
@@ -530,8 +525,7 @@ function ResultContent() {
       <p className="mt-2 text-sm leading-relaxed text-slate-900">{entry.text}</p>
     </section>
   );
-  const canShowIntentEditButton =
-    guidanceUnlocked && isIntentLocked && !isIntentGenerating;
+  const canShowIntentEditButton = guidanceUnlocked && isIntentLocked && !isIntentGenerating;
 
   return (
     <div className="ui-page ui-shell-gap">
@@ -556,28 +550,26 @@ function ResultContent() {
 
       <div className="group ui-card relative mb-6 rounded-2xl px-6 pb-3 pt-6">
         <div className="absolute right-6 top-6">
-            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
-              <button
-                type="button"
-                onClick={() => setChatMode('deepDive')}
-                className={`px-3 py-1 rounded-full transition ${
-                  chatMode === 'deepDive'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500'
-                }`}
-              >
-                深掘り
-              </button>
-              <button
-                type="button"
-                onClick={handleAdvanceToIntent}
-                className={`px-3 py-1 rounded-full transition ${
-                  chatMode === 'intent' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
-                }`}
-              >
-                意図入力
-              </button>
-            </div>
+          <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
+            <button
+              type="button"
+              onClick={() => setChatMode('deepDive')}
+              className={`px-3 py-1 rounded-full transition ${
+                chatMode === 'deepDive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              深掘り
+            </button>
+            <button
+              type="button"
+              onClick={handleAdvanceToIntent}
+              className={`px-3 py-1 rounded-full transition ${
+                chatMode === 'intent' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              意図入力
+            </button>
+          </div>
         </div>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4 pr-24">
           {chatMode === 'deepDive' && (
@@ -619,9 +611,7 @@ function ResultContent() {
             </div>
 
             {deepDiveError && (
-              <div className="mb-4 rounded-lg border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
-                {deepDiveError}
-              </div>
+              <div className="ui-callout ui-callout-error mb-4">{deepDiveError}</div>
             )}
 
             <div className="relative">
@@ -713,11 +703,7 @@ function ResultContent() {
                 )}
               </button>
             </div>
-            {intentError && (
-              <div className="mt-3 rounded-lg border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
-                {intentError}
-              </div>
-            )}
+            {intentError && <div className="ui-callout ui-callout-error mt-3">{intentError}</div>}
             {canShowIntentEditButton && (
               <button
                 type="button"
@@ -768,10 +754,15 @@ function ResultContent() {
                   )}
 
                   <section className="rounded-xl border border-stone-300 bg-stone-100 p-4">
-                    <h4 className="text-sm font-semibold text-stone-900">見落とすと申請で困るポイント</h4>
+                    <h4 className="text-sm font-semibold text-stone-900">
+                      見落とすと申請で困るポイント
+                    </h4>
                     <ul className="mt-3 space-y-2">
                       {structuredIntentAnswer.failureRisks.map((risk, index) => (
-                        <li key={`failure-risk-${index}`} className="rounded-lg border border-stone-300 bg-white px-3 py-2">
+                        <li
+                          key={`failure-risk-${index}`}
+                          className="rounded-lg border border-stone-300 bg-white px-3 py-2"
+                        >
                           <p className="text-sm leading-relaxed text-slate-900">{risk.text}</p>
                         </li>
                       ))}
@@ -798,7 +789,9 @@ function ResultContent() {
               )
             ) : isIntentGenerating ? (
               <div className="space-y-2">
-                <p className="text-sm text-slate-500">あなた向けの回答を作成しています。まもなくご確認いただけます。</p>
+                <p className="text-sm text-slate-500">
+                  あなた向けの回答を作成しています。まもなくご確認いただけます。
+                </p>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full w-1/3 animate-pulse rounded-full bg-slate-300" />
                 </div>
@@ -855,7 +848,7 @@ export default function ResultPage() {
       fallback={
         <div className="ui-page ui-shell-gap">
           <div className="flex items-center justify-center py-12">
-            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-stone-700" />
+            <div className="ui-spinner h-12 w-12 animate-spin rounded-full border-2" />
           </div>
         </div>
       }
