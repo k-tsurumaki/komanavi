@@ -15,6 +15,9 @@ interface MangaViewerProps {
   title: string;
   summary: string;
   keyPoints?: string[];
+  resultId: string;   // 解析結果のID
+  historyId: string;  // 会話履歴のID
+  initialMangaResult?: MangaResult | null; // 履歴から復元した漫画データ
 }
 
 const USAGE_KEY = 'komanavi-manga-usage';
@@ -65,6 +68,8 @@ function buildRequest(props: MangaViewerProps): MangaRequest {
     title: props.title,
     summary: props.summary,
     keyPoints: props.keyPoints,
+    resultId: props.resultId,
+    historyId: props.historyId,
   };
 }
 
@@ -198,7 +203,7 @@ export function MangaViewer(props: MangaViewerProps) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
-  const [result, setResult] = useState<MangaResult | null>(null);
+  const [result, setResult] = useState<MangaResult | null>(props.initialMangaResult || null);
   const [isPolling, setIsPolling] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number | null>(null);
@@ -357,6 +362,20 @@ export function MangaViewer(props: MangaViewerProps) {
       clearPolling();
     };
   }, [props.url, startPolling]);
+
+  // 履歴から復元した漫画データを初期表示
+  useEffect(() => {
+    if (props.initialMangaResult && !imageUrl) {
+      setResult(props.initialMangaResult);
+      setProgress(100);
+      if (props.initialMangaResult.imageUrls && props.initialMangaResult.imageUrls.length > 0) {
+        setImageUrl(props.initialMangaResult.imageUrls[0]);
+      } else {
+        const pngUrl = renderManga(props.initialMangaResult);
+        setImageUrl(pngUrl);
+      }
+    }
+  }, [props.initialMangaResult, imageUrl]);
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">

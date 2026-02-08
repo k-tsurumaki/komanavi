@@ -1,114 +1,84 @@
 /**
  * Firestore を使用した漫画ジョブの永続化
- * コレクション: mangaJobs/{jobId}
+ * コレクション: conversation_manga
  */
 
 import { getAdminFirestore } from "./firebase-admin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
-import type { MangaRequest, MangaResult, MangaJobStatus, MangaJobStatusResponse } from "./types/intermediate";
+import type {
+  MangaRequest,
+  MangaResult,
+  MangaJobStatus,
+  ConversationMangaDocument,
+} from "./types/intermediate";
 
-const COLLECTION_NAME = "mangaJobs";
+const CONVERSATION_MANGA_COLLECTION = "conversation_manga";
 
-/** エラーコードの型（MangaJobStatusResponse から抽出） */
-type MangaErrorCode = MangaJobStatusResponse["errorCode"];
-
-/**
- * Firestore に保存するジョブドキュメントの型
- */
-export interface MangaJobDocument {
-  id: string;
-  status: MangaJobStatus;
-  progress: number;
-  userId: string;
-  clientId: string;
-  request: MangaRequest;
-  result?: MangaResult;
-  error?: string;
-  errorCode?: MangaErrorCode;
-  storageUrl?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// ============================================
+// 会話履歴に紐づく漫画の管理
+// ============================================
 
 /**
- * API レスポンス用に変換されたジョブ
+ * 会話履歴に紐づく漫画を作成
  */
-export interface MangaJobResponse {
-  id: string;
-  status: MangaJobStatus;
-  progress: number;
-  userId: string;
-  clientId: string;
-  request: MangaRequest;
-  result?: MangaResult;
-  error?: string;
-  errorCode?: MangaErrorCode;
-  storageUrl?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Firestore ドキュメントを API レスポンス形式に変換
- */
-function toResponse(doc: MangaJobDocument): MangaJobResponse {
-  return {
-    ...doc,
-    createdAt: doc.createdAt.toDate(),
-    updatedAt: doc.updatedAt.toDate(),
-  };
-}
-
-/**
- * 新規ジョブを作成
- */
-export async function createMangaJob(
-  jobId: string,
+export async function createConversationManga(
+  resultId: string,
+  historyId: string,
   request: MangaRequest,
-  userId: string,
-  clientId: string
+  userId: string
 ): Promise<void> {
   const db = getAdminFirestore();
   const now = Timestamp.now();
 
-  const jobDoc: MangaJobDocument = {
-    id: jobId,
+  // 既存のドキュメントをチェック
+  const existingDoc = await db.collection(CONVERSATION_MANGA_COLLECTION).doc(resultId).get();
+  if (existingDoc.exists) {
+    const existingData = existingDoc.data() as ConversationMangaDocument;
+    // 所有権とhistoryIdの整合性を確認
+    if (existingData.userId !== userId || existingData.historyId !== historyId) {
+      throw new Error('Forbidden: resultId or historyId mismatch');
+    }
+  }
+
+  const mangaDoc: ConversationMangaDocument = {
+    id: resultId,
+    resultId,
+    historyId,
+    userId,
     status: "queued",
     progress: 0,
-    userId,
-    clientId,
     request,
     createdAt: now,
     updatedAt: now,
   };
 
-  await db.collection(COLLECTION_NAME).doc(jobId).set(jobDoc);
+  await db.collection(CONVERSATION_MANGA_COLLECTION).doc(resultId).set(mangaDoc);
 }
 
 /**
- * ジョブを取得
+ * 漫画を取得
  */
-export async function getMangaJob(jobId: string): Promise<MangaJobResponse | null> {
+export async function getConversationManga(resultId: string): Promise<ConversationMangaDocument | null> {
   const db = getAdminFirestore();
-  const doc = await db.collection(COLLECTION_NAME).doc(jobId).get();
+  const doc = await db.collection(CONVERSATION_MANGA_COLLECTION).doc(resultId).get();
 
   if (!doc.exists) {
     return null;
   }
 
-  return toResponse(doc.data() as MangaJobDocument);
+  return doc.data() as ConversationMangaDocument;
 }
 
 /**
  * ジョブのステータスと進捗を更新
  */
-export async function updateMangaJobStatus(
-  jobId: string,
+export async function updateConversationMangaStatus(
+  resultId: string,
   status: MangaJobStatus,
   progress: number
 ): Promise<void> {
   const db = getAdminFirestore();
-  await db.collection(COLLECTION_NAME).doc(jobId).update({
+  await db.collection(CONVERSATION_MANGA_COLLECTION).doc(resultId).update({
     status,
     progress,
     updatedAt: FieldValue.serverTimestamp(),
@@ -118,8 +88,8 @@ export async function updateMangaJobStatus(
 /**
  * ジョブの結果を設定（完了時）
  */
-export async function updateMangaJobResult(
-  jobId: string,
+export async function updateConversationMangaResult(
+  resultId: string,
   result: MangaResult,
   storageUrl?: string
 ): Promise<void> {
@@ -135,15 +105,15 @@ export async function updateMangaJobResult(
     updateData.storageUrl = storageUrl;
   }
 
-  await db.collection(COLLECTION_NAME).doc(jobId).update(updateData);
+  await db.collection(CONVERSATION_MANGA_COLLECTION).doc(resultId).update(updateData);
 }
 
 /**
  * ジョブのエラーを設定
  */
-export async function updateMangaJobError(
-  jobId: string,
-  errorCode: NonNullable<MangaErrorCode>,
+export async function updateConversationMangaError(
+  resultId: string,
+  errorCode: string,
   error: string,
   fallbackResult?: MangaResult
 ): Promise<void> {
@@ -159,32 +129,5 @@ export async function updateMangaJobError(
     updateData.result = fallbackResult;
   }
 
-  await db.collection(COLLECTION_NAME).doc(jobId).update(updateData);
-}
-
-/**
- * 古いジョブを削除（TTL: 24時間）
- * Cloud Scheduler などで定期実行することを想定
- */
-export async function cleanupOldJobs(ttlHours: number = 24): Promise<number> {
-  const db = getAdminFirestore();
-  const cutoff = Timestamp.fromDate(new Date(Date.now() - ttlHours * 60 * 60 * 1000));
-
-  const snapshot = await db
-    .collection(COLLECTION_NAME)
-    .where("createdAt", "<", cutoff)
-    .limit(500)
-    .get();
-
-  if (snapshot.empty) {
-    return 0;
-  }
-
-  const batch = db.batch();
-  snapshot.docs.forEach((doc) => {
-    batch.delete(doc.ref);
-  });
-  await batch.commit();
-
-  return snapshot.size;
+  await db.collection(CONVERSATION_MANGA_COLLECTION).doc(resultId).update(updateData);
 }

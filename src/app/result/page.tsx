@@ -12,7 +12,7 @@ import { MangaViewer } from '@/components/MangaViewer';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
-import type { ChatMessage, ChecklistItem, IntentAnswerResponse } from '@/lib/types/intermediate';
+import type { ChatMessage, ChecklistItem, IntentAnswerResponse, MangaResult } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -56,6 +56,7 @@ function ResultContent() {
   const [isIntentLocked, setIsIntentLocked] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
+  const [savedMangaResult, setSavedMangaResult] = useState<MangaResult | null>(null);
   const effectiveHistoryId = historyId ?? lastHistoryId;
 
   const handleBackToHome = () => {
@@ -168,6 +169,14 @@ function ResultContent() {
           setStatus('success');
           setError(null);
           resetDeepDiveState();
+
+          // 漫画データを復元
+          if (detail.manga?.result) {
+            setSavedMangaResult(detail.manga.result);
+          } else {
+            setSavedMangaResult(null);
+          }
+
           return;
         }
 
@@ -827,12 +836,17 @@ function ResultContent() {
           </div>
 
           {/* 漫画ビューア（Phase 2） */}
-          <MangaViewer
-            url={intermediate.metadata.source_url}
-            title={intermediate.title}
-            summary={intermediate.summary}
-            keyPoints={intermediate.keyPoints?.map((point) => point.text)}
-          />
+          {effectiveHistoryId && (
+            <MangaViewer
+              url={intermediate.metadata.source_url}
+              title={intermediate.title}
+              summary={intermediate.summary}
+              keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+              resultId={result.id}
+              historyId={effectiveHistoryId}
+              initialMangaResult={savedMangaResult}
+            />
+          )}
 
           {/* Google Search 引用表示 */}
           {intermediate.metadata.groundingMetadata && (

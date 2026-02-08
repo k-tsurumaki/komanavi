@@ -6,7 +6,7 @@ import { initializeApp, getApps, getApp, cert, applicationDefault } from "fireba
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import type { MangaJobStatus, MangaResult } from "./types.js";
 
-const COLLECTION_NAME = "mangaJobs";
+const COLLECTION_NAME = "conversation_manga";
 
 // Firebase Admin 初期化
 function initializeFirebase() {
@@ -43,12 +43,12 @@ function getDb() {
  * ジョブのステータスと進捗を更新
  */
 export async function updateMangaJobStatus(
-  jobId: string,
+  resultId: string,
   status: MangaJobStatus,
   progress: number
 ): Promise<void> {
   const db = getDb();
-  await db.collection(COLLECTION_NAME).doc(jobId).update({
+  await db.collection(COLLECTION_NAME).doc(resultId).update({
     status,
     progress,
     updatedAt: FieldValue.serverTimestamp(),
@@ -59,7 +59,7 @@ export async function updateMangaJobStatus(
  * ジョブの結果を設定（完了時）
  */
 export async function updateMangaJobResult(
-  jobId: string,
+  resultId: string,
   result: MangaResult,
   storageUrl?: string
 ): Promise<void> {
@@ -75,14 +75,14 @@ export async function updateMangaJobResult(
     updateData.storageUrl = storageUrl;
   }
 
-  await db.collection(COLLECTION_NAME).doc(jobId).update(updateData);
+  await db.collection(COLLECTION_NAME).doc(resultId).update(updateData);
 }
 
 /**
  * ジョブのエラーを設定
  */
 export async function updateMangaJobError(
-  jobId: string,
+  resultId: string,
   errorCode: string,
   error: string,
   fallbackResult?: MangaResult
@@ -99,5 +99,5 @@ export async function updateMangaJobError(
     updateData.result = fallbackResult;
   }
 
-  await db.collection(COLLECTION_NAME).doc(jobId).update(updateData);
+  await db.collection(COLLECTION_NAME).doc(resultId).update(updateData);
 }
