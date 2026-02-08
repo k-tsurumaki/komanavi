@@ -196,7 +196,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
 
   answerStep.available = canUseInteractionSteps;
   if (!canUseInteractionSteps) {
-    answerStep.helperText = '意図入力後に利用できます';
+    answerStep.helperText = '要点表示後に利用できます';
   }
 
   checklistStep.available = canReviewChecklist;
@@ -312,7 +312,13 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
         nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
       }
     } else if (context.hasDeepDiveStepVisited) {
-      intentStep.status = isIntentStepCompleted ? 'completed' : 'not_started';
+      if (isIntentStepCompleted) {
+        intentStep.status = 'completed';
+      } else if (context.hasIntentStepVisited) {
+        intentStep.status = 'in_progress';
+      } else {
+        intentStep.status = 'not_started';
+      }
       currentStepId = 'deep_dive';
       statusText = '気になる点を深掘りできます';
       nextAction = { stepId: 'deep_dive', label: '深掘りする' };
