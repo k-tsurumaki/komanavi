@@ -98,6 +98,14 @@ function StepButton({
   const statusTone = getStatusTone(step.status);
   const statusLabel = getStatusLabel(step.status);
   const markerLabel = step.status === 'completed' ? '✓' : index + 1;
+  const labelTone = step.status === 'completed'
+    ? 'text-slate-900'
+    : step.status === 'error'
+      ? 'text-stone-800'
+      : isCurrent
+        ? 'text-slate-700'
+        : 'text-slate-500';
+  const helperTone = step.status === 'completed' ? 'text-slate-500' : 'text-slate-400';
 
   return (
     <button
@@ -107,7 +115,8 @@ function StepButton({
           onStepSelect(step.id);
         }
       }}
-      disabled={!canNavigate}
+      aria-disabled={!canNavigate}
+      tabIndex={canNavigate ? 0 : -1}
       aria-current={isCurrent ? 'step' : undefined}
       className={`relative w-full rounded-xl border text-left transition ${
         statusTone.card
@@ -116,9 +125,9 @@ function StepButton({
       } ${
         canNavigate ? 'hover:border-stone-400 hover:bg-white' : ''
       } ${
-        step.available === false ? 'opacity-70' : ''
-      } ${
         compact ? 'px-2 py-2' : 'px-3 py-2.5'
+      } ${
+        canNavigate ? '' : 'cursor-default'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -131,7 +140,7 @@ function StepButton({
           >
             {markerLabel}
           </span>
-          <p className={`font-semibold leading-tight text-slate-900 ${compact ? 'text-[11px]' : 'text-sm'}`}>
+          <p className={`font-semibold leading-tight ${labelTone} ${compact ? 'text-[11px]' : 'text-sm'}`}>
             {step.label}
           </p>
         </div>
@@ -147,7 +156,9 @@ function StepButton({
       </div>
 
       <div className={`${compact ? 'mt-1' : 'mt-1.5'}`}>
-        {!compact && step.helperText && <span className="truncate text-[11px] text-slate-500">{step.helperText}</span>}
+        {!compact && step.helperText && (
+          <span className={`truncate text-[11px] ${helperTone}`}>{step.helperText}</span>
+        )}
       </div>
     </button>
   );

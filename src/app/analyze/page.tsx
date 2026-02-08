@@ -85,6 +85,14 @@ export default function AnalyzePage() {
 
   return (
     <div className="ui-page ui-shell-gap space-y-6">
+      {(status === 'loading' || status === 'error') && (
+        <FlowStageIndicator
+          model={flowModel}
+          className="animate-fade-up"
+          onStepSelect={handleFlowNavigation}
+        />
+      )}
+
       <DisclaimerModal />
 
       <section className="animate-fade-up">
@@ -100,12 +108,6 @@ export default function AnalyzePage() {
         {status === 'error' && error && (
           <div className="ui-callout ui-callout-error mt-5">{error}</div>
         )}
-
-        <FlowStageIndicator
-          model={flowModel}
-          className="mt-5"
-          onStepSelect={handleFlowNavigation}
-        />
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
