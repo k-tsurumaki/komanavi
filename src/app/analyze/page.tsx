@@ -65,15 +65,6 @@ export default function AnalyzePage() {
       <section className="ui-card-float p-5 sm:p-6">
         <UrlInput onSubmit={handleSubmit} isLoading={status === 'loading'} />
 
-        {status === 'loading' && (
-          <div className="ui-callout ui-callout-info mt-5">
-            <div className="inline-flex items-center gap-2">
-              <span className="ui-spinner h-4 w-4 animate-spin rounded-full border-2" />
-              ページを解析しています（30秒〜1分程度）
-            </div>
-          </div>
-        )}
-
         {status === 'error' && error && (
           <div className="ui-callout ui-callout-error mt-5">{error}</div>
         )}
