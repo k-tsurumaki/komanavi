@@ -316,6 +316,7 @@ function ResultContent() {
         hasIntermediate,
         hasIntentInput,
         hasIntentStepVisited,
+        hasDeepDiveStepVisited: chatMode === 'deepDive',
         hasIntentGenerationError,
         isIntentGenerating,
         guidanceUnlocked,
@@ -330,6 +331,7 @@ function ResultContent() {
       guidanceUnlocked,
       hasChecklistAvailable,
       hasChecklistReviewed,
+      chatMode,
       hasIntentGenerationError,
       hasIntentInput,
       hasIntentStepVisited,
@@ -787,12 +789,15 @@ function ResultContent() {
         <SummaryViewer data={intermediate} overview={overview} hideDetails />
       </div>
 
-      <div ref={interactionSectionRef} className="group ui-card relative mb-6 rounded-2xl px-6 pb-3 pt-6">
+      <div
+        ref={interactionSectionRef}
+        className="group ui-chat-window relative mb-6 px-6 pb-3 pt-6"
+      >
         <div className="absolute right-6 top-6">
           <div
             role="tablist"
             aria-label="回答モードの切り替え"
-            className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600"
+            className="inline-flex rounded-full border border-stone-300 bg-[#fcfbfa]/90 p-1 text-xs font-semibold text-stone-700"
           >
             <button
               ref={deepDiveTabButtonRef}
@@ -805,7 +810,9 @@ function ResultContent() {
               onKeyDown={handleChatTabKeyDown}
               onClick={() => setChatMode('deepDive')}
               className={`px-3 py-1 rounded-full transition ${
-                chatMode === 'deepDive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                chatMode === 'deepDive'
+                  ? 'bg-stone-100 text-stone-900 shadow-sm'
+                  : 'text-stone-600'
               }`}
             >
               深掘り
@@ -821,7 +828,9 @@ function ResultContent() {
               onKeyDown={handleChatTabKeyDown}
               onClick={handleAdvanceToIntent}
               className={`px-3 py-1 rounded-full transition ${
-                chatMode === 'intent' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                chatMode === 'intent'
+                  ? 'bg-stone-100 text-stone-900 shadow-sm'
+                  : 'text-stone-600'
               }`}
             >
               意図入力
@@ -838,7 +847,7 @@ function ResultContent() {
             <div>
               <h3 className="ui-heading text-lg">気になる点を深掘り</h3>
               <p className="mt-1 text-sm text-slate-600">
-                「ここが分からない」をAIに質問して解消しましょう。
+                「ここが分からない」をAIアシスタントに質問して解消しましょう。
               </p>
             </div>
           </div>
@@ -850,7 +859,7 @@ function ResultContent() {
                 className={`rounded-xl px-4 py-3 border ${
                   message.role === 'user'
                     ? 'bg-stone-100 border-stone-300 text-stone-900'
-                    : 'bg-slate-50 border-slate-200 text-slate-800'
+                    : 'bg-[#fcfbfa] border-stone-300 text-stone-800'
                 }`}
               >
                 <p className="mb-1 text-xs font-semibold tracking-wide">
@@ -879,7 +888,7 @@ function ResultContent() {
               type="button"
               onClick={handleSendDeepDive}
               disabled={isDeepDiveLoading || !deepDiveInput.trim()}
-              className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+              className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-stone-900 text-white shadow-sm hover:bg-stone-800 disabled:opacity-50"
               aria-label="送信"
             >
               {isDeepDiveLoading ? (
@@ -936,14 +945,14 @@ function ResultContent() {
               rows={3}
               placeholder="例: 私が対象かどうかと申請方法を知りたい"
               disabled={isIntentGenerating || isIntentLocked}
-              className="ui-textarea w-full resize-none pr-14 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+              className="ui-textarea w-full resize-none pr-14 text-sm disabled:bg-stone-100 disabled:text-stone-500"
             />
             <button
               ref={intentSubmitButtonRef}
               type="button"
               onClick={handleConfirmIntent}
               disabled={isIntentGenerating || isIntentLocked || !intentInput.trim()}
-              className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+              className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-stone-900 text-white shadow-sm hover:bg-stone-800 disabled:opacity-50"
               aria-label="意図を確定"
             >
               {isIntentGenerating ? (

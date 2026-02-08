@@ -122,6 +122,12 @@ button:disabled {
   opacity: 0.56;
 }
 
+.flow-step-button:disabled {
+  opacity: 1 !important;
+  -webkit-text-fill-color: currentColor;
+  filter: none;
+}
+
 ::selection {
   background: rgba(115, 83, 76, 0.24);
   color: #0d0d0d;
@@ -169,6 +175,27 @@ button:disabled {
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
+}
+
+.ui-chat-window {
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 28px rgba(38, 8, 1, 0.1);
+}
+
+.ui-step-nav {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 24px rgba(38, 8, 1, 0.1);
+}
+
+.ui-step-nav-sticky {
+  border: 1px solid var(--border);
+  background: rgba(252, 251, 250, 0.95);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(38, 8, 1, 0.12);
 }
 
 .ui-card-soft {
@@ -311,6 +338,8 @@ button:disabled {
   width: 100%;
   border: 1px solid var(--border);
   background: var(--surface);
+  -webkit-appearance: none;
+  appearance: none;
   border-radius: 12px;
   padding: 0.7rem 0.85rem;
   color: var(--foreground);
@@ -331,6 +360,37 @@ button:disabled {
   border-color: rgba(115, 83, 76, 0.55);
   box-shadow: 0 0 0 4px rgba(115, 83, 76, 0.2);
   outline: none;
+}
+
+.ui-input:disabled,
+.ui-select:disabled,
+.ui-textarea:disabled {
+  background: var(--surface-soft);
+  color: var(--foreground-soft);
+}
+
+/* Browser autofill (Chrome/Safari) applies a light blue background by default. */
+.ui-input:-webkit-autofill,
+.ui-input:-webkit-autofill:hover,
+.ui-input:-webkit-autofill:focus,
+.ui-select:-webkit-autofill,
+.ui-select:-webkit-autofill:hover,
+.ui-select:-webkit-autofill:focus,
+.ui-textarea:-webkit-autofill,
+.ui-textarea:-webkit-autofill:hover,
+.ui-textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  caret-color: var(--foreground);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.ui-input:autofill,
+.ui-select:autofill,
+.ui-textarea:autofill {
+  color: var(--foreground);
+  background-color: var(--surface);
 }
 
 .ui-chip {

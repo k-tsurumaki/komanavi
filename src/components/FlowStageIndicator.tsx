@@ -38,7 +38,7 @@ function getStatusTone(status: FlowStepStatus): {
 } {
   if (status === 'completed') {
     return {
-      card: 'border-stone-300 bg-white text-slate-800',
+      card: 'border-stone-300 bg-[#fcfbfa] text-stone-800',
       marker: 'border-stone-500 bg-stone-500 text-white',
       status: 'border-stone-300 bg-stone-100 text-stone-700',
       connector: 'bg-stone-300',
@@ -47,36 +47,36 @@ function getStatusTone(status: FlowStepStatus): {
 
   if (status === 'in_progress') {
     return {
-      card: 'border-stone-400 bg-stone-50 text-slate-900',
+      card: 'border-stone-400 bg-[#f4efed] text-stone-900',
       marker: 'border-stone-500 bg-stone-500 text-white',
-      status: 'border-stone-400 bg-white text-stone-800',
+      status: 'border-stone-400 bg-[#fcfbfa] text-stone-800',
       connector: 'bg-stone-300',
     };
   }
 
   if (status === 'error') {
     return {
-      card: 'border-stone-400 bg-stone-100 text-slate-900',
+      card: 'border-stone-400 bg-[#f1ebe9] text-stone-900',
       marker: 'border-stone-500 bg-stone-500 text-white',
-      status: 'border-stone-400 bg-stone-100 text-stone-800',
+      status: 'border-stone-400 bg-[#f4efed] text-stone-800',
       connector: 'bg-stone-300',
     };
   }
 
   if (status === 'skipped') {
     return {
-      card: 'border-slate-300 bg-slate-100 text-slate-700',
-      marker: 'border-slate-300 bg-slate-200 text-slate-700',
-      status: 'border-slate-300 bg-slate-100 text-slate-700',
-      connector: 'bg-slate-300',
+      card: 'border-[#bfbfbf] bg-[#ece6e3] text-[#5a4641]',
+      marker: 'border-[#bfbfbf] bg-[#f4efed] text-[#5a4641]',
+      status: 'border-[#bfbfbf] bg-[#ece6e3] text-[#5a4641]',
+      connector: 'bg-[#bfbfbf]',
     };
   }
 
   return {
-    card: 'border-slate-200 bg-slate-50 text-slate-700',
-    marker: 'border-slate-300 bg-white text-slate-600',
-    status: 'border-slate-300 bg-slate-100 text-slate-700',
-    connector: 'bg-slate-200',
+    card: 'border-stone-300 bg-[#f9f6f5] text-stone-700',
+    marker: 'border-stone-300 bg-[#fcfbfa] text-stone-600',
+    status: 'border-stone-300 bg-[#f4efed] text-stone-700',
+    connector: 'bg-stone-200',
   };
 }
 
@@ -102,13 +102,13 @@ function StepButton({
   const statusLabel = getStatusLabel(step.status);
   const markerLabel = step.status === 'completed' ? '✓' : index + 1;
   const labelTone = step.status === 'completed'
-    ? 'text-slate-900'
+    ? 'text-stone-900'
     : step.status === 'error'
       ? 'text-stone-800'
       : isCurrent
-        ? 'text-slate-700'
-        : 'text-slate-500';
-  const helperTone = step.status === 'completed' ? 'text-slate-500' : 'text-slate-400';
+        ? 'text-stone-800'
+        : 'text-stone-600';
+  const helperTone = step.status === 'completed' ? 'text-stone-600' : 'text-stone-500';
 
   return (
     <button
@@ -122,17 +122,17 @@ function StepButton({
       disabled={!canNavigate}
       tabIndex={canNavigate ? 0 : -1}
       aria-current={isCurrent ? 'step' : undefined}
-      className={`relative w-full rounded-xl border text-left transition ${
+      className={`flow-step-button relative w-full rounded-xl border text-left transition ${
         statusTone.card
       } ${
         isCurrent ? 'border-stone-500 shadow-[inset_0_0_0_1px_rgba(115,83,76,0.35)]' : ''
       } ${
-        canNavigate ? 'hover:border-stone-400 hover:bg-white' : ''
+        canNavigate ? 'hover:border-stone-400 hover:bg-[#fcfbfa]' : ''
       } ${
         compact ? 'px-2 py-2' : 'px-3 py-2.5'
       } ${
         canNavigate ? '' : 'cursor-default'
-      }`}
+      } disabled:opacity-100 disabled:[-webkit-text-fill-color:currentColor]`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className={`flex min-w-0 items-center ${compact ? 'gap-1.5' : 'gap-2.5'}`}>
@@ -185,12 +185,13 @@ export function FlowStageIndicator({
     const step = stepMap.get(stepId);
     return step ? [step] : [];
   });
-  const mergedCompletedCount = mergedSteps.filter((step) => step.status === 'completed').length;
+  const mergedCompletedCount = mergedSteps.filter(
+    (step) => step.status === 'completed' || step.status === 'in_progress'
+  ).length;
   const mergedTotalCount = mergedSteps.length;
   const completedPercentage = mergedTotalCount > 0
     ? Math.round((mergedCompletedCount / mergedTotalCount) * 100)
     : 0;
-  const optionalInProgress = model.optionalSteps.filter((step) => step.status === 'in_progress');
   const currentStep = mergedSteps.find((step) => step.id === model.currentStepId) ?? mergedSteps[0];
   const canNavigateCurrentStep = Boolean(
     currentStep && onStepSelect && currentStep.available !== false
@@ -291,16 +292,16 @@ export function FlowStageIndicator({
           <div
             role="status"
             aria-live="polite"
-            className="rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.08)] backdrop-blur"
+            className="ui-step-nav-sticky px-3 py-2 backdrop-blur"
           >
             <div className="flex items-center gap-3">
-              <p className="shrink-0 text-[10px] font-semibold tracking-[0.08em] text-slate-600">
+              <p className="shrink-0 text-[10px] font-semibold tracking-[0.08em] text-stone-700">
                 ステップナビ
               </p>
-              <p className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">
+              <p className="min-w-0 flex-1 truncate text-xs font-medium text-stone-800">
                 {currentStep?.label ?? model.statusText}
               </p>
-              <span className="text-xs font-medium text-slate-600 tabular-nums">
+              <span className="text-xs font-medium text-stone-700 tabular-nums">
                 {mergedCompletedCount}/{mergedTotalCount}
               </span>
               {canNavigateCurrentStep && currentStep && (
@@ -309,13 +310,13 @@ export function FlowStageIndicator({
                   onClick={() => {
                     onStepSelect?.(currentStep.id);
                   }}
-                  className="rounded-md border border-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-700 transition hover:border-stone-400 hover:bg-white"
+                  className="rounded-md border border-stone-300 px-2 py-0.5 text-[11px] font-medium text-stone-700 transition hover:border-stone-400 hover:bg-[#fcfbfa]"
                 >
                   開く
                 </button>
               )}
             </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-stone-200">
               <div
                 className="h-full rounded-full bg-stone-600 transition-[width] duration-300"
                 style={{ width: `${completedPercentage}%` }}
@@ -327,30 +328,25 @@ export function FlowStageIndicator({
 
       <section
         ref={sectionRef}
-        className={`ui-card rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 ${className ?? ''}`}
+        className={`ui-step-nav p-4 sm:p-5 ${className ?? ''}`}
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div role="status" aria-live="polite" className="max-w-2xl">
-            <p className="text-[11px] font-semibold tracking-[0.08em] text-slate-600">ステップナビ</p>
-            <p className="mt-1.5 text-sm font-semibold leading-relaxed text-slate-900 sm:text-[15px]">
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-stone-700">ステップナビ</p>
+            <p className="mt-1.5 text-sm font-semibold leading-relaxed text-stone-900 sm:text-[15px]">
               {model.statusText}
             </p>
-            {optionalInProgress.length > 0 && (
-              <p className="mt-1.5 text-xs text-slate-600">
-                任意タスク: {optionalInProgress.map((step) => step.label).join(' / ')}
-              </p>
-            )}
           </div>
 
           <div className="w-full max-w-xs">
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200">
                 <div
                   className="h-full rounded-full bg-stone-600 transition-[width] duration-300"
                   style={{ width: `${completedPercentage}%` }}
                 />
               </div>
-              <span className="text-xs font-medium text-slate-600 tabular-nums">
+              <span className="text-xs font-medium text-stone-700 tabular-nums">
                 {mergedCompletedCount}/{mergedTotalCount}
               </span>
             </div>

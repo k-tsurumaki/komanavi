@@ -96,9 +96,11 @@ export default function AnalyzePage() {
       <DisclaimerModal />
 
       <section className="animate-fade-up">
-        <h2 className="ui-heading text-2xl sm:text-3xl">行政情報を、短時間で理解する</h2>
+        <h2 className="ui-heading text-2xl sm:text-3xl">行政情報を、希望を形にする行動に</h2>
         <p className="ui-muted mt-3 max-w-3xl text-sm sm:text-base">
-          行政ページのURLを入力すると、AIが要点を再構成し、次の行動がわかる形で提示します。
+          行政ページのURLを入力するだけ。
+          <br />
+          AIが情報を整理し、あなたに必要な一歩を、回答・チェックリスト・漫画でわかりやすく提示します。
         </p>
       </section>
 
@@ -108,24 +110,6 @@ export default function AnalyzePage() {
         {status === 'error' && error && (
           <div className="ui-callout ui-callout-error mt-5">{error}</div>
         )}
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <article className="ui-card p-5">
-          <p className="ui-badge">1</p>
-          <h3 className="ui-heading mt-3 text-base">URLを入力</h3>
-          <p className="ui-muted mt-2 text-sm">対象ページのURLを貼り付けます。</p>
-        </article>
-        <article className="ui-card p-5">
-          <p className="ui-badge">2</p>
-          <h3 className="ui-heading mt-3 text-base">AIが解析</h3>
-          <p className="ui-muted mt-2 text-sm">本文を読み取り、要点を抽出します。</p>
-        </article>
-        <article className="ui-card p-5">
-          <p className="ui-badge">3</p>
-          <h3 className="ui-heading mt-3 text-base">結果を確認</h3>
-          <p className="ui-muted mt-2 text-sm">チェックリストと補足解説を確認します。</p>
-        </article>
       </section>
 
       <section className="ui-card p-5">

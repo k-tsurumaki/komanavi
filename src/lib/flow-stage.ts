@@ -24,6 +24,7 @@ export interface FlowStageContext {
   hasIntermediate: boolean;
   hasIntentInput: boolean;
   hasIntentStepVisited?: boolean;
+  hasDeepDiveStepVisited?: boolean;
   hasIntentGenerationError: boolean;
   isIntentGenerating: boolean;
   guidanceUnlocked: boolean;
@@ -62,7 +63,7 @@ const REQUIRED_STEPS: Array<Pick<FlowStepView, 'id' | 'label'>> = [
   { id: 'analyze_url', label: 'URLを解析' },
   { id: 'review_summary', label: '要点を確認' },
   { id: 'input_intent', label: '意図を入力' },
-  { id: 'generate_answer', label: 'あなた向け回答を作成' },
+  { id: 'generate_answer', label: 'あなた向けの回答を作成' },
   { id: 'review_checklist', label: 'チェックリストを確認' },
   { id: 'manga_review', label: '漫画で確認' },
 ];
@@ -169,13 +170,39 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   const checklistStep = findStepById(requiredSteps, 'review_checklist');
   const mangaStep = findStepById(requiredSteps, 'manga_review');
   const deepDiveStep = findStepById(optionalSteps, 'deep_dive');
-  const isIntentStepCompleted = Boolean(context.hasIntentInput || context.hasIntentStepVisited);
+  const isIntentStepCompleted = Boolean(context.hasIntentInput);
   const hasReachedIntentStage = Boolean(
+    context.hasIntentStepVisited ||
     isIntentStepCompleted ||
       context.isIntentGenerating ||
       context.hasIntentGenerationError ||
       context.guidanceUnlocked
   );
+  const canReviewSummary = Boolean(context.hasIntermediate);
+  const canUseInteractionSteps = Boolean(context.hasIntermediate);
+  const canReviewChecklist = Boolean(
+    context.hasIntermediate && context.guidanceUnlocked && !context.isIntentGenerating
+  );
+
+  reviewStep.available = canReviewSummary;
+  if (!canReviewSummary) {
+    reviewStep.helperText = 'URL解析後に利用できます';
+  }
+
+  intentStep.available = canUseInteractionSteps;
+  if (!canUseInteractionSteps) {
+    intentStep.helperText = '要点確認後に利用できます';
+  }
+
+  answerStep.available = canUseInteractionSteps;
+  if (!canUseInteractionSteps) {
+    answerStep.helperText = '要点表示後に利用できます';
+  }
+
+  checklistStep.available = canReviewChecklist;
+  if (!canReviewChecklist) {
+    checklistStep.helperText = '回答生成後に利用できます';
+  }
 
   if (!context.hasIntermediate) {
     deepDiveStep.status = 'not_started';
@@ -188,15 +215,21 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
     deepDiveStep.helperText = context.hasDeepDiveMessages
       ? '深掘りの履歴があります'
       : '意図入力へ進んだため完了扱い';
-  } else {
-    deepDiveStep.status = context.hasDeepDiveMessages ? 'in_progress' : 'not_started';
+  } else if (context.hasDeepDiveStepVisited || context.hasDeepDiveMessages) {
+    deepDiveStep.status = 'in_progress';
     deepDiveStep.available = true;
-    deepDiveStep.helperText = context.hasDeepDiveMessages ? '深掘りの履歴があります' : '必要に応じて深掘りできます';
+    deepDiveStep.helperText = context.hasDeepDiveMessages
+      ? '深掘り中です'
+      : '意図入力に進むと完了します';
+  } else {
+    deepDiveStep.status = 'not_started';
+    deepDiveStep.available = true;
+    deepDiveStep.helperText = '必要に応じて深掘りできます';
   }
 
   const normalizedManga = normalizeMangaState(
     context.manga,
-    Boolean(context.guidanceUnlocked && context.hasIntermediate)
+    Boolean(context.guidanceUnlocked && context.hasIntermediate && !context.isIntentGenerating)
   );
   mangaStep.status = normalizedManga.status;
   mangaStep.available = normalizedManga.available;
@@ -237,7 +270,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
       intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
       answerStep.status = 'in_progress';
       currentStepId = 'generate_answer';
-      statusText = 'あなた向け回答を作成しています';
+      statusText = 'あなた向けの回答を作成しています';
       nextAction = undefined;
     } else if (context.hasIntentGenerationError) {
       intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
@@ -278,6 +311,17 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
         statusText = '漫画で確認して理解を定着させましょう';
         nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
       }
+    } else if (context.hasDeepDiveStepVisited) {
+      if (isIntentStepCompleted) {
+        intentStep.status = 'completed';
+      } else if (context.hasIntentStepVisited) {
+        intentStep.status = 'in_progress';
+      } else {
+        intentStep.status = 'not_started';
+      }
+      currentStepId = 'deep_dive';
+      statusText = '気になる点を深掘りできます';
+      nextAction = { stepId: 'deep_dive', label: '深掘りする' };
     } else {
       intentStep.status = isIntentStepCompleted ? 'completed' : 'in_progress';
       currentStepId = 'input_intent';
