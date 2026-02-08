@@ -9,9 +9,9 @@ import {
 import { enqueueMangaTask, getMissingCloudTasksEnvVars } from '@/lib/cloud-tasks';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 
-const POLL_TIMEOUT_MS = 60 * 1000;
+const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10分（フロントエンドと整合）
 
-// レート制限用のインメモリ状態（同一クライアントからの並行リクエスト制限）
+// レート制限用のインメモリ状態（同一ユーザーからの並行リクエスト制限）
 interface ActiveJobInfo {
   jobId: string;
   startedAt: number;
@@ -24,61 +24,53 @@ interface UsageState {
 }
 
 const globalState = globalThis as typeof globalThis & {
-  __mangaUsageByClient?: Map<string, UsageState>;
+  __mangaUsageByUser?: Map<string, UsageState>;
 };
 
-const usageByClient = globalState.__mangaUsageByClient ?? new Map<string, UsageState>();
-globalState.__mangaUsageByClient = usageByClient;
+const usageByUser = globalState.__mangaUsageByUser ?? new Map<string, UsageState>();
+globalState.__mangaUsageByUser = usageByUser;
 
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getClientId(headers: Headers): string {
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  const realIp = headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-  return 'anonymous';
-}
-
-function getUsage(clientId: string): UsageState {
+function getUsage(userId: string): UsageState {
   const today = getTodayKey();
-  const current = usageByClient.get(clientId);
+  const current = usageByUser.get(userId);
   if (!current || current.date !== today) {
     const fresh: UsageState = { date: today };
-    usageByClient.set(clientId, fresh);
+    usageByUser.set(userId, fresh);
     return fresh;
   }
   return current;
 }
 
-function setActiveJob(clientId: string, jobId: string, url: string) {
-  const usage = getUsage(clientId);
+function setActiveJob(userId: string, jobId: string, url: string) {
+  const usage = getUsage(userId);
   usage.activeJob = { jobId, startedAt: Date.now(), url };
-  usageByClient.set(clientId, usage);
+  usageByUser.set(userId, usage);
 }
 
-function clearActiveJob(clientId: string, jobId: string) {
-  const usage = usageByClient.get(clientId);
+function clearActiveJob(userId: string, jobId: string) {
+  const usage = usageByUser.get(userId);
   if (!usage || !usage.activeJob || usage.activeJob.jobId !== jobId) return;
   delete usage.activeJob;
-  usageByClient.set(clientId, usage);
+  usageByUser.set(userId, usage);
 }
 
 /**
  * 並行ジョブをチェック
  * Firestore のジョブ状態も確認して、完了していたらクリア
  */
-async function hasActiveJob(clientId: string): Promise<boolean> {
-  const usage = usageByClient.get(clientId);
+async function hasActiveJob(userId: string): Promise<boolean> {
+  const usage = usageByUser.get(userId);
   if (!usage?.activeJob) return false;
 
   const { jobId, startedAt } = usage.activeJob;
 
   // タイムアウト経過していたらクリア
   if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
-    clearActiveJob(clientId, jobId);
+    clearActiveJob(userId, jobId);
     return false;
   }
 
@@ -86,7 +78,7 @@ async function hasActiveJob(clientId: string): Promise<boolean> {
   try {
     const manga = await getConversationManga(jobId);
     if (!manga || manga.status === 'done' || manga.status === 'error') {
-      clearActiveJob(clientId, jobId);
+      clearActiveJob(userId, jobId);
       return false;
     }
   } catch {
@@ -129,10 +121,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const clientId = getClientId(request.headers);
-
-    // 並行リクエストチェック
-    if (await hasActiveJob(clientId)) {
+    // 同一ユーザーの並行ジョブチェック
+    if (await hasActiveJob(userId)) {
       return NextResponse.json(
         {
           error: '現在ほかの漫画生成が進行中です。完了後に再度お試しください。',
@@ -172,7 +162,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Firestore に conversation_manga を作成
-    await createConversationManga(resultId, historyId, body, userId);
+    try {
+      await createConversationManga(resultId, historyId, body, userId);
+    } catch (createError) {
+      const errorMessage = createError instanceof Error ? createError.message : 'Unknown error';
+      if (errorMessage.includes('already in progress')) {
+        return NextResponse.json(
+          {
+            error: '現在この解析結果の漫画生成が進行中です。完了後に再度お試しください。',
+            errorCode: 'concurrent',
+          },
+          { status: 409 }
+        );
+      }
+      throw createError;
+    }
 
     // Cloud Tasks にタスクをエンキュー
     try {
@@ -196,7 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     // アクティブジョブとして記録（resultId を使用）
-    setActiveJob(clientId, resultId, body.url);
+    setActiveJob(userId, resultId, body.url);
 
     const response: MangaJobResponse = { jobId: resultId };
     return NextResponse.json(response);
