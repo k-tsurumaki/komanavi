@@ -518,13 +518,15 @@ function ResultContent() {
   const renderAnswerEntryCard = (
     title: string,
     entry: IntentAnswerEntry,
-    toneClassName = 'border-stone-200 bg-white'
+    toneClassName = 'border-stone-200 bg-white',
+    options?: { id?: string }
   ) => (
-    <section className={`rounded-xl border p-4 ${toneClassName}`}>
-      <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{title}</h4>
+    <section id={options?.id} className={`rounded-xl border p-4 ${toneClassName}`}>
+      <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
       <p className="mt-2 text-[15px] leading-relaxed text-slate-900">{entry.text}</p>
     </section>
   );
+
   const canShowIntentEditButton = guidanceUnlocked && isIntentLocked && !isIntentGenerating;
 
   return (
@@ -728,9 +730,6 @@ function ResultContent() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center">
               <div>
-                <span className="inline-flex items-center rounded-full border border-stone-300 bg-white px-2.5 py-1 text-[0.68rem] font-semibold tracking-[0.08em] text-slate-600">
-                  あなた向け
-                </span>
                 <h3 className="ui-heading text-lg">回答</h3>
                 <p className="text-xs text-slate-600">あなたの意図とパーソナル情報に基づく回答</p>
               </div>
@@ -741,11 +740,13 @@ function ResultContent() {
             {!isIntentGenerating && result.intentAnswer ? (
               structuredIntentAnswer ? (
                 <div className="space-y-3.5">
-                  <section className="rounded-xl border border-stone-300 bg-white px-4 py-3.5">
-                    <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
-                      結論
-                    </h4>
-                    <p className="mt-2 text-[15px] font-semibold leading-relaxed text-slate-900">
+                  <section className="relative overflow-hidden rounded-xl border border-stone-400 bg-white px-4 py-4 pl-7 shadow-[0_12px_28px_rgba(38,8,1,0.08)]">
+                    <span
+                      aria-hidden="true"
+                      className="absolute bottom-3 left-3 top-3 w-1 rounded-full bg-stone-500/70"
+                    />
+                    <h4 className="text-sm font-semibold text-slate-700">結論</h4>
+                    <p className="mt-2.5 text-[16px] font-semibold leading-relaxed text-slate-900 sm:text-[17px]">
                       {structuredIntentAnswer.headline}
                     </p>
                   </section>
@@ -758,11 +759,12 @@ function ResultContent() {
                   {renderAnswerEntryCard(
                     '最優先の1手',
                     structuredIntentAnswer.firstPriorityAction,
-                    'border-stone-300 bg-white'
+                    'border-stone-300 bg-white',
+                    { id: 'answer-first-priority-action' }
                   )}
 
                   <section className="rounded-xl border border-stone-300 bg-stone-50 p-4">
-                    <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-900">
+                    <h4 className="text-sm font-semibold text-stone-900">
                       見落とすと申請で困るポイント
                     </h4>
                     <ul className="mt-3 space-y-2.5">
