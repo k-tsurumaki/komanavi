@@ -28,6 +28,7 @@ interface MangaUsageState {
     jobId: string;
     startedAt: number;
     url: string;
+    progress: number;
   };
 }
 
@@ -266,7 +267,15 @@ export function MangaViewer(props: MangaViewerProps) {
           throw new Error('ステータスの取得に失敗しました');
         }
         const data: MangaJobStatusResponse = await response.json();
-        setProgress(data.progress || 0);
+        const currentProgress = data.progress || 0;
+        setProgress(currentProgress);
+
+        // localStorageの進捗を更新（ページ遷移後の復元用）
+        const usage = loadUsage();
+        if (usage.activeJob && usage.activeJob.jobId === job) {
+          usage.activeJob.progress = currentProgress;
+          saveUsage(usage);
+        }
 
         if (data.status === 'done' && data.result) {
           setResult(data.result);
@@ -356,7 +365,7 @@ export function MangaViewer(props: MangaViewerProps) {
         ...usage,
         count: usage.count + 1,
         urlCooldowns: usage.urlCooldowns,
-        activeJob: { jobId: data.jobId, startedAt: Date.now(), url: props.url },
+        activeJob: { jobId: data.jobId, startedAt: Date.now(), url: props.url, progress: 0 },
       };
       saveUsage(nextUsage);
 
@@ -394,6 +403,10 @@ export function MangaViewer(props: MangaViewerProps) {
   useEffect(() => {
     const usage = loadUsage();
     if (usage.activeJob && usage.activeJob.url === props.url) {
+      // localStorageから進捗を復元（0%フラッシュを防止）
+      if (usage.activeJob.progress > 0) {
+        setProgress(usage.activeJob.progress);
+      }
       startPolling(usage.activeJob.jobId);
     }
 
