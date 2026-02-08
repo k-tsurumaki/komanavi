@@ -22,6 +22,7 @@ export function AppShell({ children }: AppShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const showQuickAnalyzeButton = pathname === '/result' && !isSidebarOpen;
+  const shouldHideQuickAnalyzeOnDesktop = Boolean(session && isSidebarVisible);
 
   const handleSidebarOpen = () => {
     if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
@@ -49,59 +50,57 @@ export function AppShell({ children }: AppShellProps) {
       <div className="relative flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
           <div className="relative flex h-16 items-center px-3 sm:px-4">
-            <div className="z-10 flex items-center">
+            <div className="z-10 flex items-center gap-2">
               {session && (
-                <>
-                  <div className={isSidebarVisible ? 'md:hidden' : ''}>
-                    <button
-                      type="button"
-                      onClick={handleSidebarOpen}
-                      className="ui-btn ui-btn-secondary h-12 w-12 p-0"
-                      aria-label="サイドバーを開く"
+                <div className={isSidebarVisible ? 'md:hidden' : ''}>
+                  <button
+                    type="button"
+                    onClick={handleSidebarOpen}
+                    className="ui-btn ui-btn-secondary h-12 w-12 p-0"
+                    aria-label="サイドバーを開く"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="h-10 w-10 text-slate-500"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      <svg
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        className="h-10 w-10 text-slate-500"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M4 6h16" />
-                        <path d="M4 12h16" />
-                        <path d="M4 18h16" />
-                      </svg>
-                    </button>
-                  </div>
-                  {showQuickAnalyzeButton && (
-                    <Link
-                      href="/analyze"
-                      onClick={() => {
-                        resetAnalyze();
-                      }}
-                      className={`ui-btn ui-btn-secondary ml-2 h-12 w-12 p-0 ${isSidebarVisible ? 'md:!hidden' : ''}`}
-                      aria-label="新しいURLを解析"
-                      title="新しいURLを解析"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        className="h-10 w-10 scale-[1.4] text-slate-500"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.1"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M9 4H6.8C5.81 4 5 4.81 5 5.8v11.4C5 18.19 5.81 19 6.8 19h11.4c0.99 0 1.8-.81 1.8-1.8V15" />
-                        <path d="M15.1 5.9 18.1 8.9" />
-                        <path d="m10 14 1 .1c.3 0 .6-.1.8-.3l6.6-6.6a1.3 1.3 0 0 0 0-1.8l-.8-.8a1.3 1.3 0 0 0-1.8 0l-6.6 6.6c-.2.2-.3.5-.3.8z" />
-                      </svg>
-                    </Link>
-                  )}
-                </>
+                      <path d="M4 6h16" />
+                      <path d="M4 12h16" />
+                      <path d="M4 18h16" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {showQuickAnalyzeButton && (
+                <Link
+                  href="/analyze"
+                  onClick={() => {
+                    resetAnalyze();
+                  }}
+                  className={`ui-btn ui-btn-secondary h-12 w-12 p-0 ${shouldHideQuickAnalyzeOnDesktop ? 'md:!hidden' : ''}`}
+                  aria-label="新しいURLを解析"
+                  title="新しいURLを解析"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="h-10 w-10 text-slate-500"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 4H6.8C5.81 4 5 4.81 5 5.8v11.4C5 18.19 5.81 19 6.8 19h11.4c0.99 0 1.8-.81 1.8-1.8V15" />
+                    <path d="M15.1 5.9 18.1 8.9" />
+                    <path d="m10 14 1 .1c.3 0 .6-.1.8-.3l6.6-6.6a1.3 1.3 0 0 0 0-1.8l-.8-.8a1.3 1.3 0 0 0-1.8 0l-6.6 6.6c-.2.2-.3.5-.3.8z" />
+                  </svg>
+                </Link>
               )}
             </div>
 

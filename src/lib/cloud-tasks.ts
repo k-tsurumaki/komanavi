@@ -2,51 +2,77 @@
  * Cloud Tasks を使用した漫画生成タスクのエンキュー
  */
 
-import { CloudTasksClient, protos } from "@google-cloud/tasks";
-import type { MangaRequest } from "./types/intermediate";
+import { CloudTasksClient, protos } from '@google-cloud/tasks';
+import type { MangaRequest } from './types/intermediate';
 
 // gRPC ステータスコード
 const GRPC_STATUS_ALREADY_EXISTS = 6;
 
-// 環境変数を遅延取得（ビルド時のエラーを回避）
-function getProjectId(): string {
-  const value = process.env.GCP_PROJECT_ID;
-  if (!value) {
-    throw new Error("GCP_PROJECT_ID environment variable is required");
-  }
-  return value;
-}
+type CloudTasksRequiredEnvVar =
+  | 'GCP_PROJECT_ID'
+  | 'CLOUD_TASKS_LOCATION'
+  | 'CLOUD_TASKS_QUEUE'
+  | 'MANGA_WORKER_URL'
+  | 'CLOUD_RUN_SERVICE_ACCOUNT';
 
-function getLocation(): string {
-  const value = process.env.CLOUD_TASKS_LOCATION;
-  if (!value) {
-    throw new Error("CLOUD_TASKS_LOCATION environment variable is required");
-  }
-  return value;
-}
-
-function getQueueName(): string {
-  const value = process.env.CLOUD_TASKS_QUEUE;
-  if (!value) {
-    throw new Error("CLOUD_TASKS_QUEUE environment variable is required");
-  }
-  return value;
-}
-
-function getWorkerUrl(): string | undefined {
-  return process.env.MANGA_WORKER_URL;
-}
-
-function getServiceAccountEmail(): string {
-  const value = process.env.CLOUD_RUN_SERVICE_ACCOUNT;
-  if (!value) {
-    throw new Error("CLOUD_RUN_SERVICE_ACCOUNT environment variable is required");
-  }
-  return value;
-}
+type CloudTasksConfig = {
+  projectId?: string;
+  location?: string;
+  queueName?: string;
+  workerUrl?: string;
+  serviceAccountEmail?: string;
+};
 
 // Cloud Tasks クライアントを遅延初期化
 let tasksClient: CloudTasksClient | null = null;
+
+function readCloudTasksConfig(): CloudTasksConfig {
+  return {
+    projectId: process.env.GCP_PROJECT_ID,
+    location: process.env.CLOUD_TASKS_LOCATION,
+    queueName: process.env.CLOUD_TASKS_QUEUE,
+    workerUrl: process.env.MANGA_WORKER_URL,
+    serviceAccountEmail: process.env.CLOUD_RUN_SERVICE_ACCOUNT,
+  };
+}
+
+function getMissingCloudTasksEnvVarsFromConfig(
+  config: CloudTasksConfig
+): CloudTasksRequiredEnvVar[] {
+  const entries: Array<[CloudTasksRequiredEnvVar, string | undefined]> = [
+    ['GCP_PROJECT_ID', config.projectId],
+    ['CLOUD_TASKS_LOCATION', config.location],
+    ['CLOUD_TASKS_QUEUE', config.queueName],
+    ['MANGA_WORKER_URL', config.workerUrl],
+    ['CLOUD_RUN_SERVICE_ACCOUNT', config.serviceAccountEmail],
+  ];
+  return entries.filter(([, value]) => !value).map(([key]) => key);
+}
+
+function resolveCloudTasksConfig(): {
+  projectId: string;
+  location: string;
+  queueName: string;
+  workerUrl: string;
+  serviceAccountEmail: string;
+} {
+  const config = readCloudTasksConfig();
+  const missing = getMissingCloudTasksEnvVarsFromConfig(config);
+  if (missing.length > 0) {
+    throw new Error(`Cloud Tasks configuration is incomplete: ${missing.join(', ')}`);
+  }
+  const { projectId, location, queueName, workerUrl, serviceAccountEmail } = config;
+  if (!projectId || !location || !queueName || !workerUrl || !serviceAccountEmail) {
+    throw new Error('Cloud Tasks configuration is incomplete');
+  }
+  return {
+    projectId,
+    location,
+    queueName,
+    workerUrl,
+    serviceAccountEmail,
+  };
+}
 
 function getTasksClient(): CloudTasksClient {
   if (!tasksClient) {
@@ -76,15 +102,8 @@ export async function enqueueMangaTask(
   request: MangaRequest,
   userId: string
 ): Promise<string> {
-  const workerUrl = getWorkerUrl();
-  if (!workerUrl) {
-    throw new Error("MANGA_WORKER_URL environment variable is not set");
-  }
-
-  const projectId = getProjectId();
-  const location = getLocation();
-  const queueName = getQueueName();
-  const serviceAccountEmail = getServiceAccountEmail();
+  const { projectId, location, queueName, workerUrl, serviceAccountEmail } =
+    resolveCloudTasksConfig();
 
   const client = getTasksClient();
   const parent = client.queuePath(projectId, location, queueName);
@@ -98,15 +117,15 @@ export async function enqueueMangaTask(
   // タスクを作成
   const task: protos.google.cloud.tasks.v2.ITask = {
     httpRequest: {
-      httpMethod: "POST",
+      httpMethod: 'POST',
       url: workerUrl,
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      body: Buffer.from(JSON.stringify(payload)).toString("base64"),
+      body: Buffer.from(JSON.stringify(payload)).toString('base64'),
       // OIDC トークンで Worker サービスを認証
       oidcToken: {
-        serviceAccountEmail: serviceAccountEmail,
+        serviceAccountEmail,
         audience: workerUrl,
       },
     },
@@ -128,10 +147,6 @@ export async function enqueueMangaTask(
   }
 }
 
-/**
- * Cloud Tasks が利用可能かチェック
- * ローカル開発時など、Cloud Tasks が使えない場合は false を返す
- */
-export function isCloudTasksEnabled(): boolean {
-  return !!getWorkerUrl() && !!process.env.CLOUD_TASKS_QUEUE;
+export function getMissingCloudTasksEnvVars(): CloudTasksRequiredEnvVar[] {
+  return getMissingCloudTasksEnvVarsFromConfig(readCloudTasksConfig());
 }

@@ -518,10 +518,9 @@ function ResultContent() {
   const renderAnswerEntryCard = (
     title: string,
     entry: IntentAnswerEntry,
-    toneClassName = 'border-stone-200 bg-white',
-    options?: { id?: string }
+    toneClassName = 'border-stone-200 bg-white'
   ) => (
-    <section id={options?.id} className={`rounded-xl border p-4 ${toneClassName}`}>
+    <section className={`rounded-xl border p-4 ${toneClassName}`}>
       <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
       <p className="mt-2 text-[15px] leading-relaxed text-slate-900">{entry.text}</p>
     </section>
@@ -750,8 +749,7 @@ function ResultContent() {
                   {renderAnswerEntryCard(
                     '最優先の1手',
                     structuredIntentAnswer.firstPriorityAction,
-                    'border-stone-300 bg-white',
-                    { id: 'answer-first-priority-action' }
+                    'border-stone-300 bg-white'
                   )}
 
                   <section className="rounded-xl border border-stone-300 bg-stone-50 p-4">

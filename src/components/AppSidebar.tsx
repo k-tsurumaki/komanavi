@@ -105,10 +105,10 @@ export function AppSidebar({
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
-                className="h-9 w-9 text-slate-500"
+                className="h-10 w-10 text-slate-500"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="3.2"
+                strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >

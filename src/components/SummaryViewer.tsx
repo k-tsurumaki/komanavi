@@ -144,24 +144,6 @@ function SummaryHeadingIcon({
     );
   }
 
-  if (name === 'evidence') {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className={`h-4 w-4 flex-shrink-0 ${className}`}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M10 14a4 4 0 0 1 0-5.7l1.7-1.7a4 4 0 0 1 5.7 5.7l-1.5 1.5" />
-        <path d="M14 10a4 4 0 0 1 0 5.7l-1.7 1.7a4 4 0 1 1-5.7-5.7l1.5-1.5" />
-      </svg>
-    );
-  }
-
   return (
     <svg
       viewBox="0 0 24 24"
