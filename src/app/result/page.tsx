@@ -14,6 +14,7 @@ import {
 import Link from 'next/link';
 import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { FlowStageIndicator } from '@/components/FlowStageIndicator';
+import { MypageOnboardingPrompt } from '@/components/MypageOnboardingPrompt';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { MangaViewer } from '@/components/MangaViewer';
@@ -913,6 +914,7 @@ function ResultContent() {
 
   return (
     <div className="ui-page ui-shell-gap">
+      <MypageOnboardingPrompt enabled />
       {renderFlowIndicator()}
       <DisclaimerBanner
         sourceUrl={intermediate.metadata.source_url}

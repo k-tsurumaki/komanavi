@@ -3,63 +3,23 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from 'next-auth';
+import type { MypageProfileFormValues } from '@/lib/mypage-profile';
 
 interface ProfileFormProps {
   user: User;
+  initialProfile: MypageProfileFormValues;
+  hasBootstrapError: boolean;
 }
 
-interface UserProfile {
-  displayName?: string;
-  birthDate?: string;
-  gender?: string;
-  occupation?: string;
-  nationality?: string;
-  location?: string;
-  visualTraits?: string;
-  personality?: string;
-}
-
-export function ProfileForm({ user }: ProfileFormProps) {
+export function ProfileForm({ user, initialProfile, hasBootstrapError }: ProfileFormProps) {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile>({});
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<MypageProfileFormValues>(initialProfile);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch('/api/user/profile');
-        if (!res.ok) {
-          throw new Error('Failed to fetch profile');
-        }
-
-        const data = await res.json();
-        let birthDateStr = '';
-        if (data.birthDate) {
-          birthDateStr = data.birthDate.split('T')[0];
-        }
-
-        setProfile({
-          displayName: data.displayName || '',
-          birthDate: birthDateStr,
-          gender: data.gender || '',
-          occupation: data.occupation || '',
-          nationality: data.nationality || '日本',
-          location: data.location || '',
-          visualTraits: data.visualTraits || '',
-          personality: data.personality || '',
-        });
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-        setMessage({ type: 'error', text: 'プロフィールの取得に失敗しました。' });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, []);
+    setProfile(initialProfile);
+  }, [initialProfile]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -87,6 +47,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       }
 
       setMessage({ type: 'success', text: 'プロフィールを保存しました。' });
+      router.refresh();
     } catch (error) {
       console.error('Error saving profile:', error);
       setMessage({ type: 'error', text: '保存に失敗しました。' });
@@ -95,10 +56,31 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
   };
 
-  if (loading) {
+  if (hasBootstrapError) {
     return (
-      <div className="ui-card p-6 text-center text-sm text-slate-600">
-        プロフィールを読み込んでいます...
+      <div className="ui-card p-6">
+        <p className="text-sm font-semibold text-slate-900">
+          プロフィールの読み込みに失敗したため、現在は編集できません。
+        </p>
+        <p className="mt-2 text-sm text-slate-600">
+          通信状況を確認して、再読み込みしてください。
+        </p>
+        <div className="mt-4 flex gap-3">
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="ui-btn ui-btn-primary px-4 py-2 text-sm !text-white"
+          >
+            再読み込み
+          </button>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="ui-btn ui-btn-secondary px-4 py-2 text-sm"
+          >
+            戻る
+          </button>
+        </div>
       </div>
     );
   }
@@ -125,18 +107,17 @@ export function ProfileForm({ user }: ProfileFormProps) {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="displayName" className="mb-1 block text-sm font-semibold text-slate-700">
-            名前（表示名）
+            名前
           </label>
           <input
             type="text"
             id="displayName"
             name="displayName"
-            value={profile.displayName || ''}
+            value={profile.displayName}
             onChange={handleChange}
             placeholder="例：山田 太郎"
             className="ui-input"
           />
-          <p className="ui-subtle mt-1 text-xs">漫画の主人公名として使用されます。</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -148,7 +129,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
               type="date"
               id="birthDate"
               name="birthDate"
-              value={profile.birthDate || ''}
+              value={profile.birthDate}
               onChange={handleChange}
               className="ui-input"
             />
@@ -160,7 +141,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <select
               id="gender"
               name="gender"
-              value={profile.gender || ''}
+              value={profile.gender}
               onChange={handleChange}
               className="ui-select"
             >
@@ -182,7 +163,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
               type="text"
               id="occupation"
               name="occupation"
-              value={profile.occupation || ''}
+              value={profile.occupation}
               onChange={handleChange}
               placeholder="例：会社員、学生"
               className="ui-input"
@@ -198,10 +179,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <select
               id="nationality"
               name="nationality"
-              value={profile.nationality || '日本'}
+              value={profile.nationality}
               onChange={handleChange}
               className="ui-select"
             >
+              <option value="">選択してください</option>
               <option value="日本">日本</option>
               <option value="アメリカ">アメリカ</option>
               <option value="イギリス">イギリス</option>
@@ -222,12 +204,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
             type="text"
             id="location"
             name="location"
-            value={profile.location || ''}
+            value={profile.location}
             onChange={handleChange}
             placeholder="例：東京都"
             className="ui-input"
           />
-          <p className="ui-subtle mt-1 text-xs">都道府県・国レベルで入力してください。</p>
         </div>
 
         <div>
@@ -237,7 +218,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <textarea
             id="visualTraits"
             name="visualTraits"
-            value={profile.visualTraits || ''}
+            value={profile.visualTraits}
             onChange={handleChange}
             rows={3}
             placeholder="例：黒髪ショートヘア、眼鏡をかけている"
@@ -252,16 +233,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <textarea
             id="personality"
             name="personality"
-            value={profile.personality || ''}
+            value={profile.personality}
             onChange={handleChange}
             rows={3}
             placeholder="例：冷静沈着、丁寧語で話す"
             className="ui-textarea"
           />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-          入力された情報は漫画生成のキャラクター設定にのみ使用されます。すべての項目は任意です。
         </div>
 
         <div className="flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row">
