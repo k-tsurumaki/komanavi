@@ -71,6 +71,9 @@ function normalizeProfileString(value: unknown): string {
 
 function normalizeBirthDateForInput(value: unknown): string {
   if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      return '';
+    }
     return value.toISOString().slice(0, 10);
   }
 
@@ -93,6 +96,9 @@ function normalizeBirthDateForInput(value: unknown): string {
     typeof (value as { toDate?: unknown }).toDate === 'function'
   ) {
     const parsed = (value as TimestampLike).toDate();
+    if (!(parsed instanceof Date) || Number.isNaN(parsed.getTime())) {
+      return '';
+    }
     return parsed.toISOString().slice(0, 10);
   }
 
