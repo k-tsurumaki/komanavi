@@ -87,6 +87,7 @@ function ResultContent() {
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
   const [savedMangaResult, setSavedMangaResult] = useState<MangaResult | null>(null);
   const [hasChecklistReviewed, setHasChecklistReviewed] = useState(false);
+  const [mangaAutoTriggered, setMangaAutoTriggered] = useState(false);
   const tabsId = useId();
   const deepDiveTabId = `${tabsId}-deep-dive-tab`;
   const intentTabId = `${tabsId}-intent-tab`;
@@ -314,6 +315,7 @@ function ResultContent() {
       return;
     }
     setHasChecklistReviewed(false);
+    setMangaAutoTriggered(false);
   }, [result?.id]);
 
   const hasIntermediate = Boolean(result?.intermediate);
@@ -390,6 +392,19 @@ function ResultContent() {
       observer.disconnect();
     };
   }, [shouldObserveChecklist]);
+
+  // 意図入力完了後に自動で漫画生成を開始
+  useEffect(() => {
+    if (
+      guidanceUnlocked &&
+      !isIntentGenerating &&
+      !mangaAutoTriggered &&
+      savedMangaResult === null &&
+      mangaFlowState.status === 'not_started'
+    ) {
+      setMangaAutoTriggered(true);
+    }
+  }, [guidanceUnlocked, isIntentGenerating, mangaAutoTriggered, savedMangaResult, mangaFlowState.status]);
 
   const scrollToSection = useCallback((target: HTMLElement | null) => {
     if (!target) return;
@@ -1119,6 +1134,24 @@ function ResultContent() {
         </div>
       </div>
 
+      {/* 漫画ビューア - 回答の上に表示 */}
+      {shouldShowChecklistSection && effectiveHistoryId && (
+        <div ref={mangaSectionRef} className="mb-6">
+          <MangaViewer
+            url={intermediate.metadata.source_url}
+            title={intermediate.title}
+            summary={intermediate.summary}
+            keyPoints={intermediate.keyPoints?.map((point) => point.text)}
+            resultId={result.id}
+            historyId={effectiveHistoryId}
+            initialMangaResult={savedMangaResult}
+            onFlowStateChange={setMangaFlowState}
+            autoGenerate={mangaAutoTriggered}
+            intermediate={intermediate}
+          />
+        </div>
+      )}
+
       {/* 回答生成開始 */}
       {shouldShowGuidanceSection && (
         <div className="ui-card mb-6 rounded-2xl border-stone-300/80 bg-stone-50/60 p-6">
@@ -1218,51 +1251,33 @@ function ResultContent() {
         </div>
       )}
 
+      {/* チェックリスト */}
       {shouldShowChecklistSection && (
-        <>
-          {/* チェックリスト */}
-          <div ref={checklistSectionRef} className="mb-6">
-            {hasChecklistError ? (
-              <div className="ui-card ui-panel-error rounded-2xl p-6">
-                <h3 className="ui-heading text-lg">チェックリストの生成に失敗しました</h3>
-                <p className="mt-2 text-sm text-stone-800">{checklistErrorMessage}</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleRegenerateChecklist();
-                  }}
-                  disabled={
-                    isChecklistRegenerating ||
-                    isIntentGenerating ||
-                    !result?.intermediate ||
-                    !(result.userIntent?.trim() || intentInput.trim())
-                  }
-                  className="ui-btn ui-btn-primary mt-4 px-5 py-2 text-sm !text-white disabled:opacity-50"
-                >
-                  {isChecklistRegenerating ? 'チェックリストを再生成中...' : 'チェックリストを再生成する'}
-                </button>
-              </div>
-            ) : (
-              <ChecklistViewer items={checklist} onToggle={handleChecklistToggle} />
-            )}
-          </div>
-
-          {/* 漫画ビューア（Phase 2） */}
-          {!hasChecklistError && effectiveHistoryId && (
-            <div ref={mangaSectionRef}>
-              <MangaViewer
-                url={intermediate.metadata.source_url}
-                title={intermediate.title}
-                summary={intermediate.summary}
-                keyPoints={intermediate.keyPoints?.map((point) => point.text)}
-                resultId={result.id}
-                historyId={effectiveHistoryId}
-                initialMangaResult={savedMangaResult}
-                onFlowStateChange={setMangaFlowState}
-              />
+        <div ref={checklistSectionRef} className="mb-6">
+          {hasChecklistError ? (
+            <div className="ui-card ui-panel-error rounded-2xl p-6">
+              <h3 className="ui-heading text-lg">チェックリストの生成に失敗しました</h3>
+              <p className="mt-2 text-sm text-stone-800">{checklistErrorMessage}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRegenerateChecklist();
+                }}
+                disabled={
+                  isChecklistRegenerating ||
+                  isIntentGenerating ||
+                  !result?.intermediate ||
+                  !(result.userIntent?.trim() || intentInput.trim())
+                }
+                className="ui-btn ui-btn-primary mt-4 px-5 py-2 text-sm !text-white disabled:opacity-50"
+              >
+                {isChecklistRegenerating ? 'チェックリストを再生成中...' : 'チェックリストを再生成する'}
+              </button>
             </div>
+          ) : (
+            <ChecklistViewer items={checklist} onToggle={handleChecklistToggle} />
           )}
-        </>
+        </div>
       )}
 
       {/* フィードバックセクション */}
