@@ -45,7 +45,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
           birthDate: birthDateStr,
           gender: data.gender || '',
           occupation: data.occupation || '',
-          nationality: data.nationality || '日本',
+          nationality: data.nationality || '',
           location: data.location || '',
           visualTraits: data.visualTraits || '',
           personality: data.personality || '',
@@ -198,10 +198,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <select
               id="nationality"
               name="nationality"
-              value={profile.nationality || '日本'}
+              value={profile.nationality || ''}
               onChange={handleChange}
               className="ui-select"
             >
+              <option value="">選択してください</option>
               <option value="日本">日本</option>
               <option value="アメリカ">アメリカ</option>
               <option value="イギリス">イギリス</option>
