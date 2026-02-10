@@ -25,11 +25,18 @@ app.post("/process", async (req: Request, res: Response) => {
   const queueName = req.headers["x-cloudtasks-queuename"];
   const retryCount = req.headers["x-cloudtasks-taskretrycount"];
 
+  // リクエストボディのサイズをログ出力
+  const bodyJson = JSON.stringify(req.body);
+  const bodySizeBytes = Buffer.byteLength(bodyJson, 'utf8');
+  const bodySizeKB = (bodySizeBytes / 1024).toFixed(2);
+
   console.log(`[Worker] Processing job: ${resultId}`, {
     taskName,
     queueName,
     retryCount,
     title: request?.title,
+    bodySizeBytes,
+    bodySizeKB: `${bodySizeKB} KB`,
   });
 
   if (!resultId || !request || !userId) {
@@ -71,13 +78,10 @@ app.get("/health", (_req: Request, res: Response) => {
   res.send("OK");
 });
 
-// HTTPステータスコード
-const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
-
 /**
  * エラーがリトライ可能かどうかを判定
  */
-function isRetryableError(error: unknown): boolean {
+function isRetryableError(_error: unknown): boolean {
   // リトライなし: すべてのエラーを非リトライ扱い
   return false;
 }
@@ -85,7 +89,6 @@ function isRetryableError(error: unknown): boolean {
 /**
  * グローバルエラーハンドラー
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error("[Worker] Unhandled error:", err);
   res.status(500).json({ success: false, error: "Internal server error" });

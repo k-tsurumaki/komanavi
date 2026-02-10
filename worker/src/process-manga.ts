@@ -309,6 +309,26 @@ async function generateMangaImage(
 ): Promise<{ imageUrls: string[]; text: string }> {
   const prompt = buildMangaPrompt(request, panels);
 
+  // プロンプトサイズをログ出力
+  const promptSizeBytes = Buffer.byteLength(prompt, 'utf8');
+  const promptSizeKB = (promptSizeBytes / 1024).toFixed(2);
+  console.log(`[Worker] Manga prompt size: ${promptSizeBytes} bytes (${promptSizeKB} KB)`);
+  console.log(`[Worker] Prompt character count: ${prompt.length}`);
+
+  // プロンプトのプレビュー（最初の500文字と最後の500文字）
+  const previewLength = 500;
+  if (prompt.length > previewLength * 2) {
+    console.log(`[Worker] Prompt preview (first ${previewLength} chars):`);
+    console.log(prompt.substring(0, previewLength));
+    console.log(`[Worker] Prompt preview (last ${previewLength} chars):`);
+    console.log(prompt.substring(prompt.length - previewLength));
+  } else {
+    console.log('[Worker] Full prompt:');
+    console.log(prompt);
+  }
+
+  console.log(`[Worker] Calling Gemini API with model: ${MODEL_ID}`);
+
   const result = (await ai.models.generateContent({
     model: MODEL_ID,
     contents: [
@@ -364,6 +384,15 @@ export async function processManga(
     userId,
   });
 
+  // リクエストのサイズと構造をログ出力
+  const requestJson = JSON.stringify(request);
+  const requestSizeBytes = Buffer.byteLength(requestJson, 'utf8');
+  const requestSizeKB = (requestSizeBytes / 1024).toFixed(2);
+  console.log(`[Worker] Job ${resultId}: Request size: ${requestSizeBytes} bytes (${requestSizeKB} KB)`);
+  console.log(`[Worker] Job ${resultId}: Document type: ${request.documentType}`);
+  console.log(`[Worker] Job ${resultId}: Summary length: ${request.summary?.length || 0} chars`);
+  console.log(`[Worker] Job ${resultId}: Has personalization: ${!!(request.userIntent || request.userProfile)}`);
+
   try {
     // 1. ステータス更新: processing (30%)
     await updateMangaJobStatus(resultId, 'processing', 30);
@@ -371,6 +400,8 @@ export async function processManga(
 
     // 2. パネル構成を生成
     const baseResult = buildPanels(request);
+    console.log(`[Worker] Job ${resultId}: Generated ${baseResult.panels.length} panels`);
+    console.log(`[Worker] Job ${resultId}: Panel texts:`, baseResult.panels.map(p => p.text));
 
     // 3. ステータス更新: processing (50%)
     await updateMangaJobStatus(resultId, 'processing', 50);
@@ -409,7 +440,26 @@ export async function processManga(
   } catch (error) {
     console.error(`[Worker] ジョブ ${resultId}: 処理エラー:`, error);
 
+    // エラーの詳細をログ出力
+    if (error instanceof Error) {
+      console.error(`[Worker] Job ${resultId}: Error name: ${error.name}`);
+      console.error(`[Worker] Job ${resultId}: Error message: ${error.message}`);
+      console.error(`[Worker] Job ${resultId}: Error stack:`, error.stack);
+    }
+
+    // APIエラーの詳細を出力
     const status = (error as { status?: number })?.status;
+    const response = (error as { response?: unknown })?.response;
+    const details = (error as { details?: unknown })?.details;
+
+    console.error(`[Worker] Job ${resultId}: Error status code: ${status || 'N/A'}`);
+    if (response) {
+      console.error(`[Worker] Job ${resultId}: Error response:`, JSON.stringify(response, null, 2));
+    }
+    if (details) {
+      console.error(`[Worker] Job ${resultId}: Error details:`, JSON.stringify(details, null, 2));
+    }
+
     const errorCode = status === HTTP_STATUS_TOO_MANY_REQUESTS ? 'rate_limited' : 'api_error';
     const errorMessage =
       status === HTTP_STATUS_TOO_MANY_REQUESTS

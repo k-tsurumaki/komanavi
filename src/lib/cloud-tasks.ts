@@ -111,6 +111,14 @@ export async function enqueueMangaTask(
     userId,
   };
 
+  // ペイロードサイズをログ出力
+  const payloadJson = JSON.stringify(payload);
+  const payloadSizeBytes = Buffer.byteLength(payloadJson, 'utf8');
+  const payloadSizeKB = (payloadSizeBytes / 1024).toFixed(2);
+  console.log(`[Cloud Tasks] Payload size: ${payloadSizeBytes} bytes (${payloadSizeKB} KB)`);
+  console.log(`[Cloud Tasks] Request summary length: ${request.summary?.length || 0} chars`);
+  console.log(`[Cloud Tasks] Request title: ${request.title}`);
+
   // タスクを作成
   // タスク名にタイムスタンプを付与して一意にする
   // Cloud Tasks は完了済みタスクと同じ名前を最大1時間再利用できない（トゥームストーン）ため、
@@ -136,6 +144,7 @@ export async function enqueueMangaTask(
 
   const [response] = await client.createTask({ parent, task });
   console.log(`[Cloud Tasks] タスク作成: ${response.name}`);
+  console.log(`[Cloud Tasks] Worker URL: ${workerUrl}`);
   return response.name ?? resultId;
 }
 
