@@ -13,6 +13,17 @@ export type MypageProfileLike = {
   personality?: unknown;
 };
 
+export type MypageProfileFormValues = {
+  displayName: string;
+  birthDate: string;
+  gender: string;
+  occupation: string;
+  nationality: string;
+  location: string;
+  visualTraits: string;
+  personality: string;
+};
+
 const MYPAGE_PROFILE_STRING_FIELDS = [
   'displayName',
   'gender',
@@ -52,6 +63,73 @@ function hasBirthDateValue(value: unknown): boolean {
   }
 
   return false;
+}
+
+function normalizeProfileString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeBirthDateForInput(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === 'string') {
+    if (value.trim().length === 0) {
+      return '';
+    }
+
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+    return '';
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  ) {
+    const parsed = (value as TimestampLike).toDate();
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return '';
+}
+
+export function getEmptyMypageProfileFormValues(): MypageProfileFormValues {
+  return {
+    displayName: '',
+    birthDate: '',
+    gender: '',
+    occupation: '',
+    nationality: '',
+    location: '',
+    visualTraits: '',
+    personality: '',
+  };
+}
+
+export function toMypageProfileFormValues(
+  profile: MypageProfileLike | null | undefined
+): MypageProfileFormValues {
+  const values = getEmptyMypageProfileFormValues();
+  if (!profile || typeof profile !== 'object') {
+    return values;
+  }
+
+  return {
+    displayName: normalizeProfileString(profile.displayName),
+    birthDate: normalizeBirthDateForInput(profile.birthDate),
+    gender: normalizeProfileString(profile.gender),
+    occupation: normalizeProfileString(profile.occupation),
+    nationality: normalizeProfileString(profile.nationality),
+    location: normalizeProfileString(profile.location),
+    visualTraits: normalizeProfileString(profile.visualTraits),
+    personality: normalizeProfileString(profile.personality),
+  };
 }
 
 export function hasMypageStarted(profile: MypageProfileLike | null | undefined): boolean {

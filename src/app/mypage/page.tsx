@@ -1,6 +1,11 @@
 import { auth } from '@/lib/auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { hasMypageStarted } from '@/lib/mypage-profile';
+import {
+  getEmptyMypageProfileFormValues,
+  hasMypageStarted,
+  toMypageProfileFormValues,
+  type MypageProfileFormValues,
+} from '@/lib/mypage-profile';
 import { redirect } from 'next/navigation';
 import { FlowStartTracker } from './FlowStartTracker';
 import { ProfileForm } from './ProfileForm';
@@ -24,20 +29,34 @@ function getSingleParam(value: string | string[] | undefined): string | null {
   return null;
 }
 
-async function hasStartedMypage(userId: string): Promise<boolean> {
+type MypageBootstrap = {
+  hasStartedProfile: boolean;
+  initialProfile: MypageProfileFormValues;
+};
+
+async function getMypageBootstrap(userId: string): Promise<MypageBootstrap> {
   const db = getAdminFirestore();
   const docSnap = await db.collection('users').doc(userId).get();
 
   if (!docSnap.exists) {
-    return false;
+    return {
+      hasStartedProfile: false,
+      initialProfile: getEmptyMypageProfileFormValues(),
+    };
   }
 
   const data = docSnap.data();
   if (!data) {
-    return false;
+    return {
+      hasStartedProfile: false,
+      initialProfile: getEmptyMypageProfileFormValues(),
+    };
   }
 
-  return hasMypageStarted(data);
+  return {
+    hasStartedProfile: hasMypageStarted(data),
+    initialProfile: toMypageProfileFormValues(data),
+  };
 }
 
 export default async function MyPage({ searchParams }: MyPageProps) {
@@ -52,10 +71,15 @@ export default async function MyPage({ searchParams }: MyPageProps) {
   const step = getSingleParam(params.step);
   const isCreationFlowStart = flow === 'create' && step === '1';
   let hasStartedProfile = false;
+  let initialProfile = getEmptyMypageProfileFormValues();
+  let hasBootstrapError = false;
 
   try {
-    hasStartedProfile = await hasStartedMypage(session.user.id);
+    const bootstrap = await getMypageBootstrap(session.user.id);
+    hasStartedProfile = bootstrap.hasStartedProfile;
+    initialProfile = bootstrap.initialProfile;
   } catch (error) {
+    hasBootstrapError = true;
     console.error('Failed to resolve mypage started status:', error);
   }
 
@@ -86,7 +110,11 @@ export default async function MyPage({ searchParams }: MyPageProps) {
             : '漫画生成で使うプロフィールを必要な範囲で入力できます。'}
         </p>
       </header>
-      <ProfileForm user={session.user} />
+      <ProfileForm
+        user={session.user}
+        initialProfile={initialProfile}
+        hasBootstrapError={hasBootstrapError}
+      />
     </div>
   );
 }
