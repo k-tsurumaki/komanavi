@@ -10,6 +10,7 @@ import {
 import type {
   AnalyzeResult,
   AnalyzeRequest,
+  ChecklistResponse,
   DeepDiveResponse,
   IntermediateRepresentation,
   IntentAnswerResponse,
@@ -163,6 +164,33 @@ export async function POST(request: NextRequest) {
           checklistState: checklistGeneration.state,
           checklistError: checklistGeneration.error,
         } satisfies IntentAnswerResponse
+      );
+    }
+
+    if (body.mode === 'checklist') {
+      if (!body.userIntent?.trim()) {
+        return NextResponse.json(
+          { status: 'error', error: 'userIntentが指定されていません' } satisfies ChecklistResponse,
+          { status: 400 }
+        );
+      }
+      if (!body.intermediate) {
+        return NextResponse.json(
+          { status: 'error', error: 'intermediateが指定されていません' } satisfies ChecklistResponse,
+          { status: 400 }
+        );
+      }
+
+      const personalizationInput = await buildPersonalizationInput(body.userIntent);
+      const checklistGeneration = await generateChecklistWithState(body.intermediate, personalizationInput);
+
+      return NextResponse.json(
+        {
+          status: 'success',
+          checklist: checklistGeneration.checklist,
+          checklistState: checklistGeneration.state,
+          checklistError: checklistGeneration.error,
+        } satisfies ChecklistResponse
       );
     }
 

@@ -354,6 +354,13 @@ export interface IntentAnswerRequest {
   checklistTexts?: string[];
 }
 
+/** チェックリスト再生成リクエスト */
+export interface ChecklistRequest {
+  mode: 'checklist';
+  userIntent: string;
+  intermediate: IntermediateRepresentation;
+}
+
 /** 深掘りレスポンス */
 export interface DeepDiveResponse {
   status: 'success' | 'error';
@@ -372,6 +379,15 @@ export interface IntentAnswerResponse {
   error?: string;
 }
 
+/** チェックリスト再生成レスポンス */
+export interface ChecklistResponse {
+  status: 'success' | 'error';
+  checklist?: ChecklistItem[];
+  checklistState?: Exclude<ChecklistGenerationState, 'not_requested'>;
+  checklistError?: string;
+  error?: string;
+}
+
 /** 解析リクエスト */
 export type AnalyzeRequest =
   | {
@@ -381,7 +397,8 @@ export type AnalyzeRequest =
       mode?: 'default';
     }
   | DeepDiveRequest
-  | IntentAnswerRequest;
+  | IntentAnswerRequest
+  | ChecklistRequest;
 
 /** 解析ステータス */
 export type AnalyzeStatus = 'idle' | 'loading' | 'success' | 'error';

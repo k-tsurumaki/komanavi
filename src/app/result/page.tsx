@@ -27,12 +27,16 @@ import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
 import type {
   ChatMessage,
+  ChecklistResponse,
   ChecklistGenerationState,
   ChecklistItem,
   IntentAnswerResponse,
   MangaResult,
 } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
+
+const DEFAULT_CHECKLIST_ERROR_MESSAGE =
+  'チェックリストの生成に失敗しました。時間をおいて再試行してください。';
 
 function ResultContent() {
   const router = useRouter();
@@ -75,6 +79,7 @@ function ResultContent() {
   const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
   const [intentError, setIntentError] = useState<string | null>(null);
   const [isIntentGenerating, setIsIntentGenerating] = useState(false);
+  const [isChecklistRegenerating, setIsChecklistRegenerating] = useState(false);
   const [isIntentLocked, setIsIntentLocked] = useState(false);
   const [chatMode, setChatMode] = useState<'deepDive' | 'intent'>('deepDive');
   const [hasIntentStepVisited, setHasIntentStepVisited] = useState(false);
@@ -569,9 +574,7 @@ function ResultContent() {
     .filter((text): text is string => Boolean(text));
   const shouldShowGuidanceSection = guidanceUnlocked || isIntentGenerating;
   const shouldShowChecklistSection = guidanceUnlocked && !isIntentGenerating;
-  const checklistErrorMessage =
-    result.checklistError ||
-    'アクセスが集中しているため、チェックリストを生成できませんでした。時間をおいて再試行してください。';
+  const checklistErrorMessage = result.checklistError || DEFAULT_CHECKLIST_ERROR_MESSAGE;
 
   const handleChecklistToggle = (id: string, completed: boolean) => {
     setHasChecklistReviewed(true);
@@ -750,17 +753,12 @@ function ResultContent() {
         throw new Error(payload.error || '意図回答の生成に失敗しました');
       }
 
-      const checklistStateFromPayload = payload.checklistState ?? 'ready';
-      const hasExistingChecklist = result.checklist.length > 0;
-      const shouldPreserveChecklist = checklistStateFromPayload === 'error' && hasExistingChecklist;
-      const generatedChecklist = shouldPreserveChecklist
-        ? result.checklist
-        : (payload.checklist ?? []);
-      const nextChecklistState = shouldPreserveChecklist ? 'ready' : checklistStateFromPayload;
+      const nextChecklistState = payload.checklistState ?? 'ready';
+      const generatedChecklist =
+        nextChecklistState === 'ready' ? (payload.checklist ?? []) : result.checklist;
       const nextChecklistError =
         nextChecklistState === 'error'
-          ? payload.checklistError ||
-            'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+          ? payload.checklistError || DEFAULT_CHECKLIST_ERROR_MESSAGE
           : undefined;
 
       setResult({
@@ -777,7 +775,7 @@ function ResultContent() {
       setIsIntentLocked(true);
 
       const historyPatch = {
-        checklist: generatedChecklist,
+        ...(nextChecklistState === 'ready' ? { checklist: generatedChecklist } : {}),
         userIntent: trimmedIntent,
         intentAnswer: payload.intentAnswer,
         guidanceUnlocked: true,
@@ -798,6 +796,87 @@ function ResultContent() {
       setIntentError(err instanceof Error ? err.message : '意図回答の生成に失敗しました');
       setIsIntentGenerating(false);
       setIsIntentLocked(wasGuidanceUnlocked);
+    }
+  };
+
+  const handleRegenerateChecklist = async () => {
+    if (!result?.intermediate || isIntentGenerating || isChecklistRegenerating) {
+      return;
+    }
+
+    const retryIntent = (result.userIntent || intentInput).trim();
+    if (!retryIntent) {
+      setIntentError('チェックリストを再生成するには意図の入力が必要です');
+      return;
+    }
+
+    setIntentError(null);
+    setIsChecklistRegenerating(true);
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'checklist',
+          userIntent: retryIntent,
+          intermediate: result.intermediate,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as ChecklistResponse;
+      if (!response.ok || payload.status === 'error') {
+        throw new Error(payload.error || DEFAULT_CHECKLIST_ERROR_MESSAGE);
+      }
+
+      const nextChecklistState = payload.checklistState ?? 'ready';
+      const generatedChecklist =
+        nextChecklistState === 'ready' ? (payload.checklist ?? []) : result.checklist;
+      const nextChecklistError =
+        nextChecklistState === 'error'
+          ? payload.checklistError || DEFAULT_CHECKLIST_ERROR_MESSAGE
+          : undefined;
+
+      setResult({
+        ...result,
+        checklist: generatedChecklist,
+        checklistState: nextChecklistState,
+        checklistError: nextChecklistError,
+        userIntent: retryIntent,
+      });
+      if (nextChecklistState === 'ready') {
+        setHasChecklistReviewed(false);
+      }
+
+      const historyPatch = {
+        ...(nextChecklistState === 'ready' ? { checklist: generatedChecklist } : {}),
+        checklistState: nextChecklistState,
+        checklistError: nextChecklistError,
+      };
+
+      if (effectiveHistoryId) {
+        void patchHistoryResult(effectiveHistoryId, historyPatch).catch((patchError) => {
+          scheduleHistoryPatch(historyPatch);
+          setIntentError('チェックリストは更新されましたが、履歴の保存に失敗しました');
+          console.warn('チェックリスト更新の履歴保存に失敗しました', patchError);
+        });
+      } else {
+        scheduleHistoryPatch(historyPatch);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message ? err.message : DEFAULT_CHECKLIST_ERROR_MESSAGE;
+      setResult({
+        ...result,
+        checklistState: 'error',
+        checklistError: message,
+      });
+      scheduleHistoryPatch({
+        checklistState: 'error',
+        checklistError: message,
+      });
+    } finally {
+      setIsChecklistRegenerating(false);
     }
   };
 
@@ -1145,12 +1224,17 @@ function ResultContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    void handleConfirmIntent();
+                    void handleRegenerateChecklist();
                   }}
-                  disabled={isIntentGenerating || !intentInput.trim() || !result?.intermediate}
+                  disabled={
+                    isChecklistRegenerating ||
+                    isIntentGenerating ||
+                    !result?.intermediate ||
+                    !(result.userIntent?.trim() || intentInput.trim())
+                  }
                   className="ui-btn ui-btn-primary mt-4 px-5 py-2 text-sm !text-white disabled:opacity-50"
                 >
-                  チェックリストを再生成する
+                  {isChecklistRegenerating ? 'チェックリストを再生成中...' : 'チェックリストを再生成する'}
                 </button>
               </div>
             ) : (
