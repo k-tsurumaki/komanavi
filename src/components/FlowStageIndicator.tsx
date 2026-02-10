@@ -17,7 +17,7 @@ const STICKY_NAV_MEDIA_QUERY = '(min-width: 1024px)';
 function getStatusLabel(status: FlowStepStatus): string | null {
   if (status === 'completed') return null;
   if (status === 'in_progress') return null;
-  if (status === 'error') return '要対応';
+  if (status === 'error') return null;
   if (status === 'skipped') return 'スキップ';
   return null;
 }

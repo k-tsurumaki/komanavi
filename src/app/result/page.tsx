@@ -23,6 +23,7 @@ import {
   type FlowStepId,
   type MangaFlowState,
 } from '@/lib/flow-stage';
+import { ANALYZE_ERROR_MESSAGE } from '@/lib/error-messages';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
@@ -581,7 +582,7 @@ function ResultContent() {
       <div className="ui-page ui-shell-gap">
         {renderFlowIndicator()}
         <div className="ui-card ui-panel-error rounded-2xl p-6 text-center">
-          <p className="mb-4 text-stone-900">{error || '解析に失敗しました'}</p>
+          <p className="mb-4 text-stone-900">{error || ANALYZE_ERROR_MESSAGE}</p>
           <Link
             href="/analyze"
             onClick={handleBackToHome}

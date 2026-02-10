@@ -22,6 +22,12 @@ import {
   toPersonalizationInput,
   DEFAULT_USER_INTENT,
 } from '@/lib/user-profile';
+import {
+  ANALYZE_ERROR_MESSAGE,
+  CHECKLIST_ERROR_MESSAGE,
+  DEEP_DIVE_ERROR_MESSAGE,
+  INTENT_ANSWER_ERROR_MESSAGE,
+} from '@/lib/error-messages';
 
 // インメモリキャッシュ（開発用）
 const cache = new Map<string, { intermediate: IntermediateRepresentation; expiresAt: number }>();
@@ -92,9 +98,19 @@ async function buildPersonalizationInput(userIntent?: string): Promise<Personali
   return personalizationInput;
 }
 
+function getUnexpectedAnalyzeErrorMessage(mode?: AnalyzeRequest['mode']): string {
+  if (mode === 'deepDive') return DEEP_DIVE_ERROR_MESSAGE;
+  if (mode === 'intent') return INTENT_ANSWER_ERROR_MESSAGE;
+  if (mode === 'checklist') return CHECKLIST_ERROR_MESSAGE;
+  return ANALYZE_ERROR_MESSAGE;
+}
+
 export async function POST(request: NextRequest) {
+  let mode: AnalyzeRequest['mode'] | undefined;
+
   try {
     const body: AnalyzeRequest = await request.json();
+    mode = body.mode;
     if (body.mode === 'deepDive') {
       if (!body.summary) {
         return NextResponse.json(
@@ -275,11 +291,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Analyze API error:', error);
+
+    const errorMessage = getUnexpectedAnalyzeErrorMessage(mode);
+
+    if (mode === 'deepDive') {
+      return NextResponse.json(
+        {
+          status: 'error',
+          error: errorMessage,
+        } satisfies DeepDiveResponse,
+        { status: 500 }
+      );
+    }
+
+    if (mode === 'intent') {
+      return NextResponse.json(
+        {
+          status: 'error',
+          error: errorMessage,
+        } satisfies IntentAnswerResponse,
+        { status: 500 }
+      );
+    }
+
+    if (mode === 'checklist') {
+      return NextResponse.json(
+        {
+          status: 'error',
+          error: errorMessage,
+        } satisfies ChecklistResponse,
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       {
         id: crypto.randomUUID(),
         status: 'error',
-        error: '予期しないエラーが発生しました',
+        error: errorMessage,
       } satisfies Partial<AnalyzeResult>,
       { status: 500 }
     );
