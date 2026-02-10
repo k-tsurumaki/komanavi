@@ -22,7 +22,10 @@ export interface FlowStageContext {
   analyzeStatus: AnalyzeStatus;
   isHistoryResolving: boolean;
   hasIntermediate: boolean;
+  hasMangaSurfaceAvailable: boolean;
   hasIntentInput: boolean;
+  hasAnswerAvailable: boolean;
+  hasAnswerReviewed: boolean;
   hasIntentStepVisited?: boolean;
   hasDeepDiveStepVisited?: boolean;
   hasIntentGenerationError: boolean;
@@ -60,13 +63,23 @@ export interface FlowStageModel {
   nextAction?: FlowNextAction;
 }
 
+export const FLOW_STEP_DISPLAY_ORDER: FlowStepId[] = [
+  'analyze_url',
+  'review_summary',
+  'deep_dive',
+  'input_intent',
+  'manga_review',
+  'generate_answer',
+  'review_checklist',
+];
+
 const REQUIRED_STEPS: Array<Pick<FlowStepView, 'id' | 'label'>> = [
   { id: 'analyze_url', label: 'URLを解析' },
   { id: 'review_summary', label: '要点を確認' },
   { id: 'input_intent', label: '意図を入力' },
+  { id: 'manga_review', label: '漫画で確認' },
   { id: 'generate_answer', label: 'あなた向けの回答を作成' },
   { id: 'review_checklist', label: 'チェックリストを確認' },
-  { id: 'manga_review', label: '漫画で確認' },
 ];
 
 const OPTIONAL_STEPS: Array<Pick<FlowStepView, 'id' | 'label'>> = [
@@ -97,13 +110,21 @@ function createOptionalStep(id: FlowStepId, label: string): FlowStepView {
 
 function normalizeMangaState(
   manga: MangaFlowState | undefined,
-  available: boolean
+  options: { flowAvailable: boolean; hasSurface: boolean }
 ): Pick<FlowStepView, 'status' | 'available' | 'helperText'> {
-  if (!available) {
+  if (!options.flowAvailable) {
     return {
       status: 'not_started',
       available: false,
       helperText: '回答生成後に利用できます',
+    };
+  }
+
+  if (!options.hasSurface) {
+    return {
+      status: 'not_started',
+      available: false,
+      helperText: '履歴保存後に利用できます',
     };
   }
 
@@ -175,9 +196,9 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
   const hasReachedIntentStage = Boolean(
     context.hasIntentStepVisited ||
     isIntentStepCompleted ||
-      context.isIntentGenerating ||
-      context.hasIntentGenerationError ||
-      context.guidanceUnlocked
+    context.isIntentGenerating ||
+    context.hasIntentGenerationError ||
+    context.guidanceUnlocked
   );
   const canReviewSummary = Boolean(context.hasIntermediate);
   const canUseInteractionSteps = Boolean(context.hasIntermediate);
@@ -230,7 +251,10 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
 
   const normalizedManga = normalizeMangaState(
     context.manga,
-    Boolean(context.guidanceUnlocked && context.hasIntermediate && !context.isIntentGenerating)
+    {
+      flowAvailable: Boolean(context.guidanceUnlocked && context.hasIntermediate && !context.isIntentGenerating),
+      hasSurface: context.hasMangaSurfaceAvailable,
+    }
   );
   mangaStep.status = normalizedManga.status;
   mangaStep.available = normalizedManga.available;
@@ -283,41 +307,57 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
         : { stepId: 'input_intent', label: '意図を入力して再試行' };
     } else if (context.guidanceUnlocked) {
       intentStep.status = 'completed';
-      answerStep.status = 'completed';
+      if (context.hasAnswerAvailable) {
+        answerStep.status = context.hasAnswerReviewed ? 'completed' : 'in_progress';
+      } else {
+        answerStep.status = 'skipped';
+        answerStep.helperText = '回答が未生成のためスキップしました';
+      }
       if (context.hasChecklistError) {
         checklistStep.status = 'error';
-        currentStepId = 'review_checklist';
-        statusText = 'チェックリスト生成で停止しました';
-        nextAction = { stepId: 'review_checklist', label: 'チェックリストを再生成' };
+      } else if (context.hasChecklistAvailable) {
+        checklistStep.status = context.hasChecklistReviewed ? 'completed' : 'in_progress';
       } else {
-        checklistStep.status = context.hasChecklistAvailable
-          ? context.hasChecklistReviewed
-            ? 'completed'
-            : 'in_progress'
-          : 'completed';
-        const checklistPending = context.hasChecklistAvailable && !context.hasChecklistReviewed;
+        checklistStep.status =
+          context.hasAnswerAvailable && !context.hasAnswerReviewed ? 'not_started' : 'completed';
+      }
 
-        if (checklistPending) {
-          currentStepId = 'review_checklist';
-          statusText = 'チェックリストで行動に移せます';
-          nextAction = { stepId: 'review_checklist', label: 'チェックリストを見る' };
-        } else if (mangaStep.status === 'completed') {
-          currentStepId = 'manga_review';
-          statusText = '必須タスクを完了しました';
-          nextAction = undefined;
-        } else if (mangaStep.status === 'in_progress') {
-          currentStepId = 'manga_review';
+      const mangaPending =
+        mangaStep.available !== false &&
+        (mangaStep.status === 'not_started' ||
+          mangaStep.status === 'in_progress' ||
+          mangaStep.status === 'error');
+      const answerPending = context.hasAnswerAvailable && !context.hasAnswerReviewed;
+      const checklistPending = context.hasChecklistAvailable && !context.hasChecklistReviewed;
+
+      if (mangaPending) {
+        currentStepId = 'manga_review';
+        if (mangaStep.status === 'in_progress') {
           statusText = '漫画を生成しています';
           nextAction = undefined;
         } else if (mangaStep.status === 'error') {
-          currentStepId = 'manga_review';
           statusText = '漫画生成で停止しました';
           nextAction = { stepId: 'manga_review', label: '漫画生成を再試行' };
         } else {
-          currentStepId = 'manga_review';
           statusText = '漫画で確認して理解を定着させましょう';
           nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
         }
+      } else if (answerPending) {
+        currentStepId = 'generate_answer';
+        statusText = '回答を確認して次に進みましょう';
+        nextAction = { stepId: 'generate_answer', label: '回答を確認する' };
+      } else if (checklistStep.status === 'error') {
+        currentStepId = 'review_checklist';
+        statusText = 'チェックリスト生成で停止しました';
+        nextAction = { stepId: 'review_checklist', label: 'チェックリストを再生成' };
+      } else if (checklistPending) {
+        currentStepId = 'review_checklist';
+        statusText = 'チェックリストで行動に移せます';
+        nextAction = { stepId: 'review_checklist', label: 'チェックリストを見る' };
+      } else {
+        currentStepId = 'review_checklist';
+        statusText = '必須タスクを完了しました';
+        nextAction = undefined;
       }
     } else if (context.hasDeepDiveStepVisited) {
       if (isIntentStepCompleted) {

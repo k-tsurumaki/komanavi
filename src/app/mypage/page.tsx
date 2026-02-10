@@ -110,7 +110,7 @@ export default async function MyPage({ searchParams }: MyPageProps) {
                 <path d="M22 11h-6" />
               </svg>
             </span>
-            1項目入力して保存するだけで開始できます
+            パーソナライズ：1項目入力して保存するだけで開始できます。
           </p>
           <p className="mt-1.5 text-sm text-stone-800">
             すべての項目は任意です。後からいつでも編集できます。

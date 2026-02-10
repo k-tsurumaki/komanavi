@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { FLOW_STEP_DISPLAY_ORDER } from '@/lib/flow-stage';
 import type { FlowStageModel, FlowStepId, FlowStepStatus, FlowStepView } from '@/lib/flow-stage';
 
 interface FlowStageIndicatorProps {
@@ -9,15 +10,6 @@ interface FlowStageIndicatorProps {
   className?: string;
 }
 
-const FLOW_STEP_DISPLAY_ORDER: FlowStepId[] = [
-  'analyze_url',
-  'review_summary',
-  'deep_dive',
-  'input_intent',
-  'generate_answer',
-  'review_checklist',
-  'manga_review',
-];
 const STICKY_NAV_GAP_PX = 8;
 const STICKY_NAV_HIDE_HYSTERESIS_PX = 16;
 const STICKY_NAV_MEDIA_QUERY = '(min-width: 1024px)';
@@ -25,7 +17,7 @@ const STICKY_NAV_MEDIA_QUERY = '(min-width: 1024px)';
 function getStatusLabel(status: FlowStepStatus): string | null {
   if (status === 'completed') return null;
   if (status === 'in_progress') return null;
-  if (status === 'error') return '要対応';
+  if (status === 'error') return null;
   if (status === 'skipped') return 'スキップ';
   return null;
 }

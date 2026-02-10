@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AnalyzeResult, AnalyzeStatus, ChatMessage } from '@/lib/types/intermediate';
 import { saveHistoryFromResult } from '@/lib/history-api';
+import { ANALYZE_ERROR_MESSAGE } from '@/lib/error-messages';
 
 interface AnalyzeState {
   // 入力URL
@@ -97,13 +98,13 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || '解析に失敗しました');
+        throw new Error(errorData.error || ANALYZE_ERROR_MESSAGE);
       }
 
       const data: AnalyzeResult = await response.json();
 
       if (data.status === 'error') {
-        throw new Error(data.error || '解析に失敗しました');
+        throw new Error(data.error || ANALYZE_ERROR_MESSAGE);
       }
 
       if (get().activeAnalyzeRequestId !== requestId) {
@@ -154,7 +155,9 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       if (get().activeAnalyzeRequestId !== requestId) {
         return;
       }
-      const message = err instanceof Error ? err.message : '予期しないエラーが発生しました';
+      const message = err instanceof Error
+        ? err.message
+        : ANALYZE_ERROR_MESSAGE;
       setError(message);
       setStatus('error');
     }
