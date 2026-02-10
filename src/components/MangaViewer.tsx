@@ -313,16 +313,6 @@ export function MangaViewer(props: MangaViewerProps) {
     return null;
   }, [url]);
 
-  const fallbackTexts = useMemo(() => {
-    if (result?.panels?.length) {
-      return result.panels.map((panel) => panel.text).filter(Boolean);
-    }
-    if (keyPoints && keyPoints.length > 0) {
-      return keyPoints.filter(Boolean);
-    }
-    return [summary].filter(Boolean);
-  }, [keyPoints, summary, result?.panels]);
-
   const clearPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -706,19 +696,6 @@ export function MangaViewer(props: MangaViewerProps) {
             </div>
           )}
 
-          {error && fallbackTexts.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="mb-2 text-sm font-semibold text-slate-700">
-                テキスト要約でご案内します
-              </p>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
-                {fallbackTexts.map((text, index) => (
-                  <li key={`${text}-${index}`}>{text}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {!error && canGenerateMessage && (
             <div className="ui-callout ui-callout-info">{canGenerateMessage}</div>
           )}
@@ -726,23 +703,13 @@ export function MangaViewer(props: MangaViewerProps) {
           {!error && !isPolling && !canGenerateMessage && (
             <div className="text-sm text-slate-500">
               {isLoggedIn
-                ? '生成失敗時はテキスト要約を表示します。'
+                ? '漫画を生成してみましょう。'
                 : 'ログインすると生成した漫画が履歴に保存されます。'}
             </div>
           )}
         </div>
       )}
 
-      {(error || (result && !imageUrl && !isPolling && !isRegenerating)) && (
-        <div className="mt-4 space-y-2 text-sm text-slate-600">
-          <p>テキスト要約にフォールバックしました。</p>
-          <ul className="list-disc pl-5">
-            {(result?.panels ?? [{ id: 'summary', text: summary }]).map((panel) => (
-              <li key={panel.id}>{panel.text}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

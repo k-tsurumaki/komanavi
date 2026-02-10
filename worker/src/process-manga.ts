@@ -248,72 +248,6 @@ function buildPanels(request: MangaRequest): MangaResult {
   };
 }
 
-/**
- * フォールバック結果を生成（エラー時用）
- */
-function buildFallback(request: MangaRequest): MangaResult {
-  const panels: MangaPanel[] = [];
-  let nextPanelId = 1;
-
-  // 1. warnings（最優先）
-  if (request.warnings && request.warnings.length > 0) {
-    request.warnings.slice(0, 2).forEach((warning) => {
-      panels.push({
-        id: `fallback-${nextPanelId++}`,
-        text: warning,
-      });
-    });
-  }
-
-  // 2. 重要情報（給付額、期限、対象者）
-  if (request.benefits?.amount) {
-    panels.push({
-      id: `fallback-${nextPanelId++}`,
-      text: `給付額: ${request.benefits.amount}`,
-    });
-  }
-  if (request.procedure?.deadline) {
-    panels.push({
-      id: `fallback-${nextPanelId++}`,
-      text: `期限: ${request.procedure.deadline}`,
-    });
-  }
-  if (request.target?.eligibility_summary) {
-    panels.push({
-      id: `fallback-${nextPanelId++}`,
-      text: `対象: ${request.target.eligibility_summary}`,
-    });
-  }
-
-  // 3. keyPoints
-  if (panels.length < 6 && request.keyPoints && request.keyPoints.length > 0) {
-    request.keyPoints.slice(0, 6 - panels.length).forEach((point) => {
-      panels.push({
-        id: `fallback-${nextPanelId++}`,
-        text: point,
-      });
-    });
-  }
-
-  // 4. summaryで補填
-  if (panels.length === 0) {
-    panels.push({ id: `fallback-${nextPanelId++}`, text: request.summary });
-  }
-
-  return {
-    title: request.title,
-    panels,
-    imageUrls: [],
-    meta: {
-      panelCount: panels.length,
-      generatedAt: new Date().toISOString(),
-      sourceUrl: request.url,
-      format: 'png',
-      maxEdge: MAX_EDGE,
-      title: request.title,
-    },
-  };
-}
 
 /**
  * Gemini 用のプロンプトを生成
@@ -501,8 +435,8 @@ export async function processManga(
         ? '現在アクセスが集中しています。時間をおいて再度お試しください。'
         : '漫画生成中にエラーが発生しました';
 
-    // エラーを Firestore に記録
-    await updateMangaJobError(resultId, errorCode, errorMessage, buildFallback(request));
+    // エラーを Firestore に記録（フォールバックなし）
+    await updateMangaJobError(resultId, errorCode, errorMessage);
 
     // エラーを再スロー（リトライ判定のため）
     throw error;
