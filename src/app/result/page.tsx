@@ -326,11 +326,12 @@ function ResultContent() {
   const checklistState = result?.checklistState ?? (guidanceUnlocked ? 'ready' : 'not_requested');
   const hasChecklistError = checklistState === 'error';
   const hasIntentInput = Boolean(intentInput.trim() || result?.userIntent?.trim());
+  const hasAnswerAvailable = Boolean(result?.intentAnswer?.trim());
   const hasChecklistAvailable = Boolean(result?.checklist?.length) && !hasChecklistError;
   const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving && !hasIntermediate);
   const hasIntentGenerationError = Boolean(intentError && !isIntentGenerating && !guidanceUnlocked);
   const shouldObserveAnswer = Boolean(
-    guidanceUnlocked && !isIntentGenerating && result?.intentAnswer && !hasAnswerReviewed
+    guidanceUnlocked && !isIntentGenerating && hasAnswerAvailable && !hasAnswerReviewed
   );
   const shouldObserveChecklist = Boolean(
     guidanceUnlocked && !isIntentGenerating && hasChecklistAvailable && !hasChecklistReviewed
@@ -344,6 +345,7 @@ function ResultContent() {
         hasIntermediate,
         hasMangaSurfaceAvailable: Boolean(effectiveHistoryId),
         hasIntentInput,
+        hasAnswerAvailable,
         hasAnswerReviewed,
         hasIntentStepVisited,
         hasDeepDiveStepVisited: chatMode === 'deepDive',
@@ -361,6 +363,7 @@ function ResultContent() {
       canAnalyzeFromUrl,
       effectiveHistoryId,
       guidanceUnlocked,
+      hasAnswerAvailable,
       hasAnswerReviewed,
       hasChecklistAvailable,
       hasChecklistError,
@@ -475,7 +478,17 @@ function ResultContent() {
 
       if (stepId === 'generate_answer') {
         if (guidanceUnlocked && !isIntentGenerating) {
-          scrollToSection(answerSectionRef.current);
+          if (hasAnswerAvailable) {
+            scrollToSection(answerSectionRef.current);
+          } else {
+            setHasIntentStepVisited(true);
+            setChatMode('intent');
+            setIsIntentLocked(false);
+            scrollToSection(interactionSectionRef.current);
+            window.setTimeout(() => {
+              intentTextareaRef.current?.focus();
+            }, 0);
+          }
           return;
         }
         setHasIntentStepVisited(true);
@@ -512,6 +525,7 @@ function ResultContent() {
       analyze,
       canAnalyzeFromUrl,
       guidanceUnlocked,
+      hasAnswerAvailable,
       hasChecklistError,
       isIntentGenerating,
       reset,

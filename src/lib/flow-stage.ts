@@ -24,6 +24,7 @@ export interface FlowStageContext {
   hasIntermediate: boolean;
   hasMangaSurfaceAvailable: boolean;
   hasIntentInput: boolean;
+  hasAnswerAvailable: boolean;
   hasAnswerReviewed: boolean;
   hasIntentStepVisited?: boolean;
   hasDeepDiveStepVisited?: boolean;
@@ -306,13 +307,19 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
         : { stepId: 'input_intent', label: '意図を入力して再試行' };
     } else if (context.guidanceUnlocked) {
       intentStep.status = 'completed';
-      answerStep.status = context.hasAnswerReviewed ? 'completed' : 'in_progress';
+      if (context.hasAnswerAvailable) {
+        answerStep.status = context.hasAnswerReviewed ? 'completed' : 'in_progress';
+      } else {
+        answerStep.status = 'skipped';
+        answerStep.helperText = '回答が未生成のためスキップしました';
+      }
       if (context.hasChecklistError) {
         checklistStep.status = 'error';
       } else if (context.hasChecklistAvailable) {
         checklistStep.status = context.hasChecklistReviewed ? 'completed' : 'in_progress';
       } else {
-        checklistStep.status = context.hasAnswerReviewed ? 'completed' : 'not_started';
+        checklistStep.status =
+          context.hasAnswerAvailable && !context.hasAnswerReviewed ? 'not_started' : 'completed';
       }
 
       const mangaPending =
@@ -320,7 +327,7 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
         (mangaStep.status === 'not_started' ||
           mangaStep.status === 'in_progress' ||
           mangaStep.status === 'error');
-      const answerPending = !context.hasAnswerReviewed;
+      const answerPending = context.hasAnswerAvailable && !context.hasAnswerReviewed;
       const checklistPending = context.hasChecklistAvailable && !context.hasChecklistReviewed;
 
       if (mangaPending) {

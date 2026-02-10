@@ -61,6 +61,7 @@ export default function AnalyzePage() {
         hasIntermediate: false,
         hasMangaSurfaceAvailable: false,
         hasIntentInput: false,
+        hasAnswerAvailable: false,
         hasAnswerReviewed: false,
         hasIntentGenerationError: false,
         isIntentGenerating: false,
