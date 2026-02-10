@@ -729,16 +729,21 @@ function ResultContent() {
         throw new Error(payload.error || '意図回答の生成に失敗しました');
       }
 
+      const generatedChecklist = payload.checklist ?? result.checklist;
+
       setResult({
         ...result,
         userIntent: trimmedIntent,
         intentAnswer: payload.intentAnswer,
+        checklist: generatedChecklist,
         guidanceUnlocked: true,
       });
+      setHasChecklistReviewed(false);
       setIsIntentGenerating(false);
       setIsIntentLocked(true);
 
       const historyPatch = {
+        checklist: generatedChecklist,
         userIntent: trimmedIntent,
         intentAnswer: payload.intentAnswer,
         guidanceUnlocked: true,

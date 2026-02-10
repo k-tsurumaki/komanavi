@@ -361,6 +361,7 @@ export interface DeepDiveResponse {
 export interface IntentAnswerResponse {
   status: 'success' | 'error';
   intentAnswer?: string;
+  checklist?: ChecklistItem[];
   error?: string;
 }
 

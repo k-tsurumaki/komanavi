@@ -4,7 +4,6 @@ import {
   generateIntermediateRepresentation,
   generateChecklist,
   generateSimpleSummary,
-  generateOverview,
   generateDeepDiveResponse,
   generateIntentAnswer,
 } from '@/lib/gemini';
@@ -157,10 +156,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const checklist = await generateChecklist(body.intermediate, personalizationInput);
+
       return NextResponse.json(
         {
           status: 'success',
           intentAnswer,
+          checklist,
         } satisfies IntentAnswerResponse
       );
     }
@@ -213,12 +215,8 @@ export async function POST(request: NextRequest) {
       intermediate = generatedIntermediate;
     }
 
-    // 互いに依存しない生成は並列化して待ち時間を短縮する
-    const [checklist, generatedSummary, overview] = await Promise.all([
-      generateChecklist(intermediate, personalizationInput),
-      generateSimpleSummary(intermediate, personalizationInput),
-      generateOverview(intermediate),
-    ]);
+    // 初回解析では要約の初回表示を優先する（checklist は意図入力時に生成）
+    const generatedSummary = await generateSimpleSummary(intermediate, personalizationInput);
 
     // 意図ベース回答生成（意図がある場合のみ）
     const intentAnswer = userIntent
@@ -232,8 +230,8 @@ export async function POST(request: NextRequest) {
       userIntent: userIntent?.trim() || undefined,
       intentAnswer: intentAnswer || undefined,
       guidanceUnlocked: false,
-      overview: overview || undefined,
-      checklist,
+      overview: cached?.overview,
+      checklist: cached?.checklist ?? [],
       personalization: {
         appliedIntent: personalizationInput.userIntent,
         appliedProfile: personalizationInput.userProfile,
