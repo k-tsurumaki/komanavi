@@ -54,7 +54,9 @@ function getPrompt(filename: string): string {
 const GOOGLE_SEARCH_PROMPT = `
 あなたは行政ドキュメントの情報を取得するアシスタントです。
 
-指定されたURLのページについて、以下の情報を詳しく調べて報告してください：
+指定されたURLについて、必ずGoogle検索を使用して最新の情報を調べてください。
+
+以下の情報を詳しく調べて報告してください：
 
 1. ページのタイトルと概要
 2. 対象者・条件

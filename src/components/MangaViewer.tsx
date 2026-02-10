@@ -156,8 +156,6 @@ function getErrorMessage(errorCode?: MangaJobStatusResponse['errorCode'], fallba
       return '漫画生成中にエラーが発生しました';
     case 'validation_error':
       return '入力内容を確認してください';
-    case 'rate_limited':
-      return '本日の漫画生成回数の上限に達しました（最大3回）';
     case 'cooldown':
       return '同じURLの再生成は10分後にお試しください';
     case 'concurrent':
