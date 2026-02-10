@@ -10,6 +10,7 @@ import type {
   ChatMessage,
   PersonalizationInput,
 } from '@/lib/types/intermediate';
+import { CHECKLIST_ERROR_MESSAGE } from '@/lib/error-messages';
 
 // Vertex AI クライアント初期化
 const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
@@ -288,7 +289,7 @@ function buildPersonalizationContext(personalization?: PersonalizationInput): st
 
 function toChecklistErrorMessage(
   error: unknown,
-  fallback = 'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+  fallback = CHECKLIST_ERROR_MESSAGE
 ): string {
   if (
     error &&
@@ -296,7 +297,7 @@ function toChecklistErrorMessage(
     'status' in error &&
     (error as { status?: unknown }).status === 429
   ) {
-    return 'アクセスが集中しているため、チェックリストを生成できませんでした。時間をおいて再試行してください。';
+    return 'アクセスが集中しているため、チェックリストを生成できませんでした。数分後にもう一度お試しください。';
   }
   return fallback;
 }

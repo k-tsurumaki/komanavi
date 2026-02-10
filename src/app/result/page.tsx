@@ -23,7 +23,7 @@ import {
   type FlowStepId,
   type MangaFlowState,
 } from '@/lib/flow-stage';
-import { ANALYZE_ERROR_MESSAGE } from '@/lib/error-messages';
+import { ANALYZE_ERROR_MESSAGE, CHECKLIST_ERROR_MESSAGE } from '@/lib/error-messages';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
@@ -37,8 +37,7 @@ import type {
 } from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
-const DEFAULT_CHECKLIST_ERROR_MESSAGE =
-  'チェックリストの生成に失敗しました。時間をおいて再試行してください。';
+const DEFAULT_CHECKLIST_ERROR_MESSAGE = CHECKLIST_ERROR_MESSAGE;
 
 function ResultContent() {
   const router = useRouter();

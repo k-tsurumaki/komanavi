@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { FieldValue } from 'firebase-admin/firestore';
+import { CHECKLIST_ERROR_MESSAGE } from '@/lib/error-messages';
 import type { ChecklistGenerationState } from '@/lib/types/intermediate';
 
 export function toIsoString(value: unknown): string | null {
@@ -38,7 +39,7 @@ export function resolveChecklistErrorField(
   if (checklistState === 'error') {
     return (
       checklistError?.trim() ||
-      'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+      CHECKLIST_ERROR_MESSAGE
     );
   }
   return FieldValue.delete();
