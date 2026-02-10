@@ -107,7 +107,7 @@ export function ProfileForm({ user, initialProfile, hasBootstrapError }: Profile
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="displayName" className="mb-1 block text-sm font-semibold text-slate-700">
-            名前（表示名）
+            名前
           </label>
           <input
             type="text"

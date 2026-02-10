@@ -84,7 +84,6 @@ export default async function MyPage({ searchParams }: MyPageProps) {
   }
 
   const shouldShowCreationFlow = !hasStartedProfile;
-  const shouldUseCreationHeading = shouldShowCreationFlow;
 
   return (
     <div className="ui-page ui-shell-gap">
@@ -119,13 +118,9 @@ export default async function MyPage({ searchParams }: MyPageProps) {
         </section>
       )}
       <header className="mb-6">
-        <h1 className="ui-heading text-2xl sm:text-3xl">
-          {shouldUseCreationHeading ? 'Myページ' : 'アカウント設定'}
-        </h1>
+        <h1 className="ui-heading text-2xl sm:text-3xl">Myページ</h1>
         <p className="ui-muted mt-2 text-sm">
-          {shouldUseCreationHeading
-            ? 'プロフィール情報にもとづいて、回答やチェックリストがあなた向けに最適化されます。'
-            : '漫画生成で使うプロフィールを必要な範囲で入力できます。'}
+          プロフィール情報にもとづいて、回答やチェックリストがあなた向けに最適化されます。
         </p>
       </header>
       <ProfileForm
