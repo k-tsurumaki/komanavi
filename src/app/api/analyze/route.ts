@@ -212,7 +212,11 @@ export async function POST(request: NextRequest) {
 
     if (!intermediate) {
       // Google Search Groundingで情報取得
+      console.log('[API /analyze] Starting Google Search for URL:', url);
       const searchResult = await fetchWithGoogleSearch(url);
+      console.log('[API /analyze] Google Search completed');
+      console.log('[API /analyze] Search result content length:', searchResult.content?.length);
+      console.log('[API /analyze] Has grounding metadata:', !!searchResult.groundingMetadata);
 
       if (!searchResult.content) {
         return NextResponse.json(

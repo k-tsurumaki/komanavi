@@ -23,6 +23,7 @@ interface MangaViewerProps {
   onFlowStateChange?: (state: MangaFlowState) => void;
   autoGenerate?: boolean; // 自動生成フラグ
   intermediate?: IntermediateRepresentation; // 中間表現（追加フィールド用）
+  userIntent?: string; // ユーザーの意図（パーソナライズ用）
 }
 
 const USAGE_KEY = 'komanavi-manga-usage';
@@ -71,7 +72,14 @@ function saveUsage(state: MangaUsageState) {
 function buildRequest(
   props: Pick<
     MangaViewerProps,
-    'url' | 'title' | 'summary' | 'keyPoints' | 'resultId' | 'historyId' | 'intermediate'
+    | 'url'
+    | 'title'
+    | 'summary'
+    | 'keyPoints'
+    | 'resultId'
+    | 'historyId'
+    | 'intermediate'
+    | 'userIntent'
   >
 ): MangaRequest {
   const { intermediate } = props;
@@ -83,6 +91,7 @@ function buildRequest(
     keyPoints: props.keyPoints,
     resultId: props.resultId,
     historyId: props.historyId,
+    userIntent: props.userIntent,
 
     // 中間表現から追加フィールドを抽出
     documentType: intermediate?.documentType,
@@ -254,6 +263,7 @@ export function MangaViewer(props: MangaViewerProps) {
     onFlowStateChange,
     autoGenerate,
     intermediate,
+    userIntent,
   } = props;
   const { data: session } = useSession();
   const [progress, setProgress] = useState(0);
@@ -288,8 +298,9 @@ export function MangaViewer(props: MangaViewerProps) {
         resultId,
         historyId,
         intermediate,
+        userIntent,
       }),
-    [historyId, keyPoints, resultId, summary, title, url, intermediate]
+    [historyId, keyPoints, resultId, summary, title, url, intermediate, userIntent]
   );
 
   const canGenerateMessage = useMemo(() => {
@@ -350,7 +361,11 @@ export function MangaViewer(props: MangaViewerProps) {
 
         // localStorageの進捗を更新（進捗が変化した時のみ保存）
         const usage = loadUsage();
-        if (usage.activeJob && usage.activeJob.jobId === job && usage.activeJob.progress !== nextProgress) {
+        if (
+          usage.activeJob &&
+          usage.activeJob.jobId === job &&
+          usage.activeJob.progress !== nextProgress
+        ) {
           usage.activeJob.progress = nextProgress;
           saveUsage(usage);
         }

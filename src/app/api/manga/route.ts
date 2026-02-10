@@ -8,6 +8,7 @@ import {
 } from '@/lib/manga-job-store';
 import { enqueueMangaTask, getMissingCloudTasksEnvVars } from '@/lib/cloud-tasks';
 import { getAdminFirestore } from '@/lib/firebase-admin';
+import { getUserProfileFromFirestore, toPersonalizationInput } from '@/lib/user-profile';
 
 const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10分（フロントエンドと整合）
 
@@ -161,9 +162,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ユーザープロファイルを取得してリクエストに追加
+    let enrichedBody: MangaRequest;
+    try {
+      const rawProfile = await getUserProfileFromFirestore(userId);
+      const personalizationInput = toPersonalizationInput(rawProfile, body.userIntent);
+      enrichedBody = {
+        ...body,
+        userIntent: personalizationInput.userIntent,
+        userProfile: personalizationInput.userProfile,
+      };
+    } catch (profileError) {
+      console.warn(
+        'Failed to fetch user profile, proceeding without personalization:',
+        profileError
+      );
+      enrichedBody = body;
+    }
+
     // Firestore に conversation_manga を作成
     try {
-      await createConversationManga(resultId, historyId, body, userId);
+      await createConversationManga(resultId, historyId, enrichedBody, userId);
     } catch (createError) {
       const errorMessage = createError instanceof Error ? createError.message : 'Unknown error';
       if (errorMessage.includes('already in progress')) {
@@ -180,7 +199,7 @@ export async function POST(request: NextRequest) {
 
     // Cloud Tasks にタスクをエンキュー
     try {
-      await enqueueMangaTask(resultId, body, userId);
+      await enqueueMangaTask(resultId, enrichedBody, userId);
       console.log(`[Manga API] Task enqueued: ${resultId}`);
     } catch (enqueueError) {
       console.error('[Manga API] Failed to enqueue task:', enqueueError);

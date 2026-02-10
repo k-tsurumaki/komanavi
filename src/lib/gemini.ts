@@ -97,6 +97,10 @@ function extractGroundingMetadata(
   console.log('[DEBUG] Grounding metadata available:', !!candidate?.groundingMetadata);
   if (candidate?.groundingMetadata) {
     console.log('[DEBUG] Grounding metadata keys:', Object.keys(candidate.groundingMetadata));
+    console.log('[DEBUG] Raw grounding metadata:', JSON.stringify(candidate.groundingMetadata, null, 2));
+  } else {
+    console.warn('[WARNING] No grounding metadata found in response');
+    return undefined;
   }
 
   if (!candidate?.groundingMetadata) {
@@ -104,6 +108,26 @@ function extractGroundingMetadata(
   }
 
   const gm = candidate.groundingMetadata;
+
+  // Web検索クエリのログ
+  if (gm.webSearchQueries && gm.webSearchQueries.length > 0) {
+    console.log('[DEBUG] Web search queries used:', gm.webSearchQueries);
+  } else {
+    console.warn('[WARNING] No web search queries found');
+  }
+
+  // Grounding chunksのログ
+  if (gm.groundingChunks && gm.groundingChunks.length > 0) {
+    console.log(`[DEBUG] Found ${gm.groundingChunks.length} grounding chunks`);
+    gm.groundingChunks.forEach((chunk: { web?: { uri: string; title: string } }, index: number) => {
+      if (chunk.web) {
+        console.log(`[DEBUG] Chunk ${index + 1}: ${chunk.web.title} - ${chunk.web.uri}`);
+      }
+    });
+  } else {
+    console.warn('[WARNING] No grounding chunks found');
+  }
+
   return {
     webSearchQueries: gm.webSearchQueries,
     groundingChunks: gm.groundingChunks?.map((chunk: { web?: { uri: string; title: string } }) => ({
@@ -140,6 +164,10 @@ function extractGroundingMetadata(
 export async function fetchWithGoogleSearch(url: string): Promise<GoogleSearchResult> {
   const prompt = `${GOOGLE_SEARCH_PROMPT}\n\n対象URL: ${url}`;
 
+  console.log('[DEBUG] fetchWithGoogleSearch: Starting web search');
+  console.log('[DEBUG] Target URL:', url);
+  console.log('[DEBUG] Prompt being sent to Gemini:\n---START PROMPT---\n', prompt, '\n---END PROMPT---');
+
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
@@ -150,8 +178,15 @@ export async function fetchWithGoogleSearch(url: string): Promise<GoogleSearchRe
       },
     });
 
+    console.log('[DEBUG] Gemini API response received');
+    console.log('[DEBUG] Full response structure:', JSON.stringify(result, null, 2));
+
     const content = extractText(result);
+    console.log('[DEBUG] Extracted text content length:', content.length);
+    console.log('[DEBUG] Extracted text preview (first 500 chars):', content.substring(0, 500));
+
     const groundingMetadata = extractGroundingMetadata(result);
+    console.log('[DEBUG] Extracted grounding metadata:', JSON.stringify(groundingMetadata, null, 2));
 
     return {
       content,
@@ -159,7 +194,7 @@ export async function fetchWithGoogleSearch(url: string): Promise<GoogleSearchRe
       groundingMetadata,
     };
   } catch (error) {
-    console.error('Google Search Grounding error:', error);
+    console.error('[ERROR] Google Search Grounding error:', error);
     throw error;
   }
 }
@@ -307,6 +342,11 @@ function toChecklistErrorMessage(
 export async function generateIntermediateRepresentation(
   searchResult: GoogleSearchResult
 ): Promise<IntermediateRepresentation | null> {
+  console.log('[DEBUG] generateIntermediateRepresentation: Starting');
+  console.log('[DEBUG] Search result URL:', searchResult.url);
+  console.log('[DEBUG] Search result content length:', searchResult.content.length);
+  console.log('[DEBUG] Has grounding metadata:', !!searchResult.groundingMetadata);
+
   const pageContent = `
 # ページ情報
 - URL: ${searchResult.url}
