@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { FieldValue, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import type {
   ChecklistGenerationState,
@@ -33,6 +33,22 @@ type SaveHistoryRequest = {
   checklistState?: ChecklistGenerationState;
   checklistError?: string;
 };
+
+function resolveChecklistErrorField(
+  checklistState?: ChecklistGenerationState,
+  checklistError?: string
+): string | ReturnType<typeof FieldValue.delete> | undefined {
+  if (checklistState === undefined) {
+    return undefined;
+  }
+  if (checklistState === 'error') {
+    return (
+      checklistError?.trim() ||
+      'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+    );
+  }
+  return FieldValue.delete();
+}
 
 function compact<T extends Record<string, unknown>>(data: T): T {
   const next = { ...data } as Record<string, unknown>;
@@ -155,7 +171,7 @@ export async function POST(request: NextRequest) {
     guidanceUnlocked: body.guidanceUnlocked ?? false,
     overview: body.overview,
     checklistState: body.checklistState,
-    checklistError: body.checklistError,
+    checklistError: resolveChecklistErrorField(body.checklistState, body.checklistError),
   });
 
   const batch = db.batch();

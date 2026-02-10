@@ -68,6 +68,17 @@ export function validateHistoryResultMutableFields(
   if (hasChecklistError && typeof fields.checklistError !== 'string') {
     return 'checklistError must be string';
   }
+  if (hasChecklistError && !hasChecklistState) {
+    return 'checklistState is required when checklistError is set';
+  }
+
+  const checklistState =
+    hasChecklistState && typeof fields.checklistState === 'string'
+      ? (fields.checklistState as ChecklistGenerationState)
+      : undefined;
+  if (checklistState && checklistState !== 'error' && hasChecklistError) {
+    return 'checklistError must be omitted unless checklistState is error';
+  }
 
   return null;
 }

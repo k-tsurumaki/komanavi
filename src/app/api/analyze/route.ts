@@ -137,17 +137,26 @@ export async function POST(request: NextRequest) {
       }
 
       const personalizationInput = await buildPersonalizationInput(body.userIntent);
-      const [intentAnswerResult, checklistResult] = await Promise.allSettled([
-        generateIntentAnswer(body.intermediate, body.userIntent, personalizationInput, {
+      const checklistPromise = generateChecklistWithState(body.intermediate, personalizationInput).catch(
+        () => ({
+          checklist: [],
+          state: 'error' as const,
+          error: 'チェックリストの生成に失敗しました。時間をおいて再試行してください。',
+        })
+      );
+
+      let intentAnswer = '';
+      try {
+        intentAnswer = await generateIntentAnswer(body.intermediate, body.userIntent, personalizationInput, {
           deepDiveSummary: body.deepDiveSummary,
           messages: body.messages || [],
           overviewTexts: body.overviewTexts || [],
           checklistTexts: body.checklistTexts || [],
-        }),
-        generateChecklistWithState(body.intermediate, personalizationInput),
-      ]);
+        });
+      } catch {
+        intentAnswer = '';
+      }
 
-      const intentAnswer = intentAnswerResult.status === 'fulfilled' ? intentAnswerResult.value : '';
       if (!intentAnswer) {
         return NextResponse.json(
           { status: 'error', error: '意図回答の生成に失敗しました' } satisfies IntentAnswerResponse,
@@ -155,14 +164,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const checklistGeneration =
-        checklistResult.status === 'fulfilled'
-          ? checklistResult.value
-          : {
-              checklist: [],
-              state: 'error' as const,
-              error: 'チェックリストの生成に失敗しました。時間をおいて再試行してください。',
-            };
+      const checklistGeneration = await checklistPromise;
 
       return NextResponse.json(
         {

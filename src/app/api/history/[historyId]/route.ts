@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireUserId, toIsoString, compact } from '@/app/api/history/utils';
 import type { ChecklistGenerationState, ChecklistItem } from '@/lib/types/intermediate';
@@ -22,6 +23,22 @@ type PatchHistoryRequest = {
   checklistState?: ChecklistGenerationState;
   checklistError?: string;
 };
+
+function resolveChecklistErrorField(
+  checklistState?: ChecklistGenerationState,
+  checklistError?: string
+): string | ReturnType<typeof FieldValue.delete> | undefined {
+  if (checklistState === undefined) {
+    return undefined;
+  }
+  if (checklistState === 'error') {
+    return (
+      checklistError?.trim() ||
+      'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+    );
+  }
+  return FieldValue.delete();
+}
 
 export async function GET(
   _request: NextRequest,
@@ -242,7 +259,7 @@ export async function PATCH(
       intentAnswer: body.intentAnswer,
       guidanceUnlocked: body.guidanceUnlocked,
       checklistState: body.checklistState,
-      checklistError: body.checklistError,
+      checklistError: resolveChecklistErrorField(body.checklistState, body.checklistError),
     }),
     { merge: true }
   );
