@@ -99,7 +99,10 @@ function extractGroundingMetadata(
   console.log('[DEBUG] Grounding metadata available:', !!candidate?.groundingMetadata);
   if (candidate?.groundingMetadata) {
     console.log('[DEBUG] Grounding metadata keys:', Object.keys(candidate.groundingMetadata));
-    console.log('[DEBUG] Raw grounding metadata:', JSON.stringify(candidate.groundingMetadata, null, 2));
+    console.log(
+      '[DEBUG] Raw grounding metadata:',
+      JSON.stringify(candidate.groundingMetadata, null, 2)
+    );
   } else {
     console.warn('[WARNING] No grounding metadata found in response');
     return undefined;
@@ -163,12 +166,26 @@ function extractGroundingMetadata(
 /**
  * Google Search Groundingを使用してURL情報を取得
  */
-export async function fetchWithGoogleSearch(url: string): Promise<GoogleSearchResult> {
-  const prompt = `${GOOGLE_SEARCH_PROMPT}\n\n対象URL: ${url}`;
+export async function fetchWithGoogleSearch(
+  url: string,
+  userIntent?: string
+): Promise<GoogleSearchResult> {
+  const basePrompt = `${GOOGLE_SEARCH_PROMPT}\n\n対象URL: ${url}`;
+
+  const prompt = userIntent
+    ? `${basePrompt}\n\nユーザーの意図: ${userIntent}\n\n上記の意図に特に関連する情報を重点的に調査してください。`
+    : basePrompt;
 
   console.log('[DEBUG] fetchWithGoogleSearch: Starting web search');
   console.log('[DEBUG] Target URL:', url);
-  console.log('[DEBUG] Prompt being sent to Gemini:\n---START PROMPT---\n', prompt, '\n---END PROMPT---');
+  if (userIntent) {
+    console.log('[DEBUG] User Intent:', userIntent);
+  }
+  console.log(
+    '[DEBUG] Prompt being sent to Gemini:\n---START PROMPT---\n',
+    prompt,
+    '\n---END PROMPT---'
+  );
 
   try {
     const result = await ai.models.generateContent({
@@ -188,7 +205,10 @@ export async function fetchWithGoogleSearch(url: string): Promise<GoogleSearchRe
     console.log('[DEBUG] Extracted text preview (first 500 chars):', content.substring(0, 500));
 
     const groundingMetadata = extractGroundingMetadata(result);
-    console.log('[DEBUG] Extracted grounding metadata:', JSON.stringify(groundingMetadata, null, 2));
+    console.log(
+      '[DEBUG] Extracted grounding metadata:',
+      JSON.stringify(groundingMetadata, null, 2)
+    );
 
     return {
       content,
@@ -339,6 +359,44 @@ function toChecklistErrorMessage(
 }
 
 /**
+ * 検索結果をプロンプトに追加するためのテキストを生成
+ */
+function buildSearchResultContext(intermediate: IntermediateRepresentation): string {
+  const lines: string[] = [];
+
+  // 意図ベース検索結果を優先
+  const searchMetadata =
+    intermediate.metadata.intentSearchMetadata || intermediate.metadata.groundingMetadata;
+
+  if (!searchMetadata) {
+    return '';
+  }
+
+  lines.push('\n## Web検索結果');
+
+  if (searchMetadata.webSearchQueries?.length) {
+    lines.push('\n### 検索クエリ:');
+    searchMetadata.webSearchQueries.forEach((query) => {
+      lines.push(`- ${query}`);
+    });
+  }
+
+  if (searchMetadata.groundingChunks?.length) {
+    lines.push('\n### 参照元情報:');
+    searchMetadata.groundingChunks.forEach((chunk, idx) => {
+      if (chunk.web) {
+        lines.push(`[${idx + 1}] ${chunk.web.title}`);
+        lines.push(`    URL: ${chunk.web.uri}`);
+      }
+    });
+  }
+
+  lines.push('\n上記のWeb検索結果を参考に、最新かつ正確な情報を提供してください。');
+
+  return lines.join('\n');
+}
+
+/**
  * 中間表現を生成（Google Search Groundingの結果から）
  */
 export async function generateIntermediateRepresentation(
@@ -426,6 +484,7 @@ export async function generateChecklistWithState(
 }> {
   const context = JSON.stringify(intermediate, null, 2);
   const personalizationContext = buildPersonalizationContext(personalization);
+  const searchContext = buildSearchResultContext(intermediate);
 
   try {
     const result = await ai.models.generateContent({
@@ -434,7 +493,14 @@ export async function generateChecklistWithState(
         {
           role: 'user',
           parts: [
-            { text: getPrompt('checklist.txt') + personalizationContext + '\n\n---\n\n' + context },
+            {
+              text:
+                getPrompt('checklist.txt') +
+                personalizationContext +
+                searchContext +
+                '\n\n---\n\n' +
+                context,
+            },
           ],
         },
       ],
@@ -446,7 +512,10 @@ export async function generateChecklistWithState(
       return {
         checklist: [],
         state: 'error',
-        error: toChecklistErrorMessage(null, 'チェックリストの解析結果が不正な形式でした。再試行してください。'),
+        error: toChecklistErrorMessage(
+          null,
+          'チェックリストの解析結果が不正な形式でした。再試行してください。'
+        ),
       };
     }
 
@@ -475,6 +544,7 @@ export async function generateSimpleSummary(
   personalization?: PersonalizationInput
 ): Promise<string> {
   const personalizationContext = buildPersonalizationContext(personalization);
+  const searchContext = buildSearchResultContext(intermediate);
 
   try {
     const result = await ai.models.generateContent({
@@ -487,6 +557,7 @@ export async function generateSimpleSummary(
               text:
                 getPrompt('simple-summary.txt') +
                 personalizationContext +
+                searchContext +
                 '\n\n---\n\n' +
                 JSON.stringify(intermediate, null, 2),
             },
@@ -516,6 +587,8 @@ export async function generateIntentAnswer(
   }
 ): Promise<string> {
   const personalizationContext = buildPersonalizationContext(personalization);
+  const searchContext = buildSearchResultContext(intermediate);
+
   const payload = JSON.stringify(
     {
       userIntent,
@@ -542,7 +615,11 @@ export async function generateIntentAnswer(
           parts: [
             {
               text:
-                getPrompt('intent-answer.txt') + personalizationContext + '\n\n---\n\n' + payload,
+                getPrompt('intent-answer.txt') +
+                personalizationContext +
+                searchContext +
+                '\n\n---\n\n' +
+                payload,
             },
           ],
         },

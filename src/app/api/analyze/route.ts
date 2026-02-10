@@ -127,25 +127,54 @@ export async function POST(request: NextRequest) {
     if (body.mode === 'intent') {
       if (!body.userIntent?.trim()) {
         return NextResponse.json(
-          { status: 'error', error: 'userIntentが指定されていません' } satisfies IntentAnswerResponse,
+          {
+            status: 'error',
+            error: 'userIntentが指定されていません',
+          } satisfies IntentAnswerResponse,
           { status: 400 }
         );
       }
       if (!body.intermediate) {
         return NextResponse.json(
-          { status: 'error', error: 'intermediateが指定されていません' } satisfies IntentAnswerResponse,
+          {
+            status: 'error',
+            error: 'intermediateが指定されていません',
+          } satisfies IntentAnswerResponse,
           { status: 400 }
         );
       }
 
+      // 意図ベース検索を実行
+      const intentSearchResult = await fetchWithGoogleSearch(
+        body.intermediate.metadata.source_url,
+        body.userIntent
+      );
+
+      // intermediate を更新
+      const updatedIntermediate = {
+        ...body.intermediate,
+        metadata: {
+          ...body.intermediate.metadata,
+          intentSearchMetadata: intentSearchResult.groundingMetadata,
+        },
+      };
+
       const personalizationInput = await buildPersonalizationInput(body.userIntent);
-      const checklistPromise = generateChecklistWithState(body.intermediate, personalizationInput);
-      const intentAnswer = await generateIntentAnswer(body.intermediate, body.userIntent, personalizationInput, {
+      const checklistPromise = generateChecklistWithState(
+        updatedIntermediate,
+        personalizationInput
+      );
+      const intentAnswer = await generateIntentAnswer(
+        updatedIntermediate,
+        body.userIntent,
+        personalizationInput,
+        {
           deepDiveSummary: body.deepDiveSummary,
           messages: body.messages || [],
           overviewTexts: body.overviewTexts || [],
           checklistTexts: body.checklistTexts || [],
-        });
+        }
+      );
 
       if (!intentAnswer) {
         return NextResponse.json(
@@ -156,15 +185,14 @@ export async function POST(request: NextRequest) {
 
       const checklistGeneration = await checklistPromise;
 
-      return NextResponse.json(
-        {
-          status: 'success',
-          intentAnswer,
-          checklist: checklistGeneration.checklist,
-          checklistState: checklistGeneration.state,
-          checklistError: checklistGeneration.error,
-        } satisfies IntentAnswerResponse
-      );
+      return NextResponse.json({
+        status: 'success',
+        intentAnswer,
+        checklist: checklistGeneration.checklist,
+        checklistState: checklistGeneration.state,
+        checklistError: checklistGeneration.error,
+        intermediate: updatedIntermediate,
+      } satisfies IntentAnswerResponse);
     }
 
     if (body.mode === 'checklist') {
@@ -176,31 +204,32 @@ export async function POST(request: NextRequest) {
       }
       if (!body.intermediate) {
         return NextResponse.json(
-          { status: 'error', error: 'intermediateが指定されていません' } satisfies ChecklistResponse,
+          {
+            status: 'error',
+            error: 'intermediateが指定されていません',
+          } satisfies ChecklistResponse,
           { status: 400 }
         );
       }
 
       const personalizationInput = await buildPersonalizationInput(body.userIntent);
-      const checklistGeneration = await generateChecklistWithState(body.intermediate, personalizationInput);
-
-      return NextResponse.json(
-        {
-          status: 'success',
-          checklist: checklistGeneration.checklist,
-          checklistState: checklistGeneration.state,
-          checklistError: checklistGeneration.error,
-        } satisfies ChecklistResponse
+      const checklistGeneration = await generateChecklistWithState(
+        body.intermediate,
+        personalizationInput
       );
+
+      return NextResponse.json({
+        status: 'success',
+        checklist: checklistGeneration.checklist,
+        checklistState: checklistGeneration.state,
+        checklistError: checklistGeneration.error,
+      } satisfies ChecklistResponse);
     }
 
     const { url, userIntent } = body;
 
     if (!url) {
-      return NextResponse.json(
-        { error: 'URLが指定されていません' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'URLが指定されていません' }, { status: 400 });
     }
 
     const personalizationInput = await buildPersonalizationInput(userIntent);

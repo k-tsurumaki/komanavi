@@ -92,6 +92,7 @@ function buildRequest(
     resultId: props.resultId,
     historyId: props.historyId,
     userIntent: props.userIntent,
+    intentSearchMetadata: intermediate?.metadata?.intentSearchMetadata,
 
     // 中間表現から追加フィールドを抽出
     documentType: intermediate?.documentType,
@@ -710,7 +711,6 @@ export function MangaViewer(props: MangaViewerProps) {
           )}
         </div>
       )}
-
     </div>
   );
 }

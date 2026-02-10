@@ -781,6 +781,8 @@ function ResultContent() {
           ? payload.checklistError || DEFAULT_CHECKLIST_ERROR_MESSAGE
           : undefined;
 
+      const updatedIntermediate = payload.intermediate || result.intermediate;
+
       setResult({
         ...result,
         userIntent: trimmedIntent,
@@ -789,6 +791,7 @@ function ResultContent() {
         checklistState: nextChecklistState,
         checklistError: nextChecklistError,
         guidanceUnlocked: true,
+        intermediate: updatedIntermediate,
       });
       setHasChecklistReviewed(false);
       setIsIntentGenerating(false);
@@ -801,6 +804,7 @@ function ResultContent() {
         guidanceUnlocked: true,
         checklistState: nextChecklistState,
         checklistError: nextChecklistError,
+        intermediate: updatedIntermediate,
       };
 
       if (effectiveHistoryId) {

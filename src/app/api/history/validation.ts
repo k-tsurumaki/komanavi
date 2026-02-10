@@ -7,6 +7,7 @@ type HistoryResultMutableFields = {
   guidanceUnlocked?: unknown;
   checklistState?: unknown;
   checklistError?: unknown;
+  intermediate?: unknown;
 };
 
 const CHECKLIST_STATES: ChecklistGenerationState[] = ['not_requested', 'ready', 'error'];
@@ -19,7 +20,8 @@ function isChecklistItem(value: unknown): value is ChecklistItem {
   if (item.category !== undefined && typeof item.category !== 'string') return false;
   if (item.deadline !== undefined && typeof item.deadline !== 'string') return false;
   if (item.sourceId !== undefined && typeof item.sourceId !== 'string') return false;
-  if (item.priority !== undefined && !['high', 'medium', 'low'].includes(item.priority)) return false;
+  if (item.priority !== undefined && !['high', 'medium', 'low'].includes(item.priority))
+    return false;
   return true;
 }
 
@@ -33,6 +35,7 @@ export function validateHistoryResultMutableFields(
   const hasGuidanceUnlocked = fields.guidanceUnlocked !== undefined;
   const hasChecklistState = fields.checklistState !== undefined;
   const hasChecklistError = fields.checklistError !== undefined;
+  const hasIntermediate = fields.intermediate !== undefined;
 
   if (
     options?.requireAtLeastOne &&
@@ -41,12 +44,16 @@ export function validateHistoryResultMutableFields(
     !hasIntentAnswer &&
     !hasGuidanceUnlocked &&
     !hasChecklistState &&
-    !hasChecklistError
+    !hasChecklistError &&
+    !hasIntermediate
   ) {
-    return 'checklist, userIntent, intentAnswer, guidanceUnlocked, checklistState or checklistError is required';
+    return 'checklist, userIntent, intentAnswer, guidanceUnlocked, checklistState, checklistError or intermediate is required';
   }
 
-  if (hasChecklist && (!Array.isArray(fields.checklist) || !fields.checklist.every(isChecklistItem))) {
+  if (
+    hasChecklist &&
+    (!Array.isArray(fields.checklist) || !fields.checklist.every(isChecklistItem))
+  ) {
     return 'checklist is invalid';
   }
   if (hasUserIntent && typeof fields.userIntent !== 'string') {

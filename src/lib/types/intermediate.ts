@@ -222,6 +222,7 @@ export interface Metadata {
   last_modified?: string; // 元ページの最終更新日
   language?: string;
   groundingMetadata?: GroundingMetadata;
+  intentSearchMetadata?: GroundingMetadata;
 }
 
 // ============================================
@@ -377,6 +378,7 @@ export interface IntentAnswerResponse {
   checklistState?: Exclude<ChecklistGenerationState, 'not_requested'>;
   checklistError?: string;
   error?: string;
+  intermediate?: IntermediateRepresentation;
 }
 
 /** チェックリスト再生成レスポンス */
@@ -467,6 +469,7 @@ export interface MangaRequest {
   // パーソナライズ（オプショナル）
   userIntent?: string;
   userProfile?: NormalizedUserProfile;
+  intentSearchMetadata?: GroundingMetadata;
 
   // 会話履歴との紐づけ
   resultId: string; // 解析結果のID（必須）

@@ -93,6 +93,36 @@ function buildPersonalizationContext(
   return lines.join('\n');
 }
 
+/**
+ * 検索結果をコンテキストに追加するためのテキストを生成
+ */
+function buildSearchResultContext(searchMetadata?: MangaRequest['intentSearchMetadata']): string {
+  if (!searchMetadata) {
+    return '';
+  }
+
+  const lines: string[] = [];
+
+  if (searchMetadata.webSearchQueries?.length) {
+    lines.push('\n### 関連するWeb検索クエリ:');
+    searchMetadata.webSearchQueries.forEach((query) => {
+      lines.push(`- ${query}`);
+    });
+  }
+
+  if (searchMetadata.groundingChunks?.length) {
+    lines.push('\n### 最新のWeb情報（参考）:');
+    searchMetadata.groundingChunks.forEach((chunk, idx) => {
+      if (chunk.web) {
+        lines.push(`[${idx + 1}] ${chunk.web.title}`);
+        lines.push(`    URL: ${chunk.web.uri}`);
+      }
+    });
+  }
+
+  return lines.join('\n');
+}
+
 type InlineData = {
   mimeType: string;
   data: string;
@@ -248,7 +278,6 @@ function buildPanels(request: MangaRequest): MangaResult {
   };
 }
 
-
 /**
  * Gemini 用のプロンプトを生成
  */
@@ -282,6 +311,11 @@ function buildMangaPrompt(request: MangaRequest, panels: MangaPanel[]): string {
 
   if (request.target?.eligibility_summary) {
     context.push(`対象: ${request.target.eligibility_summary}`);
+  }
+
+  const searchResultContext = buildSearchResultContext(request.intentSearchMetadata);
+  if (searchResultContext) {
+    context.push(searchResultContext);
   }
 
   const contextText = context.length > 0 ? context.join('\n') : 'なし';
@@ -388,10 +422,14 @@ export async function processManga(
   const requestJson = JSON.stringify(request);
   const requestSizeBytes = Buffer.byteLength(requestJson, 'utf8');
   const requestSizeKB = (requestSizeBytes / 1024).toFixed(2);
-  console.log(`[Worker] Job ${resultId}: Request size: ${requestSizeBytes} bytes (${requestSizeKB} KB)`);
+  console.log(
+    `[Worker] Job ${resultId}: Request size: ${requestSizeBytes} bytes (${requestSizeKB} KB)`
+  );
   console.log(`[Worker] Job ${resultId}: Document type: ${request.documentType}`);
   console.log(`[Worker] Job ${resultId}: Summary length: ${request.summary?.length || 0} chars`);
-  console.log(`[Worker] Job ${resultId}: Has personalization: ${!!(request.userIntent || request.userProfile)}`);
+  console.log(
+    `[Worker] Job ${resultId}: Has personalization: ${!!(request.userIntent || request.userProfile)}`
+  );
 
   try {
     // 1. ステータス更新: processing (30%)
@@ -401,7 +439,10 @@ export async function processManga(
     // 2. パネル構成を生成
     const baseResult = buildPanels(request);
     console.log(`[Worker] Job ${resultId}: Generated ${baseResult.panels.length} panels`);
-    console.log(`[Worker] Job ${resultId}: Panel texts:`, baseResult.panels.map(p => p.text));
+    console.log(
+      `[Worker] Job ${resultId}: Panel texts:`,
+      baseResult.panels.map((p) => p.text)
+    );
 
     // 3. ステータス更新: processing (50%)
     await updateMangaJobStatus(resultId, 'processing', 50);

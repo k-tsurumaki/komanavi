@@ -70,4 +70,13 @@ export interface MangaRequest {
     isJapaneseNational?: boolean;
     location?: string;
   };
+  intentSearchMetadata?: {
+    webSearchQueries?: string[];
+    groundingChunks?: Array<{
+      web?: {
+        uri: string;
+        title: string;
+      };
+    }>;
+  };
 }
