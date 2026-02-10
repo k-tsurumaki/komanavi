@@ -40,16 +40,16 @@ function hasValue(value: string | null | undefined): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function isMypageCompleted(profile: ProfileResponse): boolean {
-  if (!hasValue(profile.displayName)) return false;
-  if (!hasValue(profile.birthDate)) return false;
-  if (!hasValue(profile.gender)) return false;
-  if (!hasValue(profile.occupation)) return false;
-  if (!hasValue(profile.nationality)) return false;
-  if (!hasValue(profile.location)) return false;
-  if (!hasValue(profile.visualTraits)) return false;
-  if (!hasValue(profile.personality)) return false;
-  return true;
+function hasMypageStarted(profile: ProfileResponse): boolean {
+  if (hasValue(profile.displayName)) return true;
+  if (hasValue(profile.birthDate)) return true;
+  if (hasValue(profile.gender)) return true;
+  if (hasValue(profile.occupation)) return true;
+  if (hasValue(profile.nationality)) return true;
+  if (hasValue(profile.location)) return true;
+  if (hasValue(profile.visualTraits)) return true;
+  if (hasValue(profile.personality)) return true;
+  return false;
 }
 
 export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps) {
@@ -176,7 +176,7 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
           return;
         }
 
-        setProfileGate({ resolvedFor: userKey, shouldOffer: !isMypageCompleted(profile) });
+        setProfileGate({ resolvedFor: userKey, shouldOffer: !hasMypageStarted(profile) });
       } catch {
         if (!isMounted || controller.signal.aborted) {
           return;
