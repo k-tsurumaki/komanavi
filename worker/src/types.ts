@@ -28,10 +28,44 @@ export interface MangaResult {
   };
 }
 
+/** ドキュメントタイプ */
+export type DocumentType =
+  | "benefit"
+  | "procedure"
+  | "information"
+  | "faq"
+  | "guide"
+  | "other";
+
 /** 漫画生成リクエスト */
 export interface MangaRequest {
   url: string;
   title: string;
   summary: string;
   keyPoints?: string[];
+
+  // 新規追加（すべてオプショナル）
+  documentType?: DocumentType;
+  target?: {
+    conditions: string[];
+    eligibility_summary?: string;
+  };
+  procedure?: {
+    steps: Array<{ order: number; action: string }>;
+    required_documents?: string[];
+    deadline?: string;
+    fee?: string;
+  };
+  benefits?: {
+    description: string;
+    amount?: string;
+    frequency?: string;
+  };
+  contact?: {
+    department?: string;
+    phone?: string;
+    hours?: string;
+  };
+  warnings?: string[];
+  tips?: string[];
 }

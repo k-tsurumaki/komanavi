@@ -11,6 +11,7 @@ RUN npm ci
 # ソースコードをコピー
 COPY tsconfig.json ./
 COPY src/ ./src/
+COPY ../prompts/ ./prompts/
 
 # TypeScript ビルド
 RUN npm run build
@@ -30,6 +31,7 @@ RUN npm ci --omit=dev
 
 # ビルド済みファイルをコピー
 COPY --from=builder /app/dist ./dist/
+COPY --from=builder /app/prompts ./prompts/
 
 # 環境変数設定
 ENV NODE_ENV=production
