@@ -1,337 +1,233 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import type { MangaJobResponse, MangaRequest, MangaResult, MangaPanel } from '@/lib/types/intermediate';
-import { jobs, type MangaJob, usageByClient, type MangaUsageState } from './state';
+import type { MangaJobResponse, MangaRequest } from '@/lib/types/intermediate';
+import { requireUserId } from '@/app/api/history/utils';
+import {
+  createConversationManga,
+  getConversationManga,
+  updateConversationMangaError,
+} from '@/lib/manga-job-store';
+import { enqueueMangaTask, getMissingCloudTasksEnvVars } from '@/lib/cloud-tasks';
+import { getAdminFirestore } from '@/lib/firebase-admin';
+import { getUserProfileFromFirestore, toPersonalizationInput } from '@/lib/user-profile';
 
-const JOB_TTL_MS = 10 * 60 * 1000;
-const POLL_TIMEOUT_MS = 60 * 1000;
-const MAX_EDGE = 1200;
-const MODEL_ID = 'gemini-3-pro-image-preview';
-const PROJECT_ID = process.env.GCP_PROJECT_ID ?? 'zenn-ai-agent-hackathon-vol4';
-const LOCATION = process.env.GCP_LOCATION ?? 'global';
+const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10分（フロントエンドと整合）
 
-const ai = new GoogleGenAI({
-  vertexai: true,
-  project: PROJECT_ID,
-  location: LOCATION,
-  apiVersion: 'v1',
-});
+// レート制限用のインメモリ状態（同一ユーザーからの並行リクエスト制限）
+interface ActiveJobInfo {
+  jobId: string;
+  startedAt: number;
+  url: string;
+}
 
-type InlineData = {
-  mimeType: string;
-  data: string;
+interface UsageState {
+  date: string;
+  activeJob?: ActiveJobInfo;
+}
+
+const globalState = globalThis as typeof globalThis & {
+  __mangaUsageByUser?: Map<string, UsageState>;
 };
 
-type Part =
-  | { text: string }
-  | {
-      inlineData: InlineData;
-    };
-
-type GenerateContentResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Part[];
-    };
-  }>;
-};
+const usageByUser = globalState.__mangaUsageByUser ?? new Map<string, UsageState>();
+globalState.__mangaUsageByUser = usageByUser;
 
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getClientId(headers: Headers) {
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  const realIp = headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-  return 'anonymous';
-}
-
-function getUsage(clientId: string): MangaUsageState {
+function getUsage(userId: string): UsageState {
   const today = getTodayKey();
-  const current = usageByClient.get(clientId);
+  const current = usageByUser.get(userId);
   if (!current || current.date !== today) {
-    const fresh: MangaUsageState = { date: today, count: 0, urlCooldowns: {} };
-    usageByClient.set(clientId, fresh);
+    const fresh: UsageState = { date: today };
+    usageByUser.set(userId, fresh);
     return fresh;
   }
   return current;
 }
 
-function saveUsage(clientId: string, usage: MangaUsageState) {
-  usageByClient.set(clientId, usage);
+function setActiveJob(userId: string, jobId: string, url: string) {
+  const usage = getUsage(userId);
+  usage.activeJob = { jobId, startedAt: Date.now(), url };
+  usageByUser.set(userId, usage);
 }
 
-function clearActiveJob(clientId: string, jobId: string) {
-  const usage = usageByClient.get(clientId);
+function clearActiveJob(userId: string, jobId: string) {
+  const usage = usageByUser.get(userId);
   if (!usage || !usage.activeJob || usage.activeJob.jobId !== jobId) return;
   delete usage.activeJob;
-  usageByClient.set(clientId, usage);
+  usageByUser.set(userId, usage);
 }
 
-function buildPanels(request: MangaRequest): MangaResult {
-  const sentences = request.summary
-    .split(/。|\n/)
-    .map((text) => text.trim())
-    .filter(Boolean);
+/**
+ * 並行ジョブをチェック
+ * Firestore のジョブ状態も確認して、完了していたらクリア
+ */
+async function hasActiveJob(userId: string): Promise<boolean> {
+  const usage = usageByUser.get(userId);
+  if (!usage?.activeJob) return false;
 
-  const points = request.keyPoints?.filter(Boolean) ?? [];
-  const candidates = [
-    ...points,
-    ...sentences,
-    '条件に当てはまるか確認しましょう。',
-    '必要な手続きを整理しましょう。',
-    '期限や必要書類をチェックしましょう。',
-  ];
+  const { jobId, startedAt } = usage.activeJob;
 
-  const panels = candidates.slice(0, Math.min(8, Math.max(4, candidates.length))).map((text, index) => ({
-    id: `panel-${index + 1}`,
-    text,
-  }));
-
-  while (panels.length < 4) {
-    panels.push({
-      id: `panel-${panels.length + 1}`,
-      text: '次のステップを確認しましょう。',
-    });
+  // タイムアウト経過していたらクリア
+  if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+    clearActiveJob(userId, jobId);
+    return false;
   }
 
-  return {
-    title: request.title,
-    panels,
-    imageUrls: [],
-    meta: {
-      panelCount: panels.length,
-      generatedAt: new Date().toISOString(),
-      sourceUrl: request.url,
-      format: 'png',
-      maxEdge: MAX_EDGE,
-      title: request.title,
-    },
-  };
-}
-
-function buildFallback(request: MangaRequest): MangaResult {
-  const panels = (request.keyPoints ?? [])
-    .filter(Boolean)
-    .slice(0, 6)
-    .map((text, index) => ({ id: `fallback-${index + 1}`, text }));
-
-  if (panels.length === 0) {
-    panels.push({ id: 'fallback-1', text: request.summary });
+  // Firestore でジョブの状態を確認
+  try {
+    const manga = await getConversationManga(jobId);
+    if (!manga || manga.status === 'done' || manga.status === 'error') {
+      clearActiveJob(userId, jobId);
+      return false;
+    }
+  } catch {
+    // Firestore エラー時はインメモリ状態を信頼
   }
 
-  return {
-    title: request.title,
-    panels,
-    imageUrls: [],
-    meta: {
-      panelCount: panels.length,
-      generatedAt: new Date().toISOString(),
-      sourceUrl: request.url,
-      format: 'png',
-      maxEdge: MAX_EDGE,
-      title: request.title,
-    },
-  };
-}
-
-function buildMangaPrompt(request: MangaRequest, panels: MangaPanel[]) {
-  const panelTexts = panels.map((panel, index) => `(${index + 1}) ${panel.text}`).join('\n');
-  return `以下の内容を4コマ漫画として1枚の画像で生成してください。\n\n` +
-    `# タイトル\n${request.title}\n\n` +
-    `# 要約\n${request.summary}\n\n` +
-    `# 4コマ構成\n${panelTexts}\n\n` +
-    `要件:\n- 日本語の吹き出し\n- 4コマが1枚の画像に収まる\n- 読みやすい配色\n- 行政情報の説明として誠実で分かりやすい表現\n`;
-}
-
-async function generateMangaImage(request: MangaRequest, panels: MangaPanel[]) {
-  const prompt = buildMangaPrompt(request, panels);
-  const maxAttempts = 3;
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      const result = (await ai.models.generateContent({
-        model: MODEL_ID,
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: {
-            aspectRatio: '16:9',
-          },
-        },
-        safetySettings: [
-          {
-            method: 'PROBABILITY',
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-          },
-        ],
-      } as any)) as GenerateContentResponse;
-
-      const parts = result.candidates?.[0]?.content?.parts ?? [];
-      const imageUrls = parts
-        .filter((part): part is { inlineData: InlineData } => 'inlineData' in part)
-        .map((part) => `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`)
-        .filter(Boolean);
-
-      const textParts = parts
-        .filter((part): part is { text: string } => 'text' in part)
-        .map((part) => part.text)
-        .filter(Boolean);
-
-      if (imageUrls.length === 0) {
-        throw new Error(textParts.join('\n') || '画像データが生成されませんでした');
-      }
-
-      return { imageUrls, text: textParts.join('\n') };
-    } catch (error) {
-      lastError = error;
-      const status = (error as { status?: number })?.status;
-      if (status !== 429 || attempt >= maxAttempts - 1) {
-        throw error;
-      }
-      const delayMs = 1000 * Math.pow(2, attempt);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('画像生成に失敗しました');
-}
-
-function scheduleJob(job: MangaJob, request: MangaRequest) {
-  jobs.set(job.id, job);
-
-  setTimeout(() => {
-    const current = jobs.get(job.id);
-    if (!current) return;
-    current.status = 'processing';
-    current.progress = 30;
-    jobs.set(job.id, current);
-  }, 500);
-
-  setTimeout(() => {
-    const current = jobs.get(job.id);
-    if (!current) return;
-    current.status = 'processing';
-    current.progress = 70;
-    jobs.set(job.id, current);
-  }, 1500);
-
-  setTimeout(() => {
-    const current = jobs.get(job.id);
-    if (!current || current.status === 'error') return;
-    (async () => {
-      try {
-        current.status = 'processing';
-        current.progress = 85;
-        jobs.set(job.id, current);
-
-        const baseResult = buildPanels(request);
-        const { imageUrls } = await generateMangaImage(request, baseResult.panels);
-
-        const latest = jobs.get(job.id);
-        if (!latest || latest.status === 'error') return;
-
-        latest.status = 'done';
-        latest.progress = 100;
-        latest.result = {
-          ...baseResult,
-          imageUrls,
-        };
-        jobs.set(job.id, latest);
-      } catch (error) {
-        console.error('Manga build error:', error);
-        const latest = jobs.get(job.id);
-        if (!latest) return;
-        const status = (error as { status?: number })?.status;
-        latest.status = 'error';
-        latest.errorCode = status === 429 ? 'rate_limited' : 'api_error';
-        latest.error =
-          status === 429
-            ? '現在アクセスが集中しています。時間をおいて再度お試しください。'
-            : '漫画生成中にエラーが発生しました';
-        latest.result = buildFallback(request);
-        jobs.set(job.id, latest);
-      } finally {
-        const latest = jobs.get(job.id);
-        if (latest?.clientId) {
-          clearActiveJob(latest.clientId, latest.id);
-        }
-      }
-    })();
-  }, 2500);
-
-  setTimeout(() => {
-    const current = jobs.get(job.id);
-    if (!current || current.status === 'done') return;
-    current.status = 'error';
-    current.errorCode = 'timeout';
-    current.error = '漫画生成がタイムアウトしました';
-    current.result = buildFallback(request);
-    jobs.set(job.id, current);
-    if (current.clientId) {
-      clearActiveJob(current.clientId, current.id);
-    }
-  }, POLL_TIMEOUT_MS);
-
-  setTimeout(() => {
-    const current = jobs.get(job.id);
-    if (current?.clientId) {
-      clearActiveJob(current.clientId, current.id);
-    }
-    jobs.delete(job.id);
-  }, JOB_TTL_MS);
+  return true;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // 認証検証（必須）
+    const userId = await requireUserId();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '認証が必要です', errorCode: 'unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body: MangaRequest = await request.json();
 
-    if (!body.url || !body.title || !body.summary) {
+    // resultId, historyId のバリデーション
+    if (!body.url || !body.title || !body.summary || !body.resultId || !body.historyId) {
       return NextResponse.json(
         { error: '必要な情報が不足しています', errorCode: 'validation_error' },
         { status: 400 }
       );
     }
 
-    const clientId = getClientId(request.headers);
-    const usage = getUsage(clientId);
-
-    if (usage.activeJob && Date.now() - usage.activeJob.startedAt < POLL_TIMEOUT_MS) {
+    const missingCloudTasksEnvVars = getMissingCloudTasksEnvVars();
+    if (missingCloudTasksEnvVars.length > 0) {
+      console.warn(
+        '[Manga API] Cloud Tasks is not enabled. Missing env vars:',
+        missingCloudTasksEnvVars
+      );
       return NextResponse.json(
-        { error: '現在ほかの漫画生成が進行中です。完了後に再度お試しください。', errorCode: 'concurrent' },
+        { error: 'Cloud Tasks が設定されていません', errorCode: 'api_error' },
+        { status: 500 }
+      );
+    }
+
+    // 同一ユーザーの並行ジョブチェック
+    if (await hasActiveJob(userId)) {
+      return NextResponse.json(
+        {
+          error: '現在ほかの漫画生成が進行中です。完了後に再度お試しください。',
+          errorCode: 'concurrent',
+        },
         { status: 409 }
       );
     }
 
-    const jobId = crypto.randomUUID();
-    const job: MangaJob = {
-      id: jobId,
-      status: 'queued',
-      progress: 0,
-      createdAt: Date.now(),
-      clientId,
-    };
+    const { resultId, historyId } = body;
 
-    scheduleJob(job, body);
+    // resultId と historyId の整合性を検証
+    const db = getAdminFirestore();
+    const resultRef = db.collection('conversation_results').doc(resultId);
+    const resultSnap = await resultRef.get();
 
-    const nextUsage: MangaUsageState = {
-      ...usage,
-      count: usage.count + 1,
-      urlCooldowns: usage.urlCooldowns,
-      activeJob: { jobId, startedAt: Date.now(), url: body.url },
-    };
-    saveUsage(clientId, nextUsage);
+    if (!resultSnap.exists) {
+      return NextResponse.json(
+        { error: '指定された解析結果が見つかりません', errorCode: 'not_found' },
+        { status: 404 }
+      );
+    }
 
-    const response: MangaJobResponse = { jobId };
+    const resultData = resultSnap.data();
+    if (resultData?.userId !== userId) {
+      return NextResponse.json(
+        { error: '不正な resultId が指定されました', errorCode: 'forbidden' },
+        { status: 403 }
+      );
+    }
+
+    if (resultData?.historyId && resultData.historyId !== historyId) {
+      return NextResponse.json(
+        { error: '不正な historyId が指定されました', errorCode: 'forbidden' },
+        { status: 403 }
+      );
+    }
+
+    // ユーザープロファイルを取得してリクエストに追加
+    let enrichedBody: MangaRequest;
+    try {
+      const rawProfile = await getUserProfileFromFirestore(userId);
+      const personalizationInput = toPersonalizationInput(rawProfile, body.userIntent);
+      enrichedBody = {
+        ...body,
+        userIntent: personalizationInput.userIntent,
+        userProfile: personalizationInput.userProfile,
+      };
+    } catch (profileError) {
+      console.warn(
+        'Failed to fetch user profile, proceeding without personalization:',
+        profileError
+      );
+      // プロファイル取得に失敗した場合はクライアント送信の userProfile / intentSearchMetadata を信頼しない
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { userProfile, intentSearchMetadata, ...rest } = body;
+      enrichedBody = {
+        ...rest,
+        userProfile: undefined,
+      };
+    }
+
+    // Firestore に conversation_manga を作成
+    try {
+      await createConversationManga(resultId, historyId, enrichedBody, userId);
+    } catch (createError) {
+      const errorMessage = createError instanceof Error ? createError.message : 'Unknown error';
+      if (errorMessage.includes('already in progress')) {
+        return NextResponse.json(
+          {
+            error: '現在この解析結果の漫画生成が進行中です。完了後に再度お試しください。',
+            errorCode: 'concurrent',
+          },
+          { status: 409 }
+        );
+      }
+      throw createError;
+    }
+
+    // Cloud Tasks にタスクをエンキュー
+    try {
+      await enqueueMangaTask(resultId, enrichedBody, userId);
+      console.log(`[Manga API] Task enqueued: ${resultId}`);
+    } catch (enqueueError) {
+      console.error('[Manga API] Failed to enqueue task:', enqueueError);
+      try {
+        await updateConversationMangaError(
+          resultId,
+          'api_error',
+          'Cloud Tasks への登録に失敗したため、漫画生成を開始できませんでした。'
+        );
+      } catch (updateError) {
+        console.error('[Manga API] Failed to update job status to error:', updateError);
+      }
+      return NextResponse.json(
+        { error: '漫画生成の開始に失敗しました', errorCode: 'api_error' },
+        { status: 500 }
+      );
+    }
+
+    // アクティブジョブとして記録（resultId を使用）
+    setActiveJob(userId, resultId, body.url);
+
+    const response: MangaJobResponse = { jobId: resultId };
     return NextResponse.json(response);
   } catch (error) {
     console.error('Manga API error:', error);

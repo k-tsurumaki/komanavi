@@ -162,6 +162,53 @@ export interface PersonalizationAnswer {
   answer: string | string[] | boolean;
 }
 
+/** ユーザプロフィール（パーソナライズ用に正規化された形式） */
+export interface NormalizedUserProfile {
+  age?: number;
+  gender?: string;
+  occupation?: string;
+  isJapaneseNational?: boolean;
+  location?: string;
+}
+
+/** パーソナライズ入力（LLM生成時に使用） */
+export interface PersonalizationInput {
+  userIntent: string;
+  userProfile?: NormalizedUserProfile;
+}
+
+// ============================================
+// Google Search Grounding
+// ============================================
+
+/** グラウンディングチャンク */
+export interface GroundingChunk {
+  web?: {
+    uri: string;
+    title: string;
+  };
+}
+
+/** グラウンディングサポート（本文とチャンクの紐付け） */
+export interface GroundingSupport {
+  segment?: {
+    startIndex?: number;
+    endIndex?: number;
+    text?: string;
+  };
+  groundingChunkIndices?: number[];
+}
+
+/** グラウンディングメタデータ */
+export interface GroundingMetadata {
+  webSearchQueries?: string[];
+  groundingChunks?: GroundingChunk[];
+  groundingSupports?: GroundingSupport[];
+  searchEntryPoint?: {
+    renderedContent: string;
+  };
+}
+
 // ============================================
 // メタデータ
 // ============================================
@@ -174,6 +221,8 @@ export interface Metadata {
   cache_expires_at?: string;
   last_modified?: string; // 元ページの最終更新日
   language?: string;
+  groundingMetadata?: GroundingMetadata;
+  intentSearchMetadata?: GroundingMetadata;
 }
 
 // ============================================
@@ -227,21 +276,131 @@ export interface ChecklistItem {
   priority?: 'high' | 'medium' | 'low';
 }
 
+/** チェックリスト生成状態 */
+export type ChecklistGenerationState = 'not_requested' | 'ready' | 'error';
+
+/** ページ概要（構造化） */
+export interface OverviewCriticalFact {
+  item: string;
+  value: string;
+  reason: string;
+}
+
+export type OverviewBlockId =
+  | 'conclusion'
+  | 'targetAudience'
+  | 'achievableOutcomes'
+  | 'criticalFacts'
+  | 'cautions'
+  | 'contactInfo';
+
+export type OverviewEvidenceByBlock = Partial<Record<OverviewBlockId, string[]>>;
+
+export interface Overview {
+  conclusion: string;
+  targetAudience: string;
+  purpose: string;
+  topics: string[];
+  cautions: string[];
+  criticalFacts?: OverviewCriticalFact[];
+  evidenceByBlock?: OverviewEvidenceByBlock;
+}
+
+/** 適用されたパーソナライズ情報 */
+export interface AppliedPersonalization {
+  appliedIntent: string;
+  appliedProfile?: NormalizedUserProfile;
+}
+
 /** 解析結果 */
 export interface AnalyzeResult {
   id: string;
   intermediate: IntermediateRepresentation;
   generatedSummary: string;
+  userIntent?: string;
+  intentAnswer?: string;
+  guidanceUnlocked?: boolean;
+  overview?: Overview;
   checklist: ChecklistItem[];
+  checklistState?: ChecklistGenerationState;
+  checklistError?: string;
+  personalization?: AppliedPersonalization;
   status: 'success' | 'error';
   error?: string;
 }
 
-/** 解析リクエスト */
-export interface AnalyzeRequest {
-  url: string;
-  personalization?: PersonalizationAnswer[];
+/** 深掘りチャット用メッセージ */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
+
+/** 深掘りリクエスト */
+export interface DeepDiveRequest {
+  mode: 'deepDive';
+  summary: string;
+  messages: ChatMessage[];
+  deepDiveSummary?: string;
+  summaryOnly?: boolean;
+}
+
+/** 意図回答リクエスト */
+export interface IntentAnswerRequest {
+  mode: 'intent';
+  userIntent: string;
+  intermediate: IntermediateRepresentation;
+  messages?: ChatMessage[];
+  deepDiveSummary?: string;
+  overviewTexts?: string[];
+  checklistTexts?: string[];
+}
+
+/** チェックリスト再生成リクエスト */
+export interface ChecklistRequest {
+  mode: 'checklist';
+  userIntent: string;
+  intermediate: IntermediateRepresentation;
+}
+
+/** 深掘りレスポンス */
+export interface DeepDiveResponse {
+  status: 'success' | 'error';
+  answer?: string;
+  summary?: string;
+  error?: string;
+}
+
+/** 意図回答レスポンス */
+export interface IntentAnswerResponse {
+  status: 'success' | 'error';
+  intentAnswer?: string;
+  checklist?: ChecklistItem[];
+  checklistState?: Exclude<ChecklistGenerationState, 'not_requested'>;
+  checklistError?: string;
+  error?: string;
+  intermediate?: IntermediateRepresentation;
+}
+
+/** チェックリスト再生成レスポンス */
+export interface ChecklistResponse {
+  status: 'success' | 'error';
+  checklist?: ChecklistItem[];
+  checklistState?: Exclude<ChecklistGenerationState, 'not_requested'>;
+  checklistError?: string;
+  error?: string;
+}
+
+/** 解析リクエスト */
+export type AnalyzeRequest =
+  | {
+      url: string;
+      userIntent?: string;
+      personalization?: PersonalizationAnswer[];
+      mode?: 'default';
+    }
+  | DeepDiveRequest
+  | IntentAnswerRequest
+  | ChecklistRequest;
 
 /** 解析ステータス */
 export type AnalyzeStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -264,6 +423,7 @@ export interface MangaResult {
   title: string;
   panels: MangaPanel[];
   imageUrls?: string[];
+  storageUrl?: string;
   meta?: {
     panelCount: number;
     generatedAt: string;
@@ -280,6 +440,40 @@ export interface MangaRequest {
   title: string;
   summary: string;
   keyPoints?: string[];
+
+  // 新規追加（すべてオプショナル）
+  documentType?: DocumentType;
+  target?: {
+    conditions: string[];
+    eligibility_summary?: string;
+  };
+  procedure?: {
+    steps: Array<{ order: number; action: string }>;
+    required_documents?: string[];
+    deadline?: string;
+    fee?: string;
+  };
+  benefits?: {
+    description: string;
+    amount?: string;
+    frequency?: string;
+  };
+  contact?: {
+    department?: string;
+    phone?: string;
+    hours?: string;
+  };
+  warnings?: string[];
+  tips?: string[];
+
+  // パーソナライズ（オプショナル）
+  userIntent?: string;
+  userProfile?: NormalizedUserProfile;
+  intentSearchMetadata?: GroundingMetadata;
+
+  // 会話履歴との紐づけ
+  resultId: string; // 解析結果のID（必須）
+  historyId: string; // 会話履歴のID（必須）
 }
 
 /** 漫画ジョブレスポンス */
@@ -308,16 +502,23 @@ export interface HistoryItem {
   id: string;
   url: string;
   title: string;
-  createdAt: string;
+  createdAt: string | null;
   resultId: string;
 }
 
-/** フィードバックアイテム */
-export interface FeedbackItem {
-  id: string;
-  url: string;
-  resultId: string;
-  rating: 'accurate' | 'inaccurate';
-  comment?: string;
-  createdAt: string;
+/** 会話履歴に紐づく漫画ドキュメント */
+export interface ConversationMangaDocument {
+  id: string; // ドキュメントID = resultId
+  resultId: string; // 解析結果のID
+  historyId: string; // 会話履歴のID
+  userId: string; // 所有ユーザーID
+  status: MangaJobStatus;
+  progress: number;
+  request: MangaRequest;
+  result?: MangaResult;
+  error?: string;
+  errorCode?: MangaJobStatusResponse['errorCode'];
+  storageUrl?: string;
+  createdAt: import('firebase-admin/firestore').Timestamp;
+  updatedAt: import('firebase-admin/firestore').Timestamp;
 }

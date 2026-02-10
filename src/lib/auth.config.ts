@@ -11,8 +11,14 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    jwt: async ({ token, user }) => {
-      if (user) {
+    jwt: async ({ token, user, account }) => {
+      if (account?.provider === "firebase" || account?.type === "credentials") {
+        if (user?.id) {
+          token.id = user.id;
+        }
+      } else if (account?.providerAccountId) {
+        token.id = account.providerAccountId;
+      } else if (user?.id) {
         token.id = user.id;
       }
       return token;
@@ -28,7 +34,7 @@ export const authConfig: NextAuthConfig = {
       const { pathname } = nextUrl;
 
       // 保護されたルート（認証必須）
-      const protectedRoutes = ["/analyze", "/history", "/result"];
+      const protectedRoutes = ["/analyze", "/result", "/mypage"];
 
       // 認証ページ
       const authRoutes = ["/login"];

@@ -8,6 +8,7 @@ RUN npm ci --omit=dev
 FROM node:20-slim AS builder
 WORKDIR /app
 
+# クライアント側環境変数（NEXT_PUBLIC_*）のみビルド時に必要
 ARG NEXT_PUBLIC_FIREBASE_API_KEY
 ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
@@ -27,6 +28,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8080
+
+# Copy only production dependencies from the deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

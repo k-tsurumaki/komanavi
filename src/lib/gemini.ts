@@ -1,10 +1,16 @@
 import { GoogleGenAI } from '@google/genai';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import type {
   IntermediateRepresentation,
   ChecklistItem,
+  ChecklistGenerationState,
   DocumentType,
+  GroundingMetadata,
+  ChatMessage,
+  PersonalizationInput,
 } from '@/lib/types/intermediate';
-import type { ScrapedContent } from '@/lib/scraper';
+import { CHECKLIST_ERROR_MESSAGE } from '@/lib/error-messages';
 
 // Vertex AI クライアント初期化
 const PROJECT_ID = 'zenn-ai-agent-hackathon-vol4';
@@ -18,150 +24,202 @@ const ai = new GoogleGenAI({
   apiVersion: 'v1',
 });
 
-/**
- * ドキュメントタイプを判定するプロンプト
- */
-const DOCUMENT_TYPE_PROMPT = `
-あなたは行政ドキュメントの分類エキスパートです。
-以下のページ内容を分析し、最も適切なドキュメントタイプを1つ選んでください。
-
-ドキュメントタイプ:
-- benefit: 給付・手当系（児童手当、介護保険、各種給付金など）
-- procedure: 手続き系（転入届、パスポート申請、各種届出など）
-- information: 情報提供系（お知らせ、制度説明など）
-- faq: よくある質問
-- guide: ガイド・案内
-- other: その他
-
-回答は以下のJSON形式で返してください（JSONのみ。説明文や前置き、コードフェンスは不要）:
-{"documentType": "benefit"}
-`;
-
-/**
- * 中間表現を生成するプロンプト
- */
-const INTERMEDIATE_PROMPT = `
-あなたは行政ドキュメントを分析し、市民にわかりやすく情報を整理するエキスパートです。
-
-以下のページ内容を分析し、構造化されたJSONデータを生成してください。
-
-## 出力形式
-
-以下のJSON形式で出力してください。すべてのフィールドは日本語で記入してください（JSONのみ。説明文や前置き、コードフェンスは不要）。
-
-{
-  "title": "ページのタイトル（簡潔に）",
-  "summary": "このページの内容を2-3文で要約（やさしい日本語で）",
-  "keyPoints": [
-    {
-      "id": "kp-001",
-      "text": "重要なポイント",
-      "importance": "high" | "medium" | "low"
-    }
-  ],
-  "target": {
-    "conditions": ["対象となる条件1", "対象となる条件2"],
-    "exceptions": ["例外・注意事項"],
-    "eligibility_summary": "対象者を一言で説明"
-  },
-  "procedure": {
-    "steps": [
-      {
-        "order": 1,
-        "action": "やること",
-        "details": "詳細説明",
-        "note": "補足情報"
-      }
-    ],
-    "required_documents": ["必要な書類1", "必要な書類2"],
-    "deadline": "期限があれば記載",
-    "fee": "費用があれば記載",
-    "online_available": true | false
-  },
-  "benefits": {
-    "description": "給付・支援の説明",
-    "amount": "金額",
-    "frequency": "支給頻度"
-  },
-  "contact": {
-    "department": "担当部署",
-    "phone": "電話番号",
-    "hours": "受付時間"
-  },
-  "warnings": ["注意事項1", "注意事項2"],
-  "tips": ["便利な情報1"]
+/** Google Search Groundingの結果 */
+export interface GoogleSearchResult {
+  content: string;
+  url: string;
+  groundingMetadata?: GroundingMetadata;
 }
 
-## 注意事項
+/**
+ * プロンプトファイルを読み込む
+ */
+function loadPrompt(filename: string): string {
+  const promptPath = join(process.cwd(), 'prompts', filename);
+  return readFileSync(promptPath, 'utf-8');
+}
 
-1. 情報がない項目は省略してください
-2. 「やさしい日本語」を心がけてください（難しい言葉は避ける、短い文で）
-3. 重要な情報は必ず含めてください（期限、金額、必要書類など）
-4. 推測で情報を追加しないでください。ページに書かれていることのみを抽出してください
-`;
+// プロンプトをキャッシュ（初回読み込み時のみファイルアクセス）
+const promptCache: Record<string, string> = {};
+
+function getPrompt(filename: string): string {
+  if (!promptCache[filename]) {
+    promptCache[filename] = loadPrompt(filename);
+  }
+  return promptCache[filename];
+}
 
 /**
- * 根拠情報を抽出するプロンプト
+ * Google Searchを使用したURL情報取得のプロンプト
  */
-const SOURCES_PROMPT = `
-あなたは行政ドキュメントから根拠となる原文を抽出するエキスパートです。
+const GOOGLE_SEARCH_PROMPT = `
+あなたは行政ドキュメントの情報を取得するアシスタントです。
 
-以下のページ内容から、重要な情報の根拠となる原文を抽出してください。
+指定されたURLについて、必ずGoogle検索を使用して最新の情報を調べてください。
 
-## 出力形式
+以下の情報を詳しく調べて報告してください：
 
-以下のJSON配列形式で出力してください（JSONのみ。説明文や前置き、コードフェンスは不要）:
+1. ページのタイトルと概要
+2. 対象者・条件
+3. 手続きの流れ・ステップ
+4. 必要な書類
+5. 期限・締め切り
+6. 金額・費用
+7. 問い合わせ先
+8. 注意事項
 
-[
-  {
-    "source_id": "src-001",
-    "section": "セクション名（対象者、支給額、期限など）",
-    "original_text": "原文をそのまま引用"
-  }
-]
-
-## 注意事項
-
-1. 原文は改変せずにそのまま引用してください
-2. 重要な情報（対象者、金額、期限、必要書類など）の根拠を優先してください
-3. 最大10件まで抽出してください
+できるだけ詳細に、原文に忠実に情報を抽出してください。
 `;
 
-/**
- * チェックリストを生成するプロンプト
- */
-const CHECKLIST_PROMPT = `
-あなたは行政手続きのチェックリストを作成するエキスパートです。
-
-以下の構造化データを基に、ユーザーがやるべきことのチェックリストを作成してください。
-
-## 出力形式
-
-以下のJSON配列形式で出力してください（JSONのみ。説明文や前置き、コードフェンスは不要）:
-
-[
-  {
-    "id": "check-001",
-    "text": "やること（具体的に）",
-    "category": "カテゴリ（準備、申請、確認など）",
-    "deadline": "期限があれば記載",
-    "priority": "high" | "medium" | "low"
-  }
-]
-
-## 注意事項
-
-1. 時系列順に並べてください
-2. 具体的で行動可能な項目にしてください
-3. 重要な項目は priority: "high" にしてください
-4. 最大15件程度に収めてください
-`;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GenerateContentResponse = any;
 
 /**
  * Vertex AI レスポンスからテキストを抽出
  */
-function extractText(response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }): string {
-  return response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+function extractText(response: {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+}): string {
+  const parts = response.candidates?.[0]?.content?.parts;
+  if (!parts || parts.length === 0) {
+    return '';
+  }
+
+  return parts.map((part) => part.text ?? '').join('');
+}
+
+/**
+ * レスポンスからGroundingMetadataを抽出
+ */
+function extractGroundingMetadata(
+  response: GenerateContentResponse
+): GroundingMetadata | undefined {
+  const candidate = response.candidates?.[0];
+
+  // デバッグ: groundingMetadata の存在確認
+  console.log('[DEBUG] Grounding metadata available:', !!candidate?.groundingMetadata);
+  if (candidate?.groundingMetadata) {
+    console.log('[DEBUG] Grounding metadata keys:', Object.keys(candidate.groundingMetadata));
+    console.log(
+      '[DEBUG] Raw grounding metadata:',
+      JSON.stringify(candidate.groundingMetadata, null, 2)
+    );
+  } else {
+    console.warn('[WARNING] No grounding metadata found in response');
+    return undefined;
+  }
+
+  if (!candidate?.groundingMetadata) {
+    return undefined;
+  }
+
+  const gm = candidate.groundingMetadata;
+
+  // Web検索クエリのログ
+  if (gm.webSearchQueries && gm.webSearchQueries.length > 0) {
+    console.log('[DEBUG] Web search queries used:', gm.webSearchQueries);
+  } else {
+    console.warn('[WARNING] No web search queries found');
+  }
+
+  // Grounding chunksのログ
+  if (gm.groundingChunks && gm.groundingChunks.length > 0) {
+    console.log(`[DEBUG] Found ${gm.groundingChunks.length} grounding chunks`);
+    gm.groundingChunks.forEach((chunk: { web?: { uri: string; title: string } }, index: number) => {
+      if (chunk.web) {
+        console.log(`[DEBUG] Chunk ${index + 1}: ${chunk.web.title} - ${chunk.web.uri}`);
+      }
+    });
+  } else {
+    console.warn('[WARNING] No grounding chunks found');
+  }
+
+  return {
+    webSearchQueries: gm.webSearchQueries,
+    groundingChunks: gm.groundingChunks?.map((chunk: { web?: { uri: string; title: string } }) => ({
+      web: chunk.web ? { uri: chunk.web.uri, title: chunk.web.title } : undefined,
+    })),
+    groundingSupports: gm.groundingSupports?.map(
+      (support: {
+        segment?: { startIndex?: number; endIndex?: number; text?: string };
+        groundingChunkIndices?: number[];
+      }) => ({
+        segment: support.segment
+          ? {
+              startIndex: support.segment.startIndex,
+              endIndex: support.segment.endIndex,
+              text: support.segment.text,
+            }
+          : undefined,
+        groundingChunkIndices: Array.isArray(support.groundingChunkIndices)
+          ? support.groundingChunkIndices.filter(
+              (index: unknown): index is number => typeof index === 'number'
+            )
+          : undefined,
+      })
+    ),
+    searchEntryPoint: gm.searchEntryPoint
+      ? { renderedContent: gm.searchEntryPoint.renderedContent }
+      : undefined,
+  };
+}
+
+/**
+ * Google Search Groundingを使用してURL情報を取得
+ */
+export async function fetchWithGoogleSearch(
+  url: string,
+  userIntent?: string
+): Promise<GoogleSearchResult> {
+  const basePrompt = `${GOOGLE_SEARCH_PROMPT}\n\n対象URL: ${url}`;
+
+  const prompt = userIntent
+    ? `${basePrompt}\n\nユーザーの意図: ${userIntent}\n\n上記の意図に特に関連する情報を重点的に調査してください。`
+    : basePrompt;
+
+  console.log('[DEBUG] fetchWithGoogleSearch: Starting web search');
+  console.log('[DEBUG] Target URL:', url);
+  if (userIntent) {
+    console.log('[DEBUG] User Intent:', userIntent);
+  }
+  console.log(
+    '[DEBUG] Prompt being sent to Gemini:\n---START PROMPT---\n',
+    prompt,
+    '\n---END PROMPT---'
+  );
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 1.0, // Google推奨設定
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    console.log('[DEBUG] Gemini API response received');
+    console.log('[DEBUG] Full response structure:', JSON.stringify(result, null, 2));
+
+    const content = extractText(result);
+    console.log('[DEBUG] Extracted text content length:', content.length);
+    console.log('[DEBUG] Extracted text preview (first 500 chars):', content.substring(0, 500));
+
+    const groundingMetadata = extractGroundingMetadata(result);
+    console.log(
+      '[DEBUG] Extracted grounding metadata:',
+      JSON.stringify(groundingMetadata, null, 2)
+    );
+
+    return {
+      content,
+      url,
+      groundingMetadata,
+    };
+  } catch (error) {
+    console.error('[ERROR] Google Search Grounding error:', error);
+    throw error;
+  }
 }
 
 /**
@@ -246,25 +304,128 @@ function parseJSON<T>(text: string): T | null {
 }
 
 /**
- * 中間表現を生成
+ * パーソナライズ情報をプロンプトに追加するためのテキストを生成
+ */
+function buildPersonalizationContext(personalization?: PersonalizationInput): string {
+  if (!personalization) {
+    console.log('[DEBUG] buildPersonalizationContext: No personalization input');
+    return '';
+  }
+
+  const lines: string[] = [];
+  lines.push('\n## ユーザー情報（パーソナライズ用）');
+  lines.push(`- ユーザーの意図: ${personalization.userIntent}`);
+
+  if (personalization.userProfile) {
+    const profile = personalization.userProfile;
+    if (profile.age !== undefined) {
+      lines.push(`- 年齢: ${profile.age}歳`);
+    }
+    if (profile.gender) {
+      lines.push(`- 性別: ${profile.gender}`);
+    }
+    if (profile.occupation) {
+      lines.push(`- 職業: ${profile.occupation}`);
+    }
+    if (profile.isJapaneseNational !== undefined) {
+      lines.push(`- 国籍: ${profile.isJapaneseNational ? '日本' : '外国籍'}`);
+    }
+    if (profile.location) {
+      lines.push(`- 居住地: ${profile.location}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('上記のユーザー情報を考慮して、このユーザーに最適化された内容を生成してください。');
+  lines.push('特にユーザーの意図に合わせて、必要な情報を強調し、不要な情報は省略してください。');
+
+  const result = lines.join('\n');
+  console.log('[DEBUG] buildPersonalizationContext result:\n', result);
+  return result;
+}
+
+function toChecklistErrorMessage(
+  error: unknown,
+  fallback = CHECKLIST_ERROR_MESSAGE
+): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'status' in error &&
+    (error as { status?: unknown }).status === 429
+  ) {
+    return 'アクセスが集中しているため、チェックリストを生成できませんでした。数分後にもう一度お試しください。';
+  }
+  return fallback;
+}
+
+/**
+ * 検索結果をプロンプトに追加するためのテキストを生成
+ */
+function buildSearchResultContext(intermediate: IntermediateRepresentation): string {
+  const lines: string[] = [];
+
+  // 意図ベース検索結果を優先
+  const searchMetadata =
+    intermediate.metadata.intentSearchMetadata || intermediate.metadata.groundingMetadata;
+
+  if (!searchMetadata) {
+    return '';
+  }
+
+  lines.push('\n## Web検索結果');
+
+  if (searchMetadata.webSearchQueries?.length) {
+    lines.push('\n### 検索クエリ:');
+    searchMetadata.webSearchQueries.forEach((query) => {
+      lines.push(`- ${query}`);
+    });
+  }
+
+  if (searchMetadata.groundingChunks?.length) {
+    lines.push('\n### 参照元情報:');
+    searchMetadata.groundingChunks.forEach((chunk, idx) => {
+      if (chunk.web) {
+        lines.push(`[${idx + 1}] ${chunk.web.title}`);
+        lines.push(`    URL: ${chunk.web.uri}`);
+      }
+    });
+  }
+
+  lines.push('\n上記のWeb検索結果を参考に、最新かつ正確な情報を提供してください。');
+
+  return lines.join('\n');
+}
+
+/**
+ * 中間表現を生成（Google Search Groundingの結果から）
  */
 export async function generateIntermediateRepresentation(
-  content: ScrapedContent
+  searchResult: GoogleSearchResult
 ): Promise<IntermediateRepresentation | null> {
+  console.log('[DEBUG] generateIntermediateRepresentation: Starting');
+  console.log('[DEBUG] Search result URL:', searchResult.url);
+  console.log('[DEBUG] Search result content length:', searchResult.content.length);
+  console.log('[DEBUG] Has grounding metadata:', !!searchResult.groundingMetadata);
+
   const pageContent = `
 # ページ情報
-- URL: ${content.url}
-- タイトル: ${content.title}
+- URL: ${searchResult.url}
 
-# ページ内容
-${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${s.content}`).join('\n\n') : content.mainContent}
+# 取得した情報
+${searchResult.content}
 `;
 
   try {
     // ドキュメントタイプ判定
     const typeResult = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: DOCUMENT_TYPE_PROMPT + '\n\n---\n\n' + pageContent }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: getPrompt('document-type.txt') + '\n\n---\n\n' + pageContent }],
+        },
+      ],
     });
     const typeText = extractText(typeResult);
     const typeData = parseJSON<{ documentType: DocumentType }>(typeText);
@@ -273,7 +434,12 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
     // 中間表現生成
     const intermediateResult = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: INTERMEDIATE_PROMPT + '\n\n---\n\n' + pageContent }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: getPrompt('intermediate.txt') + '\n\n---\n\n' + pageContent }],
+        },
+      ],
     });
     const intermediateText = extractText(intermediateResult);
     const intermediateData = parseJSON<Partial<IntermediateRepresentation>>(intermediateText);
@@ -282,23 +448,14 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
       return null;
     }
 
-    // 根拠情報抽出
-    const sourcesResult = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: SOURCES_PROMPT + '\n\n---\n\n' + pageContent }] }],
-    });
-    const sourcesText = extractText(sourcesResult);
-    const sources = parseJSON<IntermediateRepresentation['sources']>(sourcesText) || [];
-
     return {
-      title: intermediateData.title || content.title,
+      title: intermediateData.title || '',
       summary: intermediateData.summary || '',
       documentType,
       metadata: {
-        source_url: content.url,
-        page_title: content.title,
-        fetched_at: content.metadata.fetchedAt,
-        last_modified: content.metadata.lastModified,
+        source_url: searchResult.url,
+        fetched_at: new Date().toISOString(),
+        groundingMetadata: searchResult.groundingMetadata,
       },
       keyPoints: intermediateData.keyPoints,
       target: intermediateData.target,
@@ -307,7 +464,7 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
       contact: intermediateData.contact,
       warnings: intermediateData.warnings,
       tips: intermediateData.tips,
-      sources,
+      sources: [],
     };
   } catch (error) {
     console.error('Google Gen AI error:', error);
@@ -318,30 +475,65 @@ ${content.sections.length > 0 ? content.sections.map((s) => `## ${s.heading}\n${
 /**
  * チェックリストを生成
  */
-export async function generateChecklist(
-  intermediate: IntermediateRepresentation
-): Promise<ChecklistItem[]> {
+export async function generateChecklistWithState(
+  intermediate: IntermediateRepresentation,
+  personalization?: PersonalizationInput
+): Promise<{
+  checklist: ChecklistItem[];
+  state: Exclude<ChecklistGenerationState, 'not_requested'>;
+  error?: string;
+}> {
   const context = JSON.stringify(intermediate, null, 2);
+  const personalizationContext = buildPersonalizationContext(personalization);
+  const searchContext = buildSearchResultContext(intermediate);
 
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: CHECKLIST_PROMPT + '\n\n---\n\n' + context }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                getPrompt('checklist.txt') +
+                personalizationContext +
+                searchContext +
+                '\n\n---\n\n' +
+                context,
+            },
+          ],
+        },
+      ],
     });
     const text = extractText(result);
     const items = parseJSON<Omit<ChecklistItem, 'completed'>[]>(text);
 
     if (!items) {
-      return [];
+      return {
+        checklist: [],
+        state: 'error',
+        error: toChecklistErrorMessage(
+          null,
+          'チェックリストの解析結果が不正な形式でした。再試行してください。'
+        ),
+      };
     }
 
-    return items.map((item) => ({
-      ...item,
-      completed: false,
-    }));
+    return {
+      checklist: items.map((item) => ({
+        ...item,
+        completed: false,
+      })),
+      state: 'ready',
+    };
   } catch (error) {
     console.error('Checklist generation error:', error);
-    return [];
+    return {
+      checklist: [],
+      state: 'error',
+      error: toChecklistErrorMessage(error),
+    };
   }
 }
 
@@ -349,48 +541,136 @@ export async function generateChecklist(
  * やさしい要約を生成（Markdown形式）
  */
 export async function generateSimpleSummary(
-  intermediate: IntermediateRepresentation
+  intermediate: IntermediateRepresentation,
+  personalization?: PersonalizationInput
 ): Promise<string> {
-  const prompt = `
-あなたは行政情報を市民にわかりやすく説明するエキスパートです。
-
-以下の構造化データを基に、やさしい日本語で要約を作成してください。
-
-## 出力形式
-
-Markdown形式で出力してください。以下の構成を参考にしてください:
-
-## タイトル
-
-簡潔な説明（2-3文）
-
-## 主なポイント
-- ポイント1
-- ポイント2
-
-## 必要な手続き（ある場合）
-1. ステップ1
-2. ステップ2
-
-## 注意事項（ある場合）
-- 注意点
-
-## 注意事項
-
-1. 難しい言葉は使わない（専門用語は避ける）
-2. 短い文で書く
-3. 重要な情報（期限、金額など）は必ず含める
-4. 推測で情報を追加しない
-`;
+  const personalizationContext = buildPersonalizationContext(personalization);
+  const searchContext = buildSearchResultContext(intermediate);
 
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [{ role: 'user', parts: [{ text: prompt + '\n\n---\n\n' + JSON.stringify(intermediate, null, 2) }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                getPrompt('simple-summary.txt') +
+                personalizationContext +
+                searchContext +
+                '\n\n---\n\n' +
+                JSON.stringify(intermediate, null, 2),
+            },
+          ],
+        },
+      ],
     });
     return extractText(result);
   } catch (error) {
     console.error('Summary generation error:', error);
     return '';
+  }
+}
+
+/**
+ * 意図ベースの回答を生成
+ */
+export async function generateIntentAnswer(
+  intermediate: IntermediateRepresentation,
+  userIntent: string,
+  personalization?: PersonalizationInput,
+  context?: {
+    deepDiveSummary?: string;
+    messages?: ChatMessage[];
+    overviewTexts?: string[];
+    checklistTexts?: string[];
+  }
+): Promise<string> {
+  const personalizationContext = buildPersonalizationContext(personalization);
+  const searchContext = buildSearchResultContext(intermediate);
+
+  const payload = JSON.stringify(
+    {
+      userIntent,
+      intermediate,
+      deepDiveContext: {
+        deepDiveSummary: context?.deepDiveSummary || '',
+        messages: context?.messages ?? [],
+      },
+      existingGuides: {
+        overviewTexts: context?.overviewTexts ?? [],
+        checklistTexts: context?.checklistTexts ?? [],
+      },
+    },
+    null,
+    2
+  );
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                getPrompt('intent-answer.txt') +
+                personalizationContext +
+                searchContext +
+                '\n\n---\n\n' +
+                payload,
+            },
+          ],
+        },
+      ],
+    });
+    return extractText(result);
+  } catch (error) {
+    console.error('Intent answer generation error:', error);
+    return '';
+  }
+}
+
+/**
+ * 深掘り回答と要点要約を生成
+ */
+export async function generateDeepDiveResponse(params: {
+  summary: string;
+  messages: ChatMessage[];
+  deepDiveSummary?: string;
+  summaryOnly?: boolean;
+}): Promise<{ answer: string; summary: string } | null> {
+  const payload = JSON.stringify(
+    {
+      summary: params.summary,
+      deepDiveSummary: params.deepDiveSummary || '',
+      messages: params.messages || [],
+      summaryOnly: Boolean(params.summaryOnly),
+    },
+    null,
+    2
+  );
+
+  try {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: [
+        { role: 'user', parts: [{ text: getPrompt('deep-dive.txt') + '\n\n---\n\n' + payload }] },
+      ],
+    });
+    const text = extractText(result);
+    const data = parseJSON<{ answer?: string; summary?: string }>(text);
+    if (!data?.summary) {
+      return null;
+    }
+    return {
+      answer: data.answer || '',
+      summary: data.summary,
+    };
+  } catch (error) {
+    console.error('Deep dive generation error:', error);
+    return null;
   }
 }

@@ -8,6 +8,7 @@ import {
 } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { getStorage, type Storage } from "firebase-admin/storage";
 
 let app: App;
 
@@ -44,7 +45,16 @@ export const getAdminAuth = (): Auth => {
 };
 
 export const getAdminFirestore = (): Firestore => {
-  return getFirestore(getAdminApp());
+  const app = getAdminApp();
+  const databaseId = process.env.FIREBASE_DATABASE_ID;
+
+  // If FIREBASE_DATABASE_ID is specified, use that database
+  // Otherwise, use the default database
+  return databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+};
+
+export const getAdminStorage = (): Storage => {
+  return getStorage(getAdminApp());
 };
 
 // IDトークン検証

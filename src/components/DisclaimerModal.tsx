@@ -47,24 +47,24 @@ export function DisclaimerModal({ onAccept }: DisclaimerModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="disclaimer-title"
     >
-      <div className="bg-white rounded-xl shadow-xl max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
-        <h2 id="disclaimer-title" className="text-xl font-bold mb-4 text-center">
+      <div className="ui-card-float max-h-[90vh] w-full max-w-lg overflow-y-auto p-6">
+        <h2 id="disclaimer-title" className="ui-heading mb-4 text-center text-xl">
           ご利用にあたって
         </h2>
 
-        <div className="space-y-4 text-gray-700 mb-6">
-          <p className="font-medium text-lg">
+        <div className="mb-6 space-y-4 text-sm text-slate-700">
+          <p className="text-base font-semibold text-slate-800">
             KOMANAVI（コマナビ）は、行政情報をわかりやすくお伝えするサービスです。
           </p>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <h3 className="font-bold text-amber-800 mb-2">重要なお知らせ</h3>
-            <ul className="list-disc list-inside space-y-2 text-amber-700">
+          <div className="rounded-xl border border-stone-300 bg-stone-100 p-4">
+            <h3 className="mb-2 text-sm font-bold text-stone-900">重要なお知らせ</h3>
+            <ul className="list-disc space-y-2 pl-5 text-sm text-stone-800">
               <li>
                 本サービスはAIによる要約であり、<strong>正確性を保証するものではありません</strong>
               </li>
@@ -84,7 +84,7 @@ export function DisclaimerModal({ onAccept }: DisclaimerModalProps) {
 
         <button
           onClick={handleAccept}
-          className="w-full py-3 px-6 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className="ui-btn ui-btn-primary w-full py-3 text-sm !text-white"
         >
           同意して利用する
         </button>
