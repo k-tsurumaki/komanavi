@@ -19,7 +19,12 @@ import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { MangaViewer } from '@/components/MangaViewer';
 import { deriveFlowStageModel, type FlowStepId, type MangaFlowState } from '@/lib/flow-stage';
-import { ANALYZE_ERROR_MESSAGE, CHECKLIST_ERROR_MESSAGE } from '@/lib/error-messages';
+import {
+  ANALYZE_ERROR_MESSAGE,
+  CHECKLIST_ERROR_MESSAGE,
+  DEEP_DIVE_ERROR_MESSAGE,
+  INTENT_ANSWER_ERROR_MESSAGE,
+} from '@/lib/error-messages';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
@@ -697,7 +702,7 @@ function ResultContent() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || '深掘りに失敗しました');
+        throw new Error(errorData.error || DEEP_DIVE_ERROR_MESSAGE);
       }
 
       const data = (await response.json()) as {
@@ -708,7 +713,7 @@ function ResultContent() {
       };
 
       if (data.status === 'error') {
-        throw new Error(data.error || '深掘りに失敗しました');
+        throw new Error(data.error || DEEP_DIVE_ERROR_MESSAGE);
       }
 
       if (data.answer) {
@@ -765,7 +770,7 @@ function ResultContent() {
         setMessages(updatedMessages);
       }
     } catch (err) {
-      setDeepDiveError(err instanceof Error ? err.message : '深掘りに失敗しました');
+      setDeepDiveError(err instanceof Error ? err.message : DEEP_DIVE_ERROR_MESSAGE);
     } finally {
       setIsDeepDiveLoading(false);
     }
@@ -836,7 +841,7 @@ function ResultContent() {
 
       const payload = (await response.json().catch(() => ({}))) as IntentAnswerResponse;
       if (!response.ok || payload.status === 'error' || !payload.intentAnswer) {
-        throw new Error(payload.error || '意図回答の生成に失敗しました');
+        throw new Error(payload.error || INTENT_ANSWER_ERROR_MESSAGE);
       }
 
       const nextChecklistState = payload.checklistState ?? 'ready';
@@ -883,7 +888,7 @@ function ResultContent() {
         scheduleHistoryPatch(historyPatch);
       }
     } catch (err) {
-      setIntentError(err instanceof Error ? err.message : '意図回答の生成に失敗しました');
+      setIntentError(err instanceof Error ? err.message : INTENT_ANSWER_ERROR_MESSAGE);
       setIsIntentGenerating(false);
       setIsIntentLocked(wasGuidanceUnlocked);
     }
