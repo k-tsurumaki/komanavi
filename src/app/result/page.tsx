@@ -328,13 +328,6 @@ function ResultContent() {
   const shouldObserveChecklist = Boolean(
     guidanceUnlocked && !isIntentGenerating && hasChecklistAvailable && !hasChecklistReviewed
   );
-  const shouldAutoGenerateManga = Boolean(
-    guidanceUnlocked &&
-      !isIntentGenerating &&
-      !mangaAutoTriggered &&
-      savedMangaResult === null &&
-      mangaFlowState.status === 'not_started'
-  );
 
   const flowModel = useMemo(
     () =>
@@ -401,9 +394,16 @@ function ResultContent() {
 
   // 意図入力完了後に自動で漫画生成を開始
   useEffect(() => {
-    if (!shouldAutoGenerateManga) return;
-    setMangaAutoTriggered(true);
-  }, [shouldAutoGenerateManga]);
+    if (
+      guidanceUnlocked &&
+      !isIntentGenerating &&
+      !mangaAutoTriggered &&
+      savedMangaResult === null &&
+      mangaFlowState.status === 'not_started'
+    ) {
+      setMangaAutoTriggered(true);
+    }
+  }, [guidanceUnlocked, isIntentGenerating, mangaAutoTriggered, savedMangaResult, mangaFlowState.status]);
 
   const scrollToSection = useCallback((target: HTMLElement | null) => {
     if (!target) return;

@@ -18,8 +18,13 @@ const MAX_EDGE = 1200;
  * プロンプトファイルを読み込む
  */
 function loadPrompt(filename: string): string {
-  const promptPath = join(process.cwd(), "prompts", filename);
-  return readFileSync(promptPath, "utf-8");
+  try {
+    const promptPath = join(process.cwd(), "prompts", filename);
+    return readFileSync(promptPath, "utf-8");
+  } catch (error) {
+    console.error(`Failed to load prompt file: ${filename}`, error);
+    throw new Error(`Prompt file not found or inaccessible: ${filename}`);
+  }
 }
 
 // プロンプトをキャッシュ
@@ -74,13 +79,13 @@ type GenerateContentResponse = {
  */
 function buildPanels(request: MangaRequest): MangaResult {
   const panels: MangaPanel[] = [];
-  let panelId = 1;
+  let nextPanelId = 1;
 
   // 1. warnings（最大2件、最優先）
   if (request.warnings && request.warnings.length > 0) {
     request.warnings.slice(0, 2).forEach((warning) => {
       panels.push({
-        id: `panel-${panelId++}`,
+        id: `panel-${nextPanelId++}`,
         text: warning,
       });
     });
@@ -91,19 +96,19 @@ function buildPanels(request: MangaRequest): MangaResult {
     // 給付金: 金額 → 対象者 → 期限
     if (request.benefits?.amount) {
       panels.push({
-        id: `panel-${panelId++}`,
+        id: `panel-${nextPanelId++}`,
         text: `給付額: ${request.benefits.amount}`,
       });
     }
     if (request.target?.eligibility_summary) {
       panels.push({
-        id: `panel-${panelId++}`,
+        id: `panel-${nextPanelId++}`,
         text: `対象: ${request.target.eligibility_summary}`,
       });
     }
     if (request.procedure?.deadline) {
       panels.push({
-        id: `panel-${panelId++}`,
+        id: `panel-${nextPanelId++}`,
         text: `期限: ${request.procedure.deadline}`,
       });
     }
@@ -112,7 +117,7 @@ function buildPanels(request: MangaRequest): MangaResult {
     if (request.procedure?.steps && request.procedure.steps.length > 0) {
       request.procedure.steps.slice(0, 2).forEach((step) => {
         panels.push({
-          id: `panel-${panelId++}`,
+          id: `panel-${nextPanelId++}`,
           text: `${step.order}. ${step.action}`,
         });
       });
@@ -122,13 +127,13 @@ function buildPanels(request: MangaRequest): MangaResult {
       request.procedure.required_documents.length > 0
     ) {
       panels.push({
-        id: `panel-${panelId++}`,
+        id: `panel-${nextPanelId++}`,
         text: `必要書類: ${request.procedure.required_documents.slice(0, 3).join("、")}`,
       });
     }
     if (request.procedure?.deadline) {
       panels.push({
-        id: `panel-${panelId++}`,
+        id: `panel-${nextPanelId++}`,
         text: `期限: ${request.procedure.deadline}`,
       });
     }
@@ -137,7 +142,7 @@ function buildPanels(request: MangaRequest): MangaResult {
     if (request.keyPoints && request.keyPoints.length > 0) {
       request.keyPoints.slice(0, 3).forEach((point) => {
         panels.push({
-          id: `panel-${panelId++}`,
+          id: `panel-${nextPanelId++}`,
           text: point,
         });
       });
@@ -149,7 +154,7 @@ function buildPanels(request: MangaRequest): MangaResult {
     const contactParts = [request.contact.department];
     if (request.contact.phone) contactParts.push(request.contact.phone);
     panels.push({
-      id: `panel-${panelId++}`,
+      id: `panel-${nextPanelId++}`,
       text: `問い合わせ: ${contactParts.join(" ")}`,
     });
   }
@@ -157,7 +162,7 @@ function buildPanels(request: MangaRequest): MangaResult {
   // 4. tips（最大1件）
   if (panels.length < 7 && request.tips && request.tips.length > 0) {
     panels.push({
-      id: `panel-${panelId++}`,
+      id: `panel-${nextPanelId++}`,
       text: request.tips[0],
     });
   }
@@ -170,7 +175,7 @@ function buildPanels(request: MangaRequest): MangaResult {
       .filter(Boolean);
     sentences.slice(0, 4 - panels.length).forEach((sentence) => {
       panels.push({
-        id: `panel-${panelId++}`,
+        id: `panel-${nextPanelId++}`,
         text: sentence,
       });
     });
@@ -185,7 +190,7 @@ function buildPanels(request: MangaRequest): MangaResult {
   ];
   while (panels.length < 4) {
     panels.push({
-      id: `panel-${panelId++}`,
+      id: `panel-${nextPanelId++}`,
       text: fallbacks[panels.length] || "次のステップを確認しましょう。",
     });
   }
@@ -213,13 +218,13 @@ function buildPanels(request: MangaRequest): MangaResult {
  */
 function buildFallback(request: MangaRequest): MangaResult {
   const panels: MangaPanel[] = [];
-  let panelId = 1;
+  let nextPanelId = 1;
 
   // 1. warnings（最優先）
   if (request.warnings && request.warnings.length > 0) {
     request.warnings.slice(0, 2).forEach((warning) => {
       panels.push({
-        id: `fallback-${panelId++}`,
+        id: `fallback-${nextPanelId++}`,
         text: warning,
       });
     });
@@ -228,19 +233,19 @@ function buildFallback(request: MangaRequest): MangaResult {
   // 2. 重要情報（給付額、期限、対象者）
   if (request.benefits?.amount) {
     panels.push({
-      id: `fallback-${panelId++}`,
+      id: `fallback-${nextPanelId++}`,
       text: `給付額: ${request.benefits.amount}`,
     });
   }
   if (request.procedure?.deadline) {
     panels.push({
-      id: `fallback-${panelId++}`,
+      id: `fallback-${nextPanelId++}`,
       text: `期限: ${request.procedure.deadline}`,
     });
   }
   if (request.target?.eligibility_summary) {
     panels.push({
-      id: `fallback-${panelId++}`,
+      id: `fallback-${nextPanelId++}`,
       text: `対象: ${request.target.eligibility_summary}`,
     });
   }
@@ -249,7 +254,7 @@ function buildFallback(request: MangaRequest): MangaResult {
   if (panels.length < 6 && request.keyPoints && request.keyPoints.length > 0) {
     request.keyPoints.slice(0, 6 - panels.length).forEach((point) => {
       panels.push({
-        id: `fallback-${panelId++}`,
+        id: `fallback-${nextPanelId++}`,
         text: point,
       });
     });
@@ -257,7 +262,7 @@ function buildFallback(request: MangaRequest): MangaResult {
 
   // 4. summaryで補填
   if (panels.length === 0) {
-    panels.push({ id: `fallback-${panelId++}`, text: request.summary });
+    panels.push({ id: `fallback-${nextPanelId++}`, text: request.summary });
   }
 
   return {
