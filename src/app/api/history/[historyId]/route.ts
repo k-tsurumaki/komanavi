@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireUserId, toIsoString, compact } from '@/app/api/history/utils';
-import type { ChecklistItem } from '@/lib/types/intermediate';
+import { requireUserId, toIsoString, compact, resolveChecklistErrorField } from '@/app/api/history/utils';
+import type { ChecklistGenerationState, ChecklistItem } from '@/lib/types/intermediate';
 import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 import { generateSignedUrl } from '@/lib/cloud-storage';
 
@@ -19,6 +19,8 @@ type PatchHistoryRequest = {
   userIntent?: string;
   intentAnswer?: string;
   guidanceUnlocked?: boolean;
+  checklistState?: ChecklistGenerationState;
+  checklistError?: string;
 };
 
 export async function GET(
@@ -239,6 +241,8 @@ export async function PATCH(
       userIntent: body.userIntent,
       intentAnswer: body.intentAnswer,
       guidanceUnlocked: body.guidanceUnlocked,
+      checklistState: body.checklistState,
+      checklistError: resolveChecklistErrorField(body.checklistState, body.checklistError),
     }),
     { merge: true }
   );

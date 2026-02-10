@@ -1,11 +1,15 @@
-import type { ChecklistItem } from '@/lib/types/intermediate';
+import type { ChecklistGenerationState, ChecklistItem } from '@/lib/types/intermediate';
 
 type HistoryResultMutableFields = {
   checklist?: unknown;
   userIntent?: unknown;
   intentAnswer?: unknown;
   guidanceUnlocked?: unknown;
+  checklistState?: unknown;
+  checklistError?: unknown;
 };
+
+const CHECKLIST_STATES: ChecklistGenerationState[] = ['not_requested', 'ready', 'error'];
 
 function isChecklistItem(value: unknown): value is ChecklistItem {
   if (!value || typeof value !== 'object') return false;
@@ -27,9 +31,19 @@ export function validateHistoryResultMutableFields(
   const hasUserIntent = fields.userIntent !== undefined;
   const hasIntentAnswer = fields.intentAnswer !== undefined;
   const hasGuidanceUnlocked = fields.guidanceUnlocked !== undefined;
+  const hasChecklistState = fields.checklistState !== undefined;
+  const hasChecklistError = fields.checklistError !== undefined;
 
-  if (options?.requireAtLeastOne && !hasChecklist && !hasUserIntent && !hasIntentAnswer && !hasGuidanceUnlocked) {
-    return 'checklist, userIntent, intentAnswer or guidanceUnlocked is required';
+  if (
+    options?.requireAtLeastOne &&
+    !hasChecklist &&
+    !hasUserIntent &&
+    !hasIntentAnswer &&
+    !hasGuidanceUnlocked &&
+    !hasChecklistState &&
+    !hasChecklistError
+  ) {
+    return 'checklist, userIntent, intentAnswer, guidanceUnlocked, checklistState or checklistError is required';
   }
 
   if (hasChecklist && (!Array.isArray(fields.checklist) || !fields.checklist.every(isChecklistItem))) {
@@ -43,6 +57,27 @@ export function validateHistoryResultMutableFields(
   }
   if (hasGuidanceUnlocked && typeof fields.guidanceUnlocked !== 'boolean') {
     return 'guidanceUnlocked must be boolean';
+  }
+  if (
+    hasChecklistState &&
+    (typeof fields.checklistState !== 'string' ||
+      !CHECKLIST_STATES.includes(fields.checklistState as ChecklistGenerationState))
+  ) {
+    return 'checklistState is invalid';
+  }
+  if (hasChecklistError && typeof fields.checklistError !== 'string') {
+    return 'checklistError must be string';
+  }
+  if (hasChecklistError && !hasChecklistState) {
+    return 'checklistState is required when checklistError is set';
+  }
+
+  const checklistState =
+    hasChecklistState && typeof fields.checklistState === 'string'
+      ? (fields.checklistState as ChecklistGenerationState)
+      : undefined;
+  if (checklistState && checklistState !== 'error' && hasChecklistError) {
+    return 'checklistError must be omitted unless checklistState is error';
   }
 
   return null;

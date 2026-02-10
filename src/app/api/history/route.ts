@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import type { ChecklistItem, IntermediateRepresentation, Overview } from '@/lib/types/intermediate';
-import { requireUserId, toIsoString } from '@/app/api/history/utils';
+import type {
+  ChecklistGenerationState,
+  ChecklistItem,
+  IntermediateRepresentation,
+  Overview,
+} from '@/lib/types/intermediate';
+import { requireUserId, resolveChecklistErrorField, toIsoString } from '@/app/api/history/utils';
 import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 
 export const runtime = 'nodejs';
@@ -25,6 +30,8 @@ type SaveHistoryRequest = {
   intentAnswer?: string;
   guidanceUnlocked?: boolean;
   overview?: Overview;
+  checklistState?: ChecklistGenerationState;
+  checklistError?: string;
 };
 
 function compact<T extends Record<string, unknown>>(data: T): T {
@@ -147,6 +154,8 @@ export async function POST(request: NextRequest) {
     intentAnswer: body.intentAnswer,
     guidanceUnlocked: body.guidanceUnlocked ?? false,
     overview: body.overview,
+    checklistState: body.checklistState,
+    checklistError: resolveChecklistErrorField(body.checklistState, body.checklistError),
   });
 
   const batch = db.batch();

@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   fetchWithGoogleSearch,
   generateIntermediateRepresentation,
-  generateChecklist,
+  generateChecklistWithState,
   generateSimpleSummary,
-  generateOverview,
   generateDeepDiveResponse,
   generateIntentAnswer,
 } from '@/lib/gemini';
 import type {
   AnalyzeResult,
   AnalyzeRequest,
+  ChecklistResponse,
   DeepDiveResponse,
+  IntermediateRepresentation,
   IntentAnswerResponse,
   PersonalizationInput,
 } from '@/lib/types/intermediate';
@@ -23,7 +24,7 @@ import {
 } from '@/lib/user-profile';
 
 // インメモリキャッシュ（開発用）
-const cache = new Map<string, { result: AnalyzeResult; expiresAt: number }>();
+const cache = new Map<string, { intermediate: IntermediateRepresentation; expiresAt: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24時間
 
 /**
@@ -42,12 +43,12 @@ function hashUrl(url: string): string {
 /**
  * キャッシュから取得
  */
-function getFromCache(url: string): AnalyzeResult | null {
+function getFromCache(url: string): IntermediateRepresentation | null {
   const key = hashUrl(url);
   const cached = cache.get(key);
 
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.result;
+    return cached.intermediate;
   }
 
   if (cached) {
@@ -60,10 +61,10 @@ function getFromCache(url: string): AnalyzeResult | null {
 /**
  * キャッシュに保存
  */
-function saveToCache(url: string, result: AnalyzeResult): void {
+function saveToCache(url: string, intermediate: IntermediateRepresentation): void {
   const key = hashUrl(url);
   cache.set(key, {
-    result,
+    intermediate,
     expiresAt: Date.now() + CACHE_TTL,
   });
 }
@@ -138,17 +139,13 @@ export async function POST(request: NextRequest) {
       }
 
       const personalizationInput = await buildPersonalizationInput(body.userIntent);
-      const intentAnswer = await generateIntentAnswer(
-        body.intermediate,
-        body.userIntent,
-        personalizationInput,
-        {
+      const checklistPromise = generateChecklistWithState(body.intermediate, personalizationInput);
+      const intentAnswer = await generateIntentAnswer(body.intermediate, body.userIntent, personalizationInput, {
           deepDiveSummary: body.deepDiveSummary,
           messages: body.messages || [],
           overviewTexts: body.overviewTexts || [],
           checklistTexts: body.checklistTexts || [],
-        }
-      );
+        });
 
       if (!intentAnswer) {
         return NextResponse.json(
@@ -157,11 +154,43 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const checklistGeneration = await checklistPromise;
+
       return NextResponse.json(
         {
           status: 'success',
           intentAnswer,
+          checklist: checklistGeneration.checklist,
+          checklistState: checklistGeneration.state,
+          checklistError: checklistGeneration.error,
         } satisfies IntentAnswerResponse
+      );
+    }
+
+    if (body.mode === 'checklist') {
+      if (!body.userIntent?.trim()) {
+        return NextResponse.json(
+          { status: 'error', error: 'userIntentが指定されていません' } satisfies ChecklistResponse,
+          { status: 400 }
+        );
+      }
+      if (!body.intermediate) {
+        return NextResponse.json(
+          { status: 'error', error: 'intermediateが指定されていません' } satisfies ChecklistResponse,
+          { status: 400 }
+        );
+      }
+
+      const personalizationInput = await buildPersonalizationInput(body.userIntent);
+      const checklistGeneration = await generateChecklistWithState(body.intermediate, personalizationInput);
+
+      return NextResponse.json(
+        {
+          status: 'success',
+          checklist: checklistGeneration.checklist,
+          checklistState: checklistGeneration.state,
+          checklistError: checklistGeneration.error,
+        } satisfies ChecklistResponse
       );
     }
 
@@ -178,8 +207,8 @@ export async function POST(request: NextRequest) {
 
     // キャッシュ確認（パーソナライズなしの基本結果のみキャッシュ）
     // 注意: パーソナライズ結果はキャッシュしない
-    const cached = getFromCache(url);
-    let intermediate = cached?.intermediate;
+    const cachedIntermediate = getFromCache(url);
+    let intermediate = cachedIntermediate;
 
     if (!intermediate) {
       // Google Search Groundingで情報取得
@@ -213,14 +242,8 @@ export async function POST(request: NextRequest) {
       intermediate = generatedIntermediate;
     }
 
-    // チェックリスト生成（パーソナライズ適用）
-    const checklist = await generateChecklist(intermediate, personalizationInput);
-
-    // 要約生成（パーソナライズ適用）
+    // 初回解析では要約の初回表示を優先する（checklist は意図入力時に生成）
     const generatedSummary = await generateSimpleSummary(intermediate, personalizationInput);
-
-    // 概要（構造化）生成
-    const overview = await generateOverview(intermediate);
 
     // 意図ベース回答生成（意図がある場合のみ）
     const intentAnswer = userIntent
@@ -234,8 +257,9 @@ export async function POST(request: NextRequest) {
       userIntent: userIntent?.trim() || undefined,
       intentAnswer: intentAnswer || undefined,
       guidanceUnlocked: false,
-      overview: overview || undefined,
-      checklist,
+      overview: undefined,
+      checklist: [],
+      checklistState: 'not_requested',
       personalization: {
         appliedIntent: personalizationInput.userIntent,
         appliedProfile: personalizationInput.userProfile,
@@ -244,8 +268,8 @@ export async function POST(request: NextRequest) {
     };
 
     // キャッシュに保存（中間表現のみ、パーソナライズ結果は保存しない）
-    if (!cached) {
-      saveToCache(url, result);
+    if (!cachedIntermediate) {
+      saveToCache(url, intermediate);
     }
 
     return NextResponse.json(result);

@@ -1,5 +1,6 @@
 import type {
   AnalyzeResult,
+  ChecklistGenerationState,
   ChecklistItem,
   HistoryItem,
   IntermediateRepresentation,
@@ -28,6 +29,8 @@ type HistoryDetailResponse = {
     userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
+    checklistState?: ChecklistGenerationState;
+    checklistError?: string;
     overview?: Overview;
     schemaVersion?: number;
   } | null;
@@ -105,6 +108,8 @@ export async function saveHistoryFromResult(params: {
     userIntent: result.userIntent,
     intentAnswer: result.intentAnswer,
     guidanceUnlocked: result.guidanceUnlocked ?? false,
+    checklistState: result.checklistState,
+    checklistError: result.checklistError,
     overview: result.overview,
     intermediate: result.intermediate,
   };
@@ -131,6 +136,8 @@ export async function patchHistoryResult(
     userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
+    checklistState?: ChecklistGenerationState;
+    checklistError?: string;
   },
   options?: {
     keepalive?: boolean;

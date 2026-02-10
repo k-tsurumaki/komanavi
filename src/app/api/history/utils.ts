@@ -1,4 +1,6 @@
 import { auth } from '@/lib/auth';
+import { FieldValue } from 'firebase-admin/firestore';
+import type { ChecklistGenerationState } from '@/lib/types/intermediate';
 
 export function toIsoString(value: unknown): string | null {
   if (value && typeof value === 'object' && 'toDate' in value) {
@@ -24,4 +26,20 @@ export function compact<T extends Record<string, unknown>>(data: T): T {
     }
   });
   return next as T;
+}
+
+export function resolveChecklistErrorField(
+  checklistState?: ChecklistGenerationState,
+  checklistError?: string
+): string | ReturnType<typeof FieldValue.delete> | undefined {
+  if (checklistState === undefined) {
+    return undefined;
+  }
+  if (checklistState === 'error') {
+    return (
+      checklistError?.trim() ||
+      'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+    );
+  }
+  return FieldValue.delete();
 }
