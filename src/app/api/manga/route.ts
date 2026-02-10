@@ -177,7 +177,13 @@ export async function POST(request: NextRequest) {
         'Failed to fetch user profile, proceeding without personalization:',
         profileError
       );
-      enrichedBody = body;
+      // プロファイル取得に失敗した場合はクライアント送信の userProfile / intentSearchMetadata を信頼しない
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { userProfile, intentSearchMetadata, ...rest } = body;
+      enrichedBody = {
+        ...rest,
+        userProfile: undefined,
+      };
     }
 
     // Firestore に conversation_manga を作成

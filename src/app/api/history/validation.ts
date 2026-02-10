@@ -25,6 +25,21 @@ function isChecklistItem(value: unknown): value is ChecklistItem {
   return true;
 }
 
+function isIntermediateRepresentation(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const item = value as any;
+
+  // 必須フィールドのチェック
+  if (typeof item.title !== 'string') return false;
+  if (typeof item.summary !== 'string') return false;
+  if (typeof item.documentType !== 'string') return false;
+  if (!item.metadata || typeof item.metadata !== 'object') return false;
+  if (!Array.isArray(item.sources)) return false;
+
+  return true;
+}
+
 export function validateHistoryResultMutableFields(
   fields: HistoryResultMutableFields,
   options?: { requireAtLeastOne?: boolean }
@@ -85,6 +100,10 @@ export function validateHistoryResultMutableFields(
       : undefined;
   if (checklistState && checklistState !== 'error' && hasChecklistError) {
     return 'checklistError must be omitted unless checklistState is error';
+  }
+
+  if (hasIntermediate && !isIntermediateRepresentation(fields.intermediate)) {
+    return 'intermediate is invalid or missing required fields';
   }
 
   return null;

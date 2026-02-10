@@ -675,22 +675,21 @@ export function MangaViewer(props: MangaViewerProps) {
           {isPolling && <div className="text-sm text-slate-600">生成中... {progress}%</div>}
 
           {error && (
-            <div className="ui-callout ui-callout-error">
-              {error}
-              <div className="mt-2">
-                <button
-                  type="button"
-                  className="font-semibold text-stone-700 hover:text-stone-800"
-                  onClick={() => {
-                    setError(null);
-                    setProgress(0);
-                    clearActiveJob();
-                    handleGenerate();
-                  }}
-                >
-                  再試行する
-                </button>
-              </div>
+            <div className="ui-card ui-panel-error rounded-2xl p-6">
+              <h3 className="ui-heading text-lg text-red-700">漫画の生成に失敗しました</h3>
+              <p className="mt-2 text-sm text-stone-800">{error}</p>
+              <button
+                type="button"
+                className="ui-btn ui-btn-primary mt-4 px-5 py-2 text-sm !text-white disabled:opacity-50"
+                onClick={() => {
+                  setError(null);
+                  setProgress(0);
+                  clearActiveJob();
+                  void handleGenerate();
+                }}
+              >
+                漫画を再生成する
+              </button>
             </div>
           )}
 
