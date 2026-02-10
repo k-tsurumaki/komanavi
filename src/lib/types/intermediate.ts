@@ -222,6 +222,7 @@ export interface Metadata {
   last_modified?: string; // 元ページの最終更新日
   language?: string;
   groundingMetadata?: GroundingMetadata;
+  intentSearchMetadata?: GroundingMetadata;
 }
 
 // ============================================
@@ -377,6 +378,7 @@ export interface IntentAnswerResponse {
   checklistState?: Exclude<ChecklistGenerationState, 'not_requested'>;
   checklistError?: string;
   error?: string;
+  intermediate?: IntermediateRepresentation;
 }
 
 /** チェックリスト再生成レスポンス */
@@ -464,9 +466,14 @@ export interface MangaRequest {
   warnings?: string[];
   tips?: string[];
 
+  // パーソナライズ（オプショナル）
+  userIntent?: string;
+  userProfile?: NormalizedUserProfile;
+  intentSearchMetadata?: GroundingMetadata;
+
   // 会話履歴との紐づけ
-  resultId: string;   // 解析結果のID（必須）
-  historyId: string;  // 会話履歴のID（必須）
+  resultId: string; // 解析結果のID（必須）
+  historyId: string; // 会話履歴のID（必須）
 }
 
 /** 漫画ジョブレスポンス */
@@ -501,10 +508,10 @@ export interface HistoryItem {
 
 /** 会話履歴に紐づく漫画ドキュメント */
 export interface ConversationMangaDocument {
-  id: string;          // ドキュメントID = resultId
-  resultId: string;    // 解析結果のID
-  historyId: string;   // 会話履歴のID
-  userId: string;      // 所有ユーザーID
+  id: string; // ドキュメントID = resultId
+  resultId: string; // 解析結果のID
+  historyId: string; // 会話履歴のID
+  userId: string; // 所有ユーザーID
   status: MangaJobStatus;
   progress: number;
   request: MangaRequest;

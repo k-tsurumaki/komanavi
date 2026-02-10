@@ -18,11 +18,7 @@ import { MypageOnboardingPrompt } from '@/components/MypageOnboardingPrompt';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { ChecklistViewer } from '@/components/ChecklistViewer';
 import { MangaViewer } from '@/components/MangaViewer';
-import {
-  deriveFlowStageModel,
-  type FlowStepId,
-  type MangaFlowState,
-} from '@/lib/flow-stage';
+import { deriveFlowStageModel, type FlowStepId, type MangaFlowState } from '@/lib/flow-stage';
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
@@ -324,7 +320,9 @@ function ResultContent() {
   const hasChecklistError = checklistState === 'error';
   const hasIntentInput = Boolean(intentInput.trim() || result?.userIntent?.trim());
   const hasChecklistAvailable = Boolean(result?.checklist?.length) && !hasChecklistError;
-  const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving && !hasIntermediate);
+  const canAnalyzeFromUrl = Boolean(
+    url && status === 'idle' && !isHistoryResolving && !hasIntermediate
+  );
   const hasIntentGenerationError = Boolean(intentError && !isIntentGenerating && !guidanceUnlocked);
   const shouldObserveChecklist = Boolean(
     guidanceUnlocked && !isIntentGenerating && hasChecklistAvailable && !hasChecklistReviewed
@@ -404,7 +402,13 @@ function ResultContent() {
     ) {
       setMangaAutoTriggered(true);
     }
-  }, [guidanceUnlocked, isIntentGenerating, mangaAutoTriggered, savedMangaResult, mangaFlowState.status]);
+  }, [
+    guidanceUnlocked,
+    isIntentGenerating,
+    mangaAutoTriggered,
+    savedMangaResult,
+    mangaFlowState.status,
+  ]);
 
   const scrollToSection = useCallback((target: HTMLElement | null) => {
     if (!target) return;
@@ -777,6 +781,8 @@ function ResultContent() {
           ? payload.checklistError || DEFAULT_CHECKLIST_ERROR_MESSAGE
           : undefined;
 
+      const updatedIntermediate = payload.intermediate || result.intermediate;
+
       setResult({
         ...result,
         userIntent: trimmedIntent,
@@ -785,6 +791,7 @@ function ResultContent() {
         checklistState: nextChecklistState,
         checklistError: nextChecklistError,
         guidanceUnlocked: true,
+        intermediate: updatedIntermediate,
       });
       setHasChecklistReviewed(false);
       setIsIntentGenerating(false);
@@ -797,6 +804,7 @@ function ResultContent() {
         guidanceUnlocked: true,
         checklistState: nextChecklistState,
         checklistError: nextChecklistError,
+        intermediate: updatedIntermediate,
       };
 
       if (effectiveHistoryId) {
@@ -950,9 +958,7 @@ function ResultContent() {
               onKeyDown={handleChatTabKeyDown}
               onClick={() => setChatMode('deepDive')}
               className={`px-3 py-1 rounded-full transition ${
-                chatMode === 'deepDive'
-                  ? 'bg-stone-100 text-stone-900 shadow-sm'
-                  : 'text-stone-600'
+                chatMode === 'deepDive' ? 'bg-stone-100 text-stone-900 shadow-sm' : 'text-stone-600'
               }`}
             >
               深掘り
@@ -968,9 +974,7 @@ function ResultContent() {
               onKeyDown={handleChatTabKeyDown}
               onClick={handleAdvanceToIntent}
               className={`px-3 py-1 rounded-full transition ${
-                chatMode === 'intent'
-                  ? 'bg-stone-100 text-stone-900 shadow-sm'
-                  : 'text-stone-600'
+                chatMode === 'intent' ? 'bg-stone-100 text-stone-900 shadow-sm' : 'text-stone-600'
               }`}
             >
               意図入力
@@ -1148,6 +1152,7 @@ function ResultContent() {
             onFlowStateChange={setMangaFlowState}
             autoGenerate={mangaAutoTriggered}
             intermediate={intermediate}
+            userIntent={result.userIntent}
           />
         </div>
       )}
@@ -1271,7 +1276,9 @@ function ResultContent() {
                 }
                 className="ui-btn ui-btn-primary mt-4 px-5 py-2 text-sm !text-white disabled:opacity-50"
               >
-                {isChecklistRegenerating ? 'チェックリストを再生成中...' : 'チェックリストを再生成する'}
+                {isChecklistRegenerating
+                  ? 'チェックリストを再生成中...'
+                  : 'チェックリストを再生成する'}
               </button>
             </div>
           ) : (
