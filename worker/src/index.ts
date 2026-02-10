@@ -1,13 +1,13 @@
-import express, { Request, Response, NextFunction } from "express";
-import { processManga } from "./process-manga.js";
-import type { MangaRequest } from "./types.js";
+import express, { Request, Response, NextFunction } from 'express';
+import { processManga } from './process-manga.js';
+import type { MangaRequest } from './types.js';
 
 const app = express();
 app.use(express.json());
 
 // Cloud Tasks からのリクエストボディ
 interface ProcessRequest {
-  resultId: string;  // jobId から resultId に変更
+  resultId: string; // jobId から resultId に変更
   request: MangaRequest;
   userId: string;
 }
@@ -16,14 +16,14 @@ interface ProcessRequest {
  * Cloud Tasks から呼び出される漫画生成エンドポイント
  * OIDC 認証は Cloud Run の設定で制御
  */
-app.post("/process", async (req: Request, res: Response) => {
+app.post('/process', async (req: Request, res: Response) => {
   const startTime = Date.now();
   const { resultId, request, userId } = req.body as ProcessRequest;
 
   // Cloud Tasks ヘッダーを確認（デバッグ用）
-  const taskName = req.headers["x-cloudtasks-taskname"];
-  const queueName = req.headers["x-cloudtasks-queuename"];
-  const retryCount = req.headers["x-cloudtasks-taskretrycount"];
+  const taskName = req.headers['x-cloudtasks-taskname'];
+  const queueName = req.headers['x-cloudtasks-queuename'];
+  const retryCount = req.headers['x-cloudtasks-taskretrycount'];
 
   // リクエストボディのサイズをログ出力
   const bodyJson = JSON.stringify(req.body);
@@ -40,8 +40,8 @@ app.post("/process", async (req: Request, res: Response) => {
   });
 
   if (!resultId || !request || !userId) {
-    console.error("[Worker] Invalid request: missing required fields");
-    res.status(400).json({ success: false, error: "Missing required fields" });
+    console.error('[Worker] Invalid request: missing required fields');
+    res.status(400).json({ success: false, error: 'Missing required fields' });
     return;
   }
 
@@ -54,7 +54,7 @@ app.post("/process", async (req: Request, res: Response) => {
     res.json({ success: true, duration });
   } catch (error) {
     const duration = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[Worker] Job ${resultId} failed after ${duration}ms:`, error);
 
     // Cloud Tasks はステータスコード >= 500 でリトライする
@@ -74,13 +74,14 @@ app.post("/process", async (req: Request, res: Response) => {
 /**
  * ヘルスチェックエンドポイント
  */
-app.get("/health", (_req: Request, res: Response) => {
-  res.send("OK");
+app.get('/health', (_req: Request, res: Response) => {
+  res.send('OK');
 });
 
 /**
  * エラーがリトライ可能かどうかを判定
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isRetryableError(_error: unknown): boolean {
   // リトライなし: すべてのエラーを非リトライ扱い
   return false;
@@ -89,14 +90,15 @@ function isRetryableError(_error: unknown): boolean {
 /**
  * グローバルエラーハンドラー
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("[Worker] Unhandled error:", err);
-  res.status(500).json({ success: false, error: "Internal server error" });
+  console.error('[Worker] Unhandled error:', err);
+  res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
 const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
   console.log(`[Worker] Listening on port ${PORT}`);
-  console.log(`[Worker] Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`[Worker] Environment: ${process.env.NODE_ENV || 'development'}`);
 });

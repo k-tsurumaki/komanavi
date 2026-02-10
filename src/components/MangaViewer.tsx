@@ -268,7 +268,6 @@ export function MangaViewer(props: MangaViewerProps) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
-  const [result, setResult] = useState<MangaResult | null>(initialMangaResult || null);
   const [isPolling, setIsPolling] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number | null>(null);
@@ -367,7 +366,6 @@ export function MangaViewer(props: MangaViewerProps) {
         }
 
         if (data.status === 'done' && data.result) {
-          setResult(data.result);
           if (data.result.imageUrls && data.result.imageUrls.length > 0) {
             setImageUrl(data.result.imageUrls[0]);
           } else {
@@ -385,7 +383,6 @@ export function MangaViewer(props: MangaViewerProps) {
 
         if (data.status === 'error') {
           // エラー時はresultを設定しない（フォールバック画像を生成させない）
-          setResult(null);
           setError(getErrorMessage(data.errorCode, data.error));
           notifyFlowState({
             status: 'error',
@@ -560,7 +557,6 @@ export function MangaViewer(props: MangaViewerProps) {
   // 履歴から復元した漫画データを初期表示（再生成中・ポーリング中は復元しない）
   useEffect(() => {
     if (initialMangaResult && !imageUrl && !isPolling && !isRegenerating && !error) {
-      setResult(initialMangaResult);
       setProgress(100);
       notifyFlowState({
         status: 'completed',
