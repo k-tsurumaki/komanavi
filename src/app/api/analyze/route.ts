@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
       if (!response) {
         return NextResponse.json(
-          { status: 'error', error: '深掘り回答の生成に失敗しました' } satisfies DeepDiveResponse,
+          { status: 'error', error: DEEP_DIVE_ERROR_MESSAGE } satisfies DeepDiveResponse,
           { status: 500 }
         );
       }
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
 
       if (!intentAnswer) {
         return NextResponse.json(
-          { status: 'error', error: '意図回答の生成に失敗しました' } satisfies IntentAnswerResponse,
+          { status: 'error', error: INTENT_ANSWER_ERROR_MESSAGE } satisfies IntentAnswerResponse,
           { status: 500 }
         );
       }
