@@ -31,6 +31,8 @@ type ProfileResponse = {
 
 const BANNER_SHOW_DELAY_MS = 4000;
 const START_PENDING_TIMEOUT_MS = 4000;
+const PROFILE_GATE_RETRY_DELAY_MS = 1200;
+const PROFILE_GATE_MAX_RETRIES = 1;
 const MYPAGE_FLOW_URL = '/mypage?flow=create&step=1';
 const EVENT_CONTEXT = {
   entry_point: 'result',
@@ -45,12 +47,15 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
   const [profileGate, setProfileGate] = useState<{
     resolvedFor: string | null;
     shouldOffer: boolean | null;
+    source: 'profile' | 'fallback' | null;
   }>({
     resolvedFor: null,
     shouldOffer: null,
+    source: null,
   });
   const hasTrackedCompactImpressionRef = useRef(false);
   const startNavigationTimerRef = useRef<number | null>(null);
+  const profileRetryTimerRef = useRef<number | null>(null);
 
   const userKey = useMemo(() => {
     const userId = session?.user?.id;
@@ -60,6 +65,8 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
   const isAuthReady = enabled && status === 'authenticated' && Boolean(userKey);
   const isProfileResolvedForUser = isAuthReady && profileGate.resolvedFor === userKey;
   const shouldOffer = isProfileResolvedForUser && profileGate.shouldOffer === true;
+  const shouldOfferFromProfile = shouldOffer && profileGate.source === 'profile';
+  const shouldOfferFromFallback = shouldOffer && profileGate.source === 'fallback';
   const isSuppressedInSession = userKey ? isSessionSuppressed(userKey) : false;
   const hasSeenStrongInSession = userKey ? hasSeenStrongBannerInSession(userKey) : false;
 
@@ -78,6 +85,14 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
       setIsStartPending(false);
     }, START_PENDING_TIMEOUT_MS);
   }, [clearStartNavigationTimer]);
+
+  const clearProfileRetryTimer = useCallback(() => {
+    if (profileRetryTimerRef.current === null) {
+      return;
+    }
+    window.clearTimeout(profileRetryTimerRef.current);
+    profileRetryTimerRef.current = null;
+  }, []);
 
   const handleSkip = useCallback(
     (eventName: 'banner_close' | 'compact_link_close') => {
@@ -107,40 +122,34 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
       if (userKey) {
         markFlowStartPendingInSession(userKey);
       }
-
-      try {
-        router.push(MYPAGE_FLOW_URL);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown_error';
-        clearStartNavigationTimer();
-        if (userKey) {
-          clearFlowStartPendingInSession(userKey);
-        }
-        trackClientEvent('flow_start_fail', {
-          ...EVENT_CONTEXT,
-          error_message: message,
-        });
-        setIsStartPending(false);
-      }
+      router.push(MYPAGE_FLOW_URL);
     },
-    [clearStartNavigationTimer, isStartPending, router, scheduleStartNavigationTimeout, userKey]
+    [isStartPending, router, scheduleStartNavigationTimeout, userKey]
   );
 
   useEffect(() => {
     return () => {
       clearStartNavigationTimer();
+      clearProfileRetryTimer();
     };
-  }, [clearStartNavigationTimer]);
+  }, [clearProfileRetryTimer, clearStartNavigationTimer]);
 
   useEffect(() => {
     if (!isAuthReady || !userKey) {
       return;
     }
 
+    clearProfileRetryTimer();
     let isMounted = true;
     const controller = new AbortController();
+    const resolveAsFallback = () => {
+      if (!isMounted) {
+        return;
+      }
+      setProfileGate({ resolvedFor: userKey, shouldOffer: true, source: 'fallback' });
+    };
 
-    const resolveProfile = async () => {
+    const resolveProfile = async (attempt: number) => {
       try {
         const response = await fetch('/api/user/profile', {
           method: 'GET',
@@ -149,9 +158,14 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
         });
 
         if (!response.ok) {
-          if (isMounted) {
-            setProfileGate({ resolvedFor: userKey, shouldOffer: false });
+          if (attempt < PROFILE_GATE_MAX_RETRIES) {
+            profileRetryTimerRef.current = window.setTimeout(() => {
+              profileRetryTimerRef.current = null;
+              void resolveProfile(attempt + 1);
+            }, PROFILE_GATE_RETRY_DELAY_MS);
+            return;
           }
+          resolveAsFallback();
           return;
         }
 
@@ -161,25 +175,37 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
           return;
         }
 
-        setProfileGate({ resolvedFor: userKey, shouldOffer: !hasMypageStarted(profile) });
+        setProfileGate({
+          resolvedFor: userKey,
+          shouldOffer: !hasMypageStarted(profile),
+          source: 'profile',
+        });
       } catch {
         if (!isMounted || controller.signal.aborted) {
           return;
         }
-        setProfileGate({ resolvedFor: userKey, shouldOffer: false });
+        if (attempt < PROFILE_GATE_MAX_RETRIES) {
+          profileRetryTimerRef.current = window.setTimeout(() => {
+            profileRetryTimerRef.current = null;
+            void resolveProfile(attempt + 1);
+          }, PROFILE_GATE_RETRY_DELAY_MS);
+          return;
+        }
+        resolveAsFallback();
       }
     };
 
-    void resolveProfile();
+    void resolveProfile(0);
 
     return () => {
       isMounted = false;
       controller.abort();
+      clearProfileRetryTimer();
     };
-  }, [isAuthReady, userKey]);
+  }, [clearProfileRetryTimer, isAuthReady, userKey]);
 
   useEffect(() => {
-    if (!isAuthReady || !userKey || !isProfileResolvedForUser || !shouldOffer) {
+    if (!isAuthReady || !userKey || !isProfileResolvedForUser || !shouldOfferFromProfile) {
       return;
     }
     if (isSuppressedInSession) {
@@ -211,16 +237,16 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
     isProfileResolvedForUser,
     isStrongBannerVisible,
     isSuppressedInSession,
-    shouldOffer,
+    shouldOfferFromProfile,
     userKey,
   ]);
 
   const shouldRenderStrongBanner =
-    isAuthReady && shouldOffer && isStrongBannerVisible && !isSuppressedInSession;
+    isAuthReady && shouldOfferFromProfile && isStrongBannerVisible && !isSuppressedInSession;
   const shouldRenderCompactLink =
     isAuthReady &&
     shouldOffer &&
-    hasSeenStrongInSession &&
+    (hasSeenStrongInSession || shouldOfferFromFallback) &&
     !isSuppressedInSession &&
     !isStrongBannerVisible;
 

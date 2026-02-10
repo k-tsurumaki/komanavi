@@ -84,10 +84,6 @@ function buildProfileResponse(data: unknown): ProfileResponse {
 
   for (const field of PROFILE_STRING_FIELDS) {
     const normalized = normalizeProfileString(data[field]);
-    if (field === 'nationality') {
-      profile.nationality = normalized;
-      continue;
-    }
     profile[field] = normalized;
   }
 
@@ -105,10 +101,6 @@ function buildProfileUpdatePayload(body: Record<string, unknown>):
       continue;
     }
     const normalized = normalizeProfileString(body[field]);
-    if (field === 'nationality') {
-      saveData.nationality = normalized;
-      continue;
-    }
     saveData[field] = normalized;
   }
 

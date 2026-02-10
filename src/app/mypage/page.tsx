@@ -83,7 +83,7 @@ export default async function MyPage({ searchParams }: MyPageProps) {
     console.error('Failed to resolve mypage started status:', error);
   }
 
-  const shouldShowCreationFlow = !hasStartedProfile;
+  const shouldShowCreationFlow = !hasBootstrapError && !hasStartedProfile;
 
   return (
     <div className="ui-page ui-shell-gap">
