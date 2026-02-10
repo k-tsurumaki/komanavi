@@ -118,7 +118,6 @@ export function ProfileForm({ user, initialProfile, hasBootstrapError }: Profile
             placeholder="例：山田 太郎"
             className="ui-input"
           />
-          <p className="ui-subtle mt-1 text-xs">漫画の主人公名として使用されます。</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -241,10 +240,6 @@ export function ProfileForm({ user, initialProfile, hasBootstrapError }: Profile
             placeholder="例：冷静沈着、丁寧語で話す"
             className="ui-textarea"
           />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-          入力された情報は漫画生成のキャラクター設定にのみ使用されます。すべての項目は任意です。
         </div>
 
         <div className="flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row">

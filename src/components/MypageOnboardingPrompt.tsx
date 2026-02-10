@@ -244,17 +244,33 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
   return (
     <>
       {shouldRenderStrongBanner && (
-        <section className="ui-card-float mb-5 border-stone-300/80 bg-gradient-to-r from-stone-50 to-white p-4 sm:p-5">
+        <section className="mb-5 rounded-[24px] border border-stone-300 bg-stone-100 p-4 shadow-[var(--shadow-soft)] sm:p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-600">
-                Myページ
-              </p>
-              <h2 className="ui-heading mt-1 text-lg">あなた向けの設定を最短30秒で開始</h2>
-              <p className="ui-muted mt-1 text-sm">
-                表示名などの基本情報を入力すると、回答やチェックリストをあなた向けに最適化できます。
-                <br />
-                あとからいつでも編集できます。
+              <h2 className="ui-heading inline-flex items-center gap-2 text-lg text-stone-900">
+                <span
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-stone-200 text-stone-700"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="3" />
+                    <path d="M19 8v6" />
+                    <path d="M22 11h-6" />
+                  </svg>
+                </span>
+                Myページを作成
+              </h2>
+              <p className="mt-1 text-sm text-stone-800">
+                表示名などを入力するだけで、回答とチェックリストがあなた向けに最適化されます。
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:min-w-[180px]">
@@ -269,7 +285,7 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
               <button
                 type="button"
                 onClick={() => handleSkip('banner_close')}
-                className="ui-btn ui-btn-ghost px-4 py-2 text-sm"
+                className="ui-btn border border-stone-300 bg-stone-100 px-4 py-2 text-sm text-stone-800 hover:bg-stone-200"
               >
                 閉じる
               </button>
@@ -279,7 +295,7 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
       )}
 
       {shouldRenderCompactLink && (
-        <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-stone-300 bg-white/95 px-3 py-2 shadow-[0_12px_28px_rgba(38,8,1,0.16)] backdrop-blur">
+        <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-stone-300 bg-stone-100/95 px-3 py-2 shadow-[var(--shadow-soft)] backdrop-blur">
           <button
             type="button"
             onClick={() => handleStartFlow('compact_link_click')}
@@ -291,7 +307,7 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
           <button
             type="button"
             onClick={() => handleSkip('compact_link_close')}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-stone-300 text-stone-500 hover:bg-stone-100"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-stone-300 text-stone-600 hover:bg-stone-200"
             aria-label="導線を閉じる"
           >
             <svg
