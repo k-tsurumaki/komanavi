@@ -428,14 +428,6 @@ export async function generateChecklistWithState(
   }
 }
 
-export async function generateChecklist(
-  intermediate: IntermediateRepresentation,
-  personalization?: PersonalizationInput
-): Promise<ChecklistItem[]> {
-  const result = await generateChecklistWithState(intermediate, personalization);
-  return result.checklist;
-}
-
 /**
  * やさしい要約を生成（Markdown形式）
  */

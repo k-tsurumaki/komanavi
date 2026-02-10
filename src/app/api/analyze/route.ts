@@ -11,6 +11,7 @@ import type {
   AnalyzeResult,
   AnalyzeRequest,
   DeepDiveResponse,
+  IntermediateRepresentation,
   IntentAnswerResponse,
   PersonalizationInput,
 } from '@/lib/types/intermediate';
@@ -22,7 +23,7 @@ import {
 } from '@/lib/user-profile';
 
 // インメモリキャッシュ（開発用）
-const cache = new Map<string, { result: AnalyzeResult; expiresAt: number }>();
+const cache = new Map<string, { intermediate: IntermediateRepresentation; expiresAt: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24時間
 
 /**
@@ -41,12 +42,12 @@ function hashUrl(url: string): string {
 /**
  * キャッシュから取得
  */
-function getFromCache(url: string): AnalyzeResult | null {
+function getFromCache(url: string): IntermediateRepresentation | null {
   const key = hashUrl(url);
   const cached = cache.get(key);
 
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.result;
+    return cached.intermediate;
   }
 
   if (cached) {
@@ -59,10 +60,10 @@ function getFromCache(url: string): AnalyzeResult | null {
 /**
  * キャッシュに保存
  */
-function saveToCache(url: string, result: AnalyzeResult): void {
+function saveToCache(url: string, intermediate: IntermediateRepresentation): void {
   const key = hashUrl(url);
   cache.set(key, {
-    result,
+    intermediate,
     expiresAt: Date.now() + CACHE_TTL,
   });
 }
@@ -137,25 +138,13 @@ export async function POST(request: NextRequest) {
       }
 
       const personalizationInput = await buildPersonalizationInput(body.userIntent);
-      const checklistPromise = generateChecklistWithState(body.intermediate, personalizationInput).catch(
-        () => ({
-          checklist: [],
-          state: 'error' as const,
-          error: 'チェックリストの生成に失敗しました。時間をおいて再試行してください。',
-        })
-      );
-
-      let intentAnswer = '';
-      try {
-        intentAnswer = await generateIntentAnswer(body.intermediate, body.userIntent, personalizationInput, {
+      const checklistPromise = generateChecklistWithState(body.intermediate, personalizationInput);
+      const intentAnswer = await generateIntentAnswer(body.intermediate, body.userIntent, personalizationInput, {
           deepDiveSummary: body.deepDiveSummary,
           messages: body.messages || [],
           overviewTexts: body.overviewTexts || [],
           checklistTexts: body.checklistTexts || [],
         });
-      } catch {
-        intentAnswer = '';
-      }
 
       if (!intentAnswer) {
         return NextResponse.json(
@@ -190,8 +179,8 @@ export async function POST(request: NextRequest) {
 
     // キャッシュ確認（パーソナライズなしの基本結果のみキャッシュ）
     // 注意: パーソナライズ結果はキャッシュしない
-    const cached = getFromCache(url);
-    let intermediate = cached?.intermediate;
+    const cachedIntermediate = getFromCache(url);
+    let intermediate = cachedIntermediate;
 
     if (!intermediate) {
       // Google Search Groundingで情報取得
@@ -251,8 +240,8 @@ export async function POST(request: NextRequest) {
     };
 
     // キャッシュに保存（中間表現のみ、パーソナライズ結果は保存しない）
-    if (!cached) {
-      saveToCache(url, result);
+    if (!cachedIntermediate) {
+      saveToCache(url, intermediate);
     }
 
     return NextResponse.json(result);

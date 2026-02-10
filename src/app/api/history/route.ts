@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import type {
   ChecklistGenerationState,
@@ -7,7 +7,7 @@ import type {
   IntermediateRepresentation,
   Overview,
 } from '@/lib/types/intermediate';
-import { requireUserId, toIsoString } from '@/app/api/history/utils';
+import { requireUserId, resolveChecklistErrorField, toIsoString } from '@/app/api/history/utils';
 import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 
 export const runtime = 'nodejs';
@@ -33,22 +33,6 @@ type SaveHistoryRequest = {
   checklistState?: ChecklistGenerationState;
   checklistError?: string;
 };
-
-function resolveChecklistErrorField(
-  checklistState?: ChecklistGenerationState,
-  checklistError?: string
-): string | ReturnType<typeof FieldValue.delete> | undefined {
-  if (checklistState === undefined) {
-    return undefined;
-  }
-  if (checklistState === 'error') {
-    return (
-      checklistError?.trim() ||
-      'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
-    );
-  }
-  return FieldValue.delete();
-}
 
 function compact<T extends Record<string, unknown>>(data: T): T {
   const next = { ...data } as Record<string, unknown>;
