@@ -111,7 +111,7 @@ export default async function MyPage({ searchParams }: MyPageProps) {
                 <path d="M22 11h-6" />
               </svg>
             </span>
-            まずは1項目だけ入力して保存
+            1項目入力して保存するだけで開始できます
           </p>
           <p className="mt-1.5 text-sm text-stone-800">
             すべての項目は任意です。後からいつでも編集できます。
@@ -120,11 +120,11 @@ export default async function MyPage({ searchParams }: MyPageProps) {
       )}
       <header className="mb-6">
         <h1 className="ui-heading text-2xl sm:text-3xl">
-          {shouldUseCreationHeading ? 'マイページ設定' : 'アカウント設定'}
+          {shouldUseCreationHeading ? 'Myページ' : 'アカウント設定'}
         </h1>
         <p className="ui-muted mt-2 text-sm">
           {shouldUseCreationHeading
-            ? '必要な項目だけ入力して保存してください。回答やチェックリストがあなた向けに最適化されます。'
+            ? 'プロフィール情報にもとづいて、回答やチェックリストがあなた向けに最適化されます。'
             : '漫画生成で使うプロフィールを必要な範囲で入力できます。'}
         </p>
       </header>

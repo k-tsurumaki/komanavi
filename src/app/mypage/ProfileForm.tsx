@@ -209,7 +209,6 @@ export function ProfileForm({ user, initialProfile, hasBootstrapError }: Profile
             placeholder="例：東京都"
             className="ui-input"
           />
-          <p className="ui-subtle mt-1 text-xs">都道府県・国レベルで入力してください。</p>
         </div>
 
         <div>
