@@ -78,20 +78,7 @@ const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
  * エラーがリトライ可能かどうかを判定
  */
 function isRetryableError(error: unknown): boolean {
-  if (error instanceof Error) {
-    // レート制限エラー
-    if ((error as { status?: number }).status === HTTP_STATUS_TOO_MANY_REQUESTS) {
-      return true;
-    }
-    // ネットワークエラー
-    if (error.message.includes("ECONNRESET") || error.message.includes("ETIMEDOUT")) {
-      return true;
-    }
-    // Firestore 一時エラー
-    if (error.message.includes("UNAVAILABLE") || error.message.includes("DEADLINE_EXCEEDED")) {
-      return true;
-    }
-  }
+  // リトライなし: すべてのエラーを非リトライ扱い
   return false;
 }
 

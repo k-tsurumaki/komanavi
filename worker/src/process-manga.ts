@@ -308,66 +308,47 @@ async function generateMangaImage(
   panels: MangaPanel[]
 ): Promise<{ imageUrls: string[]; text: string }> {
   const prompt = buildMangaPrompt(request, panels);
-  const maxAttempts = 3;
-  let lastError: unknown;
 
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      const result = (await ai.models.generateContent({
-        model: MODEL_ID,
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: {
-            aspectRatio: '16:9',
-          },
-        },
-        safetySettings: [
-          {
-            method: 'PROBABILITY',
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-          },
-        ],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)) as GenerateContentResponse;
+  const result = (await ai.models.generateContent({
+    model: MODEL_ID,
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '16:9',
+      },
+    },
+    safetySettings: [
+      {
+        method: 'PROBABILITY',
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+      },
+    ],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any)) as GenerateContentResponse;
 
-      const parts = result.candidates?.[0]?.content?.parts ?? [];
-      const imageUrls = parts
-        .filter((part): part is { inlineData: InlineData } => 'inlineData' in part)
-        .map((part) => `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`)
-        .filter(Boolean);
+  const parts = result.candidates?.[0]?.content?.parts ?? [];
+  const imageUrls = parts
+    .filter((part): part is { inlineData: InlineData } => 'inlineData' in part)
+    .map((part) => `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`)
+    .filter(Boolean);
 
-      const textParts = parts
-        .filter((part): part is { text: string } => 'text' in part)
-        .map((part) => part.text)
-        .filter(Boolean);
+  const textParts = parts
+    .filter((part): part is { text: string } => 'text' in part)
+    .map((part) => part.text)
+    .filter(Boolean);
 
-      if (imageUrls.length === 0) {
-        throw new Error(textParts.join('\n') || '画像データが生成されませんでした');
-      }
-
-      return { imageUrls, text: textParts.join('\n') };
-    } catch (error) {
-      lastError = error;
-      const status = (error as { status?: number })?.status;
-      if (status !== HTTP_STATUS_TOO_MANY_REQUESTS || attempt >= maxAttempts - 1) {
-        throw error;
-      }
-      const delayMs = 1000 * Math.pow(2, attempt);
-      console.log(
-        `[Worker] レート制限、リトライ: ${delayMs}ms後 (試行 ${attempt + 1}/${maxAttempts})`
-      );
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
+  if (imageUrls.length === 0) {
+    throw new Error(textParts.join('\n') || '画像データが生成されませんでした');
   }
 
-  throw lastError instanceof Error ? lastError : new Error('画像生成に失敗しました');
+  return { imageUrls, text: textParts.join('\n') };
 }
 
 /**
