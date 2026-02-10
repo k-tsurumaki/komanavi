@@ -29,6 +29,7 @@ export interface FlowStageContext {
   isIntentGenerating: boolean;
   guidanceUnlocked: boolean;
   hasChecklistAvailable: boolean;
+  hasChecklistError: boolean;
   hasChecklistReviewed: boolean;
   hasDeepDiveMessages: boolean;
   canStartAnalyzeFromUrl?: boolean;
@@ -283,33 +284,40 @@ export function deriveFlowStageModel(context: FlowStageContext): FlowStageModel 
     } else if (context.guidanceUnlocked) {
       intentStep.status = 'completed';
       answerStep.status = 'completed';
-      checklistStep.status = context.hasChecklistAvailable
-        ? context.hasChecklistReviewed
-          ? 'completed'
-          : 'in_progress'
-        : 'completed';
-      const checklistPending = context.hasChecklistAvailable && !context.hasChecklistReviewed;
-
-      if (checklistPending) {
+      if (context.hasChecklistError) {
+        checklistStep.status = 'error';
         currentStepId = 'review_checklist';
-        statusText = 'チェックリストで行動に移せます';
-        nextAction = { stepId: 'review_checklist', label: 'チェックリストを見る' };
-      } else if (mangaStep.status === 'completed') {
-        currentStepId = 'manga_review';
-        statusText = '必須タスクを完了しました';
-        nextAction = undefined;
-      } else if (mangaStep.status === 'in_progress') {
-        currentStepId = 'manga_review';
-        statusText = '漫画を生成しています';
-        nextAction = undefined;
-      } else if (mangaStep.status === 'error') {
-        currentStepId = 'manga_review';
-        statusText = '漫画生成で停止しました';
-        nextAction = { stepId: 'manga_review', label: '漫画生成を再試行' };
+        statusText = 'チェックリスト生成で停止しました';
+        nextAction = { stepId: 'review_checklist', label: 'チェックリストを再生成' };
       } else {
-        currentStepId = 'manga_review';
-        statusText = '漫画で確認して理解を定着させましょう';
-        nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
+        checklistStep.status = context.hasChecklistAvailable
+          ? context.hasChecklistReviewed
+            ? 'completed'
+            : 'in_progress'
+          : 'completed';
+        const checklistPending = context.hasChecklistAvailable && !context.hasChecklistReviewed;
+
+        if (checklistPending) {
+          currentStepId = 'review_checklist';
+          statusText = 'チェックリストで行動に移せます';
+          nextAction = { stepId: 'review_checklist', label: 'チェックリストを見る' };
+        } else if (mangaStep.status === 'completed') {
+          currentStepId = 'manga_review';
+          statusText = '必須タスクを完了しました';
+          nextAction = undefined;
+        } else if (mangaStep.status === 'in_progress') {
+          currentStepId = 'manga_review';
+          statusText = '漫画を生成しています';
+          nextAction = undefined;
+        } else if (mangaStep.status === 'error') {
+          currentStepId = 'manga_review';
+          statusText = '漫画生成で停止しました';
+          nextAction = { stepId: 'manga_review', label: '漫画生成を再試行' };
+        } else {
+          currentStepId = 'manga_review';
+          statusText = '漫画で確認して理解を定着させましょう';
+          nextAction = { stepId: 'manga_review', label: '漫画で確認する' };
+        }
       }
     } else if (context.hasDeepDiveStepVisited) {
       if (isIntentStepCompleted) {

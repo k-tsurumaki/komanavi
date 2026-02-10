@@ -4,6 +4,7 @@ import { join } from 'path';
 import type {
   IntermediateRepresentation,
   ChecklistItem,
+  ChecklistGenerationState,
   DocumentType,
   GroundingMetadata,
   ChatMessage,
@@ -288,6 +289,21 @@ function buildPersonalizationContext(personalization?: PersonalizationInput): st
   return result;
 }
 
+function toChecklistErrorMessage(
+  error: unknown,
+  fallback = 'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'status' in error &&
+    (error as { status?: unknown }).status === 429
+  ) {
+    return 'アクセスが集中しているため、チェックリストを生成できませんでした。時間をおいて再試行してください。';
+  }
+  return fallback;
+}
+
 /**
  * 中間表現を生成（Google Search Groundingの結果から）
  */
@@ -361,10 +377,14 @@ ${searchResult.content}
 /**
  * チェックリストを生成
  */
-export async function generateChecklist(
+export async function generateChecklistWithState(
   intermediate: IntermediateRepresentation,
   personalization?: PersonalizationInput
-): Promise<ChecklistItem[]> {
+): Promise<{
+  checklist: ChecklistItem[];
+  state: Exclude<ChecklistGenerationState, 'not_requested'>;
+  error?: string;
+}> {
   const context = JSON.stringify(intermediate, null, 2);
   const personalizationContext = buildPersonalizationContext(personalization);
 
@@ -384,17 +404,36 @@ export async function generateChecklist(
     const items = parseJSON<Omit<ChecklistItem, 'completed'>[]>(text);
 
     if (!items) {
-      return [];
+      return {
+        checklist: [],
+        state: 'error',
+        error: toChecklistErrorMessage(null, 'チェックリストの解析結果が不正な形式でした。再試行してください。'),
+      };
     }
 
-    return items.map((item) => ({
-      ...item,
-      completed: false,
-    }));
+    return {
+      checklist: items.map((item) => ({
+        ...item,
+        completed: false,
+      })),
+      state: 'ready',
+    };
   } catch (error) {
     console.error('Checklist generation error:', error);
-    return [];
+    return {
+      checklist: [],
+      state: 'error',
+      error: toChecklistErrorMessage(error),
+    };
   }
+}
+
+export async function generateChecklist(
+  intermediate: IntermediateRepresentation,
+  personalization?: PersonalizationInput
+): Promise<ChecklistItem[]> {
+  const result = await generateChecklistWithState(intermediate, personalization);
+  return result.checklist;
 }
 
 /**

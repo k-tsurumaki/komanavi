@@ -275,6 +275,9 @@ export interface ChecklistItem {
   priority?: 'high' | 'medium' | 'low';
 }
 
+/** チェックリスト生成状態 */
+export type ChecklistGenerationState = 'not_requested' | 'ready' | 'error';
+
 /** ページ概要（構造化） */
 export interface OverviewCriticalFact {
   item: string;
@@ -318,6 +321,8 @@ export interface AnalyzeResult {
   guidanceUnlocked?: boolean;
   overview?: Overview;
   checklist: ChecklistItem[];
+  checklistState?: ChecklistGenerationState;
+  checklistError?: string;
   personalization?: AppliedPersonalization;
   status: 'success' | 'error';
   error?: string;
@@ -362,6 +367,8 @@ export interface IntentAnswerResponse {
   status: 'success' | 'error';
   intentAnswer?: string;
   checklist?: ChecklistItem[];
+  checklistState?: Exclude<ChecklistGenerationState, 'not_requested'>;
+  checklistError?: string;
   error?: string;
 }
 

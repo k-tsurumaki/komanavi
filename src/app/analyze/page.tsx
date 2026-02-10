@@ -64,6 +64,7 @@ export default function AnalyzePage() {
         isIntentGenerating: false,
         guidanceUnlocked: false,
         hasChecklistAvailable: false,
+        hasChecklistError: false,
         hasChecklistReviewed: false,
         hasDeepDiveMessages: false,
         canStartAnalyzeFromUrl: false,

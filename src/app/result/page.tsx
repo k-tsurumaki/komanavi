@@ -25,7 +25,13 @@ import {
 import { fetchHistoryDetail, patchHistoryResult } from '@/lib/history-api';
 import { parseStructuredIntentAnswer } from '@/lib/intent-answer-parser';
 import type { IntentAnswerEntry } from '@/lib/intent-answer-parser';
-import type { ChatMessage, ChecklistItem, IntentAnswerResponse, MangaResult } from '@/lib/types/intermediate';
+import type {
+  ChatMessage,
+  ChecklistGenerationState,
+  ChecklistItem,
+  IntentAnswerResponse,
+  MangaResult,
+} from '@/lib/types/intermediate';
 import { useAnalyzeStore } from '@/stores/analyzeStore';
 
 function ResultContent() {
@@ -59,6 +65,8 @@ function ResultContent() {
     userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
+    checklistState?: ChecklistGenerationState;
+    checklistError?: string;
   }>({});
   const patchTimeoutRef = useRef<number | null>(null);
   const [deepDiveInput, setDeepDiveInput] = useState('');
@@ -129,6 +137,8 @@ function ResultContent() {
     userIntent?: string;
     intentAnswer?: string;
     guidanceUnlocked?: boolean;
+    checklistState?: ChecklistGenerationState;
+    checklistError?: string;
   }) => {
     pendingHistoryPatchRef.current = {
       ...pendingHistoryPatchRef.current,
@@ -200,6 +210,8 @@ function ResultContent() {
             guidanceUnlocked: detail.result.guidanceUnlocked ?? false,
             overview: detail.result.overview,
             checklist: detail.result.checklist || [],
+            checklistState: detail.result.checklistState,
+            checklistError: detail.result.checklistError,
             status: 'success' as const,
           };
           setResult(mergedResult);
@@ -300,8 +312,10 @@ function ResultContent() {
 
   const hasIntermediate = Boolean(result?.intermediate);
   const guidanceUnlocked = Boolean(result?.guidanceUnlocked);
+  const checklistState = result?.checklistState ?? (guidanceUnlocked ? 'ready' : 'not_requested');
+  const hasChecklistError = checklistState === 'error';
   const hasIntentInput = Boolean(intentInput.trim() || result?.userIntent?.trim());
-  const hasChecklistAvailable = Boolean(result?.checklist?.length);
+  const hasChecklistAvailable = Boolean(result?.checklist?.length) && !hasChecklistError;
   const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving && !hasIntermediate);
   const hasIntentGenerationError = Boolean(intentError && !isIntentGenerating && !guidanceUnlocked);
   const shouldObserveChecklist = Boolean(
@@ -321,6 +335,7 @@ function ResultContent() {
         isIntentGenerating,
         guidanceUnlocked,
         hasChecklistAvailable,
+        hasChecklistError,
         hasChecklistReviewed,
         hasDeepDiveMessages: messages.length > 0,
         canStartAnalyzeFromUrl: canAnalyzeFromUrl,
@@ -330,6 +345,7 @@ function ResultContent() {
       canAnalyzeFromUrl,
       guidanceUnlocked,
       hasChecklistAvailable,
+      hasChecklistError,
       hasChecklistReviewed,
       chatMode,
       hasIntentGenerationError,
@@ -412,7 +428,9 @@ function ResultContent() {
       }
 
       if (stepId === 'review_checklist') {
-        setHasChecklistReviewed(true);
+        if (!hasChecklistError) {
+          setHasChecklistReviewed(true);
+        }
         scrollToSection(checklistSectionRef.current);
         return;
       }
@@ -428,7 +446,7 @@ function ResultContent() {
 
       scrollToSection(mangaSectionRef.current ?? checklistSectionRef.current);
     },
-    [analyze, canAnalyzeFromUrl, reset, router, scrollToSection, url]
+    [analyze, canAnalyzeFromUrl, hasChecklistError, reset, router, scrollToSection, url]
   );
 
   const renderFlowIndicator = () => (
@@ -551,6 +569,9 @@ function ResultContent() {
     .filter((text): text is string => Boolean(text));
   const shouldShowGuidanceSection = guidanceUnlocked || isIntentGenerating;
   const shouldShowChecklistSection = guidanceUnlocked && !isIntentGenerating;
+  const checklistErrorMessage =
+    result.checklistError ||
+    'アクセスが集中しているため、チェックリストを生成できませんでした。時間をおいて再試行してください。';
 
   const handleChecklistToggle = (id: string, completed: boolean) => {
     setHasChecklistReviewed(true);
@@ -729,13 +750,26 @@ function ResultContent() {
         throw new Error(payload.error || '意図回答の生成に失敗しました');
       }
 
-      const generatedChecklist = payload.checklist ?? result.checklist;
+      const checklistStateFromPayload = payload.checklistState ?? 'ready';
+      const hasExistingChecklist = result.checklist.length > 0;
+      const shouldPreserveChecklist = checklistStateFromPayload === 'error' && hasExistingChecklist;
+      const generatedChecklist = shouldPreserveChecklist
+        ? result.checklist
+        : (payload.checklist ?? []);
+      const nextChecklistState = shouldPreserveChecklist ? 'ready' : checklistStateFromPayload;
+      const nextChecklistError =
+        nextChecklistState === 'error'
+          ? payload.checklistError ||
+            'チェックリストの生成に失敗しました。時間をおいて再試行してください。'
+          : undefined;
 
       setResult({
         ...result,
         userIntent: trimmedIntent,
         intentAnswer: payload.intentAnswer,
         checklist: generatedChecklist,
+        checklistState: nextChecklistState,
+        checklistError: nextChecklistError,
         guidanceUnlocked: true,
       });
       setHasChecklistReviewed(false);
@@ -747,6 +781,8 @@ function ResultContent() {
         userIntent: trimmedIntent,
         intentAnswer: payload.intentAnswer,
         guidanceUnlocked: true,
+        checklistState: nextChecklistState,
+        checklistError: nextChecklistError,
       };
 
       if (effectiveHistoryId) {
@@ -1102,11 +1138,28 @@ function ResultContent() {
         <>
           {/* チェックリスト */}
           <div ref={checklistSectionRef} className="mb-6">
-            <ChecklistViewer items={checklist} onToggle={handleChecklistToggle} />
+            {hasChecklistError ? (
+              <div className="ui-card ui-panel-error rounded-2xl p-6">
+                <h3 className="ui-heading text-lg">チェックリストの生成に失敗しました</h3>
+                <p className="mt-2 text-sm text-stone-800">{checklistErrorMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleConfirmIntent();
+                  }}
+                  disabled={isIntentGenerating || !intentInput.trim() || !result?.intermediate}
+                  className="ui-btn ui-btn-primary mt-4 px-5 py-2 text-sm !text-white disabled:opacity-50"
+                >
+                  チェックリストを再生成する
+                </button>
+              </div>
+            ) : (
+              <ChecklistViewer items={checklist} onToggle={handleChecklistToggle} />
+            )}
           </div>
 
           {/* 漫画ビューア（Phase 2） */}
-          {effectiveHistoryId && (
+          {!hasChecklistError && effectiveHistoryId && (
             <div ref={mangaSectionRef}>
               <MangaViewer
                 url={intermediate.metadata.source_url}

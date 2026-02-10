@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   fetchWithGoogleSearch,
   generateIntermediateRepresentation,
-  generateChecklist,
+  generateChecklistWithState,
   generateSimpleSummary,
   generateDeepDiveResponse,
   generateIntentAnswer,
@@ -137,18 +137,17 @@ export async function POST(request: NextRequest) {
       }
 
       const personalizationInput = await buildPersonalizationInput(body.userIntent);
-      const intentAnswer = await generateIntentAnswer(
-        body.intermediate,
-        body.userIntent,
-        personalizationInput,
-        {
+      const [intentAnswerResult, checklistResult] = await Promise.allSettled([
+        generateIntentAnswer(body.intermediate, body.userIntent, personalizationInput, {
           deepDiveSummary: body.deepDiveSummary,
           messages: body.messages || [],
           overviewTexts: body.overviewTexts || [],
           checklistTexts: body.checklistTexts || [],
-        }
-      );
+        }),
+        generateChecklistWithState(body.intermediate, personalizationInput),
+      ]);
 
+      const intentAnswer = intentAnswerResult.status === 'fulfilled' ? intentAnswerResult.value : '';
       if (!intentAnswer) {
         return NextResponse.json(
           { status: 'error', error: '意図回答の生成に失敗しました' } satisfies IntentAnswerResponse,
@@ -156,13 +155,22 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const checklist = await generateChecklist(body.intermediate, personalizationInput);
+      const checklistGeneration =
+        checklistResult.status === 'fulfilled'
+          ? checklistResult.value
+          : {
+              checklist: [],
+              state: 'error' as const,
+              error: 'チェックリストの生成に失敗しました。時間をおいて再試行してください。',
+            };
 
       return NextResponse.json(
         {
           status: 'success',
           intentAnswer,
-          checklist,
+          checklist: checklistGeneration.checklist,
+          checklistState: checklistGeneration.state,
+          checklistError: checklistGeneration.error,
         } satisfies IntentAnswerResponse
       );
     }
@@ -230,8 +238,9 @@ export async function POST(request: NextRequest) {
       userIntent: userIntent?.trim() || undefined,
       intentAnswer: intentAnswer || undefined,
       guidanceUnlocked: false,
-      overview: cached?.overview,
-      checklist: cached?.checklist ?? [],
+      overview: undefined,
+      checklist: [],
+      checklistState: 'not_requested',
       personalization: {
         appliedIntent: personalizationInput.userIntent,
         appliedProfile: personalizationInput.userProfile,
