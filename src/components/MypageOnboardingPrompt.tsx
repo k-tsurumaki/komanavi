@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { trackClientEvent } from '@/lib/client-analytics';
 import {
+  clearFlowStartPendingInSession,
   hasSeenStrongBannerInSession,
   isSessionSuppressed,
+  markFlowStartPendingInSession,
   markStrongBannerShownInSession,
   setSessionSuppressed,
 } from '@/lib/mypage-onboarding';
@@ -27,6 +29,8 @@ type ProfileResponse = {
 };
 
 const BANNER_SHOW_DELAY_MS = 4000;
+const START_PENDING_TIMEOUT_MS = 4000;
+const MYPAGE_FLOW_URL = '/mypage?flow=create&step=1';
 const EVENT_CONTEXT = {
   entry_point: 'result',
   surface: 'mypage_onboarding',
@@ -51,7 +55,6 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
   const router = useRouter();
   const { data: session, status } = useSession();
   const [isStrongBannerVisible, setIsStrongBannerVisible] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStartPending, setIsStartPending] = useState(false);
   const [profileGate, setProfileGate] = useState<{
     resolvedFor: string | null;
@@ -60,8 +63,8 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
     resolvedFor: null,
     shouldOffer: null,
   });
-  const startButtonRef = useRef<HTMLButtonElement | null>(null);
   const hasTrackedCompactImpressionRef = useRef(false);
+  const startNavigationTimerRef = useRef<number | null>(null);
 
   const userKey = useMemo(() => {
     const userId = session?.user?.id;
@@ -74,54 +77,74 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
   const isSuppressedInSession = userKey ? isSessionSuppressed(userKey) : false;
   const hasSeenStrongInSession = userKey ? hasSeenStrongBannerInSession(userKey) : false;
 
+  const clearStartNavigationTimer = useCallback(() => {
+    if (startNavigationTimerRef.current === null) {
+      return;
+    }
+    window.clearTimeout(startNavigationTimerRef.current);
+    startNavigationTimerRef.current = null;
+  }, []);
+
+  const scheduleStartNavigationTimeout = useCallback(() => {
+    clearStartNavigationTimer();
+    startNavigationTimerRef.current = window.setTimeout(() => {
+      startNavigationTimerRef.current = null;
+      setIsStartPending(false);
+    }, START_PENDING_TIMEOUT_MS);
+  }, [clearStartNavigationTimer]);
+
   const handleSkip = useCallback(
-    (
-      eventName:
-        | 'banner_close'
-        | 'modal_secondary_click'
-        | 'modal_close'
-        | 'compact_link_close'
-    ) => {
+    (eventName: 'banner_close' | 'compact_link_close') => {
       if (userKey) {
         setSessionSuppressed(userKey);
+        clearFlowStartPendingInSession(userKey);
       }
+      clearStartNavigationTimer();
 
       trackClientEvent(eventName, EVENT_CONTEXT);
       setIsStrongBannerVisible(false);
-      setIsModalOpen(false);
       setIsStartPending(false);
     },
-    [userKey]
+    [clearStartNavigationTimer, userKey]
   );
 
-  const handleOpenModal = useCallback((eventName: 'banner_click' | 'compact_link_click') => {
-    trackClientEvent(eventName, EVENT_CONTEXT);
-    setIsStrongBannerVisible(false);
-    setIsModalOpen(true);
-  }, []);
+  const handleStartFlow = useCallback(
+    (eventName: 'banner_click' | 'compact_link_click') => {
+      if (isStartPending) {
+        return;
+      }
 
-  const handleStartFlow = useCallback(() => {
-    if (isStartPending) {
-      return;
-    }
-
-    setIsStartPending(true);
-    trackClientEvent('modal_primary_click', EVENT_CONTEXT);
-
-    try {
-      trackClientEvent('flow_start_success', EVENT_CONTEXT);
-      setIsModalOpen(false);
+      setIsStartPending(true);
+      trackClientEvent(eventName, EVENT_CONTEXT);
       setIsStrongBannerVisible(false);
-      router.push('/mypage?flow=create&step=1');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown_error';
-      trackClientEvent('flow_start_fail', {
-        ...EVENT_CONTEXT,
-        error_message: message,
-      });
-      setIsStartPending(false);
-    }
-  }, [isStartPending, router]);
+      scheduleStartNavigationTimeout();
+      if (userKey) {
+        markFlowStartPendingInSession(userKey);
+      }
+
+      try {
+        router.push(MYPAGE_FLOW_URL);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown_error';
+        clearStartNavigationTimer();
+        if (userKey) {
+          clearFlowStartPendingInSession(userKey);
+        }
+        trackClientEvent('flow_start_fail', {
+          ...EVENT_CONTEXT,
+          error_message: message,
+        });
+        setIsStartPending(false);
+      }
+    },
+    [clearStartNavigationTimer, isStartPending, router, scheduleStartNavigationTimeout, userKey]
+  );
+
+  useEffect(() => {
+    return () => {
+      clearStartNavigationTimer();
+    };
+  }, [clearStartNavigationTimer]);
 
   useEffect(() => {
     if (!isAuthReady || !userKey) {
@@ -179,7 +202,7 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
     if (hasSeenStrongInSession) {
       return;
     }
-    if (isStrongBannerVisible || isModalOpen) {
+    if (isStrongBannerVisible) {
       return;
     }
 
@@ -199,7 +222,6 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
   }, [
     hasSeenStrongInSession,
     isAuthReady,
-    isModalOpen,
     isProfileResolvedForUser,
     isStrongBannerVisible,
     isSuppressedInSession,
@@ -214,9 +236,7 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
     shouldOffer &&
     hasSeenStrongInSession &&
     !isSuppressedInSession &&
-    !isStrongBannerVisible &&
-    !isModalOpen;
-  const shouldRenderModal = isAuthReady && shouldOffer && isModalOpen;
+    !isStrongBannerVisible;
 
   useEffect(() => {
     if (!shouldRenderCompactLink) {
@@ -231,36 +251,7 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
     trackClientEvent('compact_link_impression', EVENT_CONTEXT);
   }, [shouldRenderCompactLink]);
 
-  useEffect(() => {
-    if (!isModalOpen) {
-      return;
-    }
-
-    trackClientEvent('modal_impression', EVENT_CONTEXT);
-    const focusTimer = window.setTimeout(() => {
-      startButtonRef.current?.focus();
-    }, 0);
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        handleSkip('modal_close');
-      }
-    };
-
-    window.addEventListener('keydown', handleEscape);
-
-    return () => {
-      window.clearTimeout(focusTimer);
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [handleSkip, isModalOpen]);
-
-  if (!shouldRenderStrongBanner && !shouldRenderCompactLink && !shouldRenderModal) {
+  if (!shouldRenderStrongBanner && !shouldRenderCompactLink) {
     return null;
   }
 
@@ -283,10 +274,11 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
             <div className="flex flex-col gap-2 sm:min-w-[180px]">
               <button
                 type="button"
-                onClick={() => handleOpenModal('banner_click')}
+                onClick={() => handleStartFlow('banner_click')}
+                disabled={isStartPending}
                 className="ui-btn ui-btn-primary px-4 py-2 text-sm !text-white"
               >
-                作成する
+                {isStartPending ? '移動中...' : '作成する'}
               </button>
               <button
                 type="button"
@@ -304,10 +296,11 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
         <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-stone-300 bg-white/95 px-3 py-2 shadow-[0_12px_28px_rgba(38,8,1,0.16)] backdrop-blur">
           <button
             type="button"
-            onClick={() => handleOpenModal('compact_link_click')}
+            onClick={() => handleStartFlow('compact_link_click')}
+            disabled={isStartPending}
             className="text-xs font-semibold text-stone-800 hover:text-stone-950"
           >
-            Myページを作成
+            {isStartPending ? '移動中...' : 'Myページを作成'}
           </button>
           <button
             type="button"
@@ -332,86 +325,6 @@ export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps)
         </div>
       )}
 
-      {shouldRenderModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              handleSkip('modal_close');
-            }
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mypage-onboarding-title"
-            className="ui-card-float relative w-full max-w-xl p-6"
-          >
-            <button
-              type="button"
-              onClick={() => handleSkip('modal_close')}
-              className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 text-stone-600 hover:bg-stone-100"
-              aria-label="閉じる"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M6 6l12 12" />
-                <path d="M18 6 6 18" />
-              </svg>
-            </button>
-
-            <h2 id="mypage-onboarding-title" className="ui-heading pr-10 text-xl">
-              作ると見つけてもらいやすくなります
-            </h2>
-            <p className="ui-muted mt-2 text-sm">所要時間: 最短30秒で開始できます。</p>
-
-            <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
-              <li className="rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3">
-                信頼感アップ: あなたの情報を一目で伝えられます。
-              </li>
-              <li className="rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3">
-                活動がまとまる: 解析履歴とプロフィールを一か所で管理できます。
-              </li>
-              <li className="rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3">
-                共有しやすい: あとで公開設定を選んでURL共有できます。
-              </li>
-            </ul>
-
-            <div className="mt-4 rounded-xl border border-stone-300 bg-white p-4">
-              <p className="text-xs font-semibold text-stone-600">プレビュー例</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">山田 太郎</p>
-              <p className="mt-1 text-sm text-slate-600">行政手続きを迷わず進めたいです。</p>
-            </div>
-
-            <div className="mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => handleSkip('modal_secondary_click')}
-                className="ui-btn ui-btn-secondary px-4 py-2 text-sm"
-              >
-                あとで
-              </button>
-              <button
-                ref={startButtonRef}
-                type="button"
-                onClick={handleStartFlow}
-                disabled={isStartPending}
-                className="ui-btn ui-btn-primary px-5 py-2 text-sm !text-white"
-              >
-                {isStartPending ? '開始中...' : '最短30秒で開始'}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
     </>
   );
 }

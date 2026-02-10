@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { FlowStartTracker } from './FlowStartTracker';
 import { ProfileForm } from './ProfileForm';
 
 type MyPageSearchParams = {
@@ -35,6 +36,7 @@ export default async function MyPage({ searchParams }: MyPageProps) {
 
   return (
     <div className="ui-page ui-shell-gap">
+      {isCreationFlowStart && <FlowStartTracker />}
       {isCreationFlowStart && (
         <section className="ui-card mb-5 border-stone-300/80 bg-stone-50 p-4 sm:p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-stone-600">
