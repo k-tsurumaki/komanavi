@@ -90,8 +90,8 @@ export default async function MyPage({ searchParams }: MyPageProps) {
     <div className="ui-page ui-shell-gap">
       {isCreationFlowStart && <FlowStartTracker />}
       {shouldShowCreationFlow && (
-        <section className="ui-card mb-5 border-stone-300/80 bg-stone-50 p-4 sm:p-5">
-          <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <section className="mb-5 rounded-2xl border border-stone-300 bg-stone-100 p-4 sm:p-5">
+          <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-stone-900">
             <span
               className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-200 text-stone-700"
               aria-hidden="true"
@@ -105,14 +105,15 @@ export default async function MyPage({ searchParams }: MyPageProps) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <rect x="5" y="3" width="14" height="18" rx="2" ry="2" />
-                <path d="M9 7h6" />
-                <path d="m9 13 2 2 4-4" />
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="3" />
+                <path d="M19 8v6" />
+                <path d="M22 11h-6" />
               </svg>
             </span>
             まずは1項目だけ入力して保存
           </p>
-          <p className="mt-1.5 text-sm text-slate-600">
+          <p className="mt-1.5 text-sm text-stone-800">
             すべての項目は任意です。後からいつでも編集できます。
           </p>
         </section>
