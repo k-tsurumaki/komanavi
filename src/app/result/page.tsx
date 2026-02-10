@@ -87,6 +87,7 @@ function ResultContent() {
   const [isHistoryResolving, setIsHistoryResolving] = useState(false);
   const [savedMangaResult, setSavedMangaResult] = useState<MangaResult | null>(null);
   const [hasChecklistReviewed, setHasChecklistReviewed] = useState(false);
+  const [hasAnswerReviewed, setHasAnswerReviewed] = useState(false);
   const [mangaAutoTriggered, setMangaAutoTriggered] = useState(false);
   const tabsId = useId();
   const deepDiveTabId = `${tabsId}-deep-dive-tab`;
@@ -99,6 +100,7 @@ function ResultContent() {
   const intentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const summarySectionRef = useRef<HTMLDivElement | null>(null);
   const interactionSectionRef = useRef<HTMLDivElement | null>(null);
+  const answerSectionRef = useRef<HTMLDivElement | null>(null);
   const checklistSectionRef = useRef<HTMLDivElement | null>(null);
   const mangaSectionRef = useRef<HTMLDivElement | null>(null);
   const [mangaFlowState, setMangaFlowState] = useState<MangaFlowState>({
@@ -314,6 +316,7 @@ function ResultContent() {
     if (!result?.id) {
       return;
     }
+    setHasAnswerReviewed(false);
     setHasChecklistReviewed(false);
     setMangaAutoTriggered(false);
   }, [result?.id]);
@@ -326,6 +329,9 @@ function ResultContent() {
   const hasChecklistAvailable = Boolean(result?.checklist?.length) && !hasChecklistError;
   const canAnalyzeFromUrl = Boolean(url && status === 'idle' && !isHistoryResolving && !hasIntermediate);
   const hasIntentGenerationError = Boolean(intentError && !isIntentGenerating && !guidanceUnlocked);
+  const shouldObserveAnswer = Boolean(
+    guidanceUnlocked && !isIntentGenerating && result?.intentAnswer && !hasAnswerReviewed
+  );
   const shouldObserveChecklist = Boolean(
     guidanceUnlocked && !isIntentGenerating && hasChecklistAvailable && !hasChecklistReviewed
   );
@@ -336,7 +342,9 @@ function ResultContent() {
         analyzeStatus: status,
         isHistoryResolving,
         hasIntermediate,
+        hasMangaSurfaceAvailable: Boolean(effectiveHistoryId),
         hasIntentInput,
+        hasAnswerReviewed,
         hasIntentStepVisited,
         hasDeepDiveStepVisited: chatMode === 'deepDive',
         hasIntentGenerationError,
@@ -351,7 +359,9 @@ function ResultContent() {
       }),
     [
       canAnalyzeFromUrl,
+      effectiveHistoryId,
       guidanceUnlocked,
+      hasAnswerReviewed,
       hasChecklistAvailable,
       hasChecklistError,
       hasChecklistReviewed,
@@ -367,6 +377,31 @@ function ResultContent() {
       status,
     ]
   );
+
+  useEffect(() => {
+    if (!shouldObserveAnswer || !answerSectionRef.current || typeof window === 'undefined') {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setHasAnswerReviewed(true);
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(answerSectionRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [shouldObserveAnswer]);
 
   useEffect(() => {
     if (!shouldObserveChecklist || !checklistSectionRef.current || typeof window === 'undefined') {
@@ -439,6 +474,10 @@ function ResultContent() {
       }
 
       if (stepId === 'generate_answer') {
+        if (guidanceUnlocked && !isIntentGenerating) {
+          scrollToSection(answerSectionRef.current);
+          return;
+        }
         setHasIntentStepVisited(true);
         setChatMode('intent');
         scrollToSection(interactionSectionRef.current);
@@ -465,9 +504,21 @@ function ResultContent() {
         return;
       }
 
-      scrollToSection(mangaSectionRef.current ?? checklistSectionRef.current);
+      if (stepId === 'manga_review') {
+        scrollToSection(mangaSectionRef.current);
+      }
     },
-    [analyze, canAnalyzeFromUrl, hasChecklistError, reset, router, scrollToSection, url]
+    [
+      analyze,
+      canAnalyzeFromUrl,
+      guidanceUnlocked,
+      hasChecklistError,
+      isIntentGenerating,
+      reset,
+      router,
+      scrollToSection,
+      url,
+    ]
   );
 
   const renderFlowIndicator = () => (
@@ -740,6 +791,7 @@ function ResultContent() {
     if (!intentInput.trim() || !result?.intermediate || isIntentGenerating) return;
     const trimmedIntent = intentInput.trim();
     const wasGuidanceUnlocked = Boolean(result.guidanceUnlocked);
+    setHasAnswerReviewed(false);
     setIntentInput(trimmedIntent);
     setIntent(trimmedIntent);
     setIntentError(null);
@@ -1154,7 +1206,7 @@ function ResultContent() {
 
       {/* 回答生成開始 */}
       {shouldShowGuidanceSection && (
-        <div className="ui-card mb-6 rounded-2xl border-stone-300/80 bg-stone-50/60 p-6">
+        <div ref={answerSectionRef} className="ui-card mb-6 rounded-2xl border-stone-300/80 bg-stone-50/60 p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center">
               <div>
