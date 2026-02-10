@@ -439,6 +439,31 @@ export interface MangaRequest {
   summary: string;
   keyPoints?: string[];
 
+  // 新規追加（すべてオプショナル）
+  documentType?: DocumentType;
+  target?: {
+    conditions: string[];
+    eligibility_summary?: string;
+  };
+  procedure?: {
+    steps: Array<{ order: number; action: string }>;
+    required_documents?: string[];
+    deadline?: string;
+    fee?: string;
+  };
+  benefits?: {
+    description: string;
+    amount?: string;
+    frequency?: string;
+  };
+  contact?: {
+    department?: string;
+    phone?: string;
+    hours?: string;
+  };
+  warnings?: string[];
+  tips?: string[];
+
   // 会話履歴との紐づけ
   resultId: string;   // 解析結果のID（必須）
   historyId: string;  // 会話履歴のID（必須）

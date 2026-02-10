@@ -3,14 +3,15 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # 依存関係ファイルをコピー
-COPY package*.json ./
+COPY worker/package*.json ./
 
 # 全依存関係インストール（devDependencies 含む、ビルドに必要）
 RUN npm ci
 
 # ソースコードをコピー
-COPY tsconfig.json ./
-COPY src/ ./src/
+COPY worker/tsconfig.json ./
+COPY worker/src/ ./src/
+COPY prompts/ ./prompts/
 
 # TypeScript ビルド
 RUN npm run build
@@ -23,13 +24,14 @@ FROM node:20-slim
 WORKDIR /app
 
 # 依存関係ファイルをコピー
-COPY package*.json ./
+COPY worker/package*.json ./
 
 # 本番用依存関係のみインストール
 RUN npm ci --omit=dev
 
 # ビルド済みファイルをコピー
 COPY --from=builder /app/dist ./dist/
+COPY --from=builder /app/prompts/ ./prompts/
 
 # 環境変数設定
 ENV NODE_ENV=production

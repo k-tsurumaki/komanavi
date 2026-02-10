@@ -1,4 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
+import { readFileSync } from "fs";
+import { join } from "path";
 import {
   updateMangaJobStatus,
   updateMangaJobResult,
@@ -11,6 +13,29 @@ import type { MangaRequest, MangaResult, MangaPanel } from "./types.js";
 const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 
 const MAX_EDGE = 1200;
+
+/**
+ * プロンプトファイルを読み込む
+ */
+function loadPrompt(filename: string): string {
+  try {
+    const promptPath = join(process.cwd(), "prompts", filename);
+    return readFileSync(promptPath, "utf-8");
+  } catch (error) {
+    console.error(`Failed to load prompt file: ${filename}`, error);
+    throw new Error(`Prompt file not found or inaccessible: ${filename}`);
+  }
+}
+
+// プロンプトをキャッシュ
+let mangaPromptTemplate: string | null = null;
+
+function getMangaPromptTemplate(): string {
+  if (!mangaPromptTemplate) {
+    mangaPromptTemplate = loadPrompt("manga.txt");
+  }
+  return mangaPromptTemplate;
+}
 const MODEL_ID = "gemini-3-pro-image-preview";
 const PROJECT_ID = process.env.GCP_PROJECT_ID;
 const LOCATION = process.env.GCP_LOCATION;
@@ -53,40 +78,132 @@ type GenerateContentResponse = {
  * リクエストからパネル構成を生成
  */
 function buildPanels(request: MangaRequest): MangaResult {
-  const sentences = request.summary
-    .split(/。|\n/)
-    .map((text) => text.trim())
-    .filter(Boolean);
+  const panels: MangaPanel[] = [];
+  let nextPanelId = 1;
 
-  const points = request.keyPoints?.filter(Boolean) ?? [];
-  const candidates = [
-    ...points,
-    ...sentences,
-    "条件に当てはまるか確認しましょう。",
-    "必要な手続きを整理しましょう。",
-    "期限や必要書類をチェックしましょう。",
-  ];
-
-  const panels = candidates
-    .slice(0, Math.min(8, Math.max(4, candidates.length)))
-    .map((text, index) => ({
-      id: `panel-${index + 1}`,
-      text,
-    }));
-
-  while (panels.length < 4) {
-    panels.push({
-      id: `panel-${panels.length + 1}`,
-      text: "次のステップを確認しましょう。",
+  // 1. warnings（最大2件、最優先）
+  if (request.warnings && request.warnings.length > 0) {
+    request.warnings.slice(0, 2).forEach((warning) => {
+      panels.push({
+        id: `panel-${nextPanelId++}`,
+        text: warning,
+      });
     });
   }
 
+  // 2. documentType別の優先情報
+  if (request.documentType === "benefit") {
+    // 給付金: 金額 → 対象者 → 期限
+    if (request.benefits?.amount) {
+      panels.push({
+        id: `panel-${nextPanelId++}`,
+        text: `給付額: ${request.benefits.amount}`,
+      });
+    }
+    if (request.target?.eligibility_summary) {
+      panels.push({
+        id: `panel-${nextPanelId++}`,
+        text: `対象: ${request.target.eligibility_summary}`,
+      });
+    }
+    if (request.procedure?.deadline) {
+      panels.push({
+        id: `panel-${nextPanelId++}`,
+        text: `期限: ${request.procedure.deadline}`,
+      });
+    }
+  } else if (request.documentType === "procedure") {
+    // 手続き: 手順（最大2件） → 必要書類 → 期限
+    if (request.procedure?.steps && request.procedure.steps.length > 0) {
+      request.procedure.steps.slice(0, 2).forEach((step) => {
+        panels.push({
+          id: `panel-${nextPanelId++}`,
+          text: `${step.order}. ${step.action}`,
+        });
+      });
+    }
+    if (
+      request.procedure?.required_documents &&
+      request.procedure.required_documents.length > 0
+    ) {
+      panels.push({
+        id: `panel-${nextPanelId++}`,
+        text: `必要書類: ${request.procedure.required_documents.slice(0, 3).join("、")}`,
+      });
+    }
+    if (request.procedure?.deadline) {
+      panels.push({
+        id: `panel-${nextPanelId++}`,
+        text: `期限: ${request.procedure.deadline}`,
+      });
+    }
+  } else {
+    // その他: keyPoints優先
+    if (request.keyPoints && request.keyPoints.length > 0) {
+      request.keyPoints.slice(0, 3).forEach((point) => {
+        panels.push({
+          id: `panel-${nextPanelId++}`,
+          text: point,
+        });
+      });
+    }
+  }
+
+  // 3. 連絡先（最大1件）
+  if (panels.length < 7 && request.contact?.department) {
+    const contactParts = [request.contact.department];
+    if (request.contact.phone) contactParts.push(request.contact.phone);
+    panels.push({
+      id: `panel-${nextPanelId++}`,
+      text: `問い合わせ: ${contactParts.join(" ")}`,
+    });
+  }
+
+  // 4. tips（最大1件）
+  if (panels.length < 7 && request.tips && request.tips.length > 0) {
+    panels.push({
+      id: `panel-${nextPanelId++}`,
+      text: request.tips[0],
+    });
+  }
+
+  // 5. summaryで補填
+  if (panels.length < 4) {
+    const sentences = request.summary
+      .split(/。|\n/)
+      .map((text) => text.trim())
+      .filter(Boolean);
+    sentences.slice(0, 4 - panels.length).forEach((sentence) => {
+      panels.push({
+        id: `panel-${nextPanelId++}`,
+        text: sentence,
+      });
+    });
+  }
+
+  // 6. 汎用フォールバック（最終手段）
+  const fallbacks = [
+    "条件に当てはまるか確認しましょう。",
+    "必要な手続きを整理しましょう。",
+    "期限や必要書類をチェックしましょう。",
+    "詳しくは問い合わせ窓口へ。",
+  ];
+  while (panels.length < 4) {
+    panels.push({
+      id: `panel-${nextPanelId++}`,
+      text: fallbacks[panels.length] || "次のステップを確認しましょう。",
+    });
+  }
+
+  // 最大8コマに制限
+  const finalPanels = panels.slice(0, 8);
+
   return {
     title: request.title,
-    panels,
+    panels: finalPanels,
     imageUrls: [],
     meta: {
-      panelCount: panels.length,
+      panelCount: finalPanels.length,
       generatedAt: new Date().toISOString(),
       sourceUrl: request.url,
       format: "png",
@@ -100,13 +217,52 @@ function buildPanels(request: MangaRequest): MangaResult {
  * フォールバック結果を生成（エラー時用）
  */
 function buildFallback(request: MangaRequest): MangaResult {
-  const panels = (request.keyPoints ?? [])
-    .filter(Boolean)
-    .slice(0, 6)
-    .map((text, index) => ({ id: `fallback-${index + 1}`, text }));
+  const panels: MangaPanel[] = [];
+  let nextPanelId = 1;
 
+  // 1. warnings（最優先）
+  if (request.warnings && request.warnings.length > 0) {
+    request.warnings.slice(0, 2).forEach((warning) => {
+      panels.push({
+        id: `fallback-${nextPanelId++}`,
+        text: warning,
+      });
+    });
+  }
+
+  // 2. 重要情報（給付額、期限、対象者）
+  if (request.benefits?.amount) {
+    panels.push({
+      id: `fallback-${nextPanelId++}`,
+      text: `給付額: ${request.benefits.amount}`,
+    });
+  }
+  if (request.procedure?.deadline) {
+    panels.push({
+      id: `fallback-${nextPanelId++}`,
+      text: `期限: ${request.procedure.deadline}`,
+    });
+  }
+  if (request.target?.eligibility_summary) {
+    panels.push({
+      id: `fallback-${nextPanelId++}`,
+      text: `対象: ${request.target.eligibility_summary}`,
+    });
+  }
+
+  // 3. keyPoints
+  if (panels.length < 6 && request.keyPoints && request.keyPoints.length > 0) {
+    request.keyPoints.slice(0, 6 - panels.length).forEach((point) => {
+      panels.push({
+        id: `fallback-${nextPanelId++}`,
+        text: point,
+      });
+    });
+  }
+
+  // 4. summaryで補填
   if (panels.length === 0) {
-    panels.push({ id: "fallback-1", text: request.summary });
+    panels.push({ id: `fallback-${nextPanelId++}`, text: request.summary });
   }
 
   return {
@@ -127,18 +283,54 @@ function buildFallback(request: MangaRequest): MangaResult {
 /**
  * Gemini 用のプロンプトを生成
  */
-function buildMangaPrompt(request: MangaRequest, panels: MangaPanel[]): string {
+function buildMangaPrompt(
+  request: MangaRequest,
+  panels: MangaPanel[]
+): string {
+  const template = getMangaPromptTemplate();
+
   const panelTexts = panels
     .map((panel, index) => `(${index + 1}) ${panel.text}`)
     .join("\n");
 
-  return (
-    `以下の内容を4コマ漫画として1枚の画像で生成してください。\n\n` +
-    `# タイトル\n${request.title}\n\n` +
-    `# 要約\n${request.summary}\n\n` +
-    `# 4コマ構成\n${panelTexts}\n\n` +
-    `要件:\n- 日本語の吹き出し\n- 4コマが1枚の画像に収まる\n- 読みやすい配色\n- 行政情報の説明として誠実で分かりやすい表現\n`
-  );
+  // 補足情報（コンテキスト）を構築
+  const context: string[] = [];
+
+  if (request.documentType) {
+    const typeLabels: Record<
+      NonNullable<typeof request.documentType>,
+      string
+    > = {
+      benefit: "給付・支援制度",
+      procedure: "手続き案内",
+      information: "一般情報",
+      faq: "よくある質問",
+      guide: "利用ガイド",
+      other: "行政情報",
+    };
+    context.push(`種類: ${typeLabels[request.documentType]}`);
+  }
+
+  if (request.benefits?.amount) {
+    context.push(`給付額: ${request.benefits.amount}`);
+  }
+
+  if (request.procedure?.deadline) {
+    context.push(`期限: ${request.procedure.deadline}`);
+  }
+
+  if (request.target?.eligibility_summary) {
+    context.push(`対象: ${request.target.eligibility_summary}`);
+  }
+
+  const contextText = context.length > 0 ? context.join("\n") : "なし";
+
+  // テンプレートのプレースホルダーを置換
+  return template
+    .replace("{title}", request.title)
+    .replace("{summary}", request.summary)
+    .replace("{panels}", panelTexts)
+    .replace("{context}", contextText);
 }
 
 /**
