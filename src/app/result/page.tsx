@@ -850,6 +850,7 @@ function ResultContent() {
 
       const historyPatch = {
         ...(nextChecklistState === 'ready' ? { checklist: generatedChecklist } : {}),
+        userIntent: retryIntent,
         checklistState: nextChecklistState,
         checklistError: nextChecklistError,
       };
@@ -868,10 +869,12 @@ function ResultContent() {
         err instanceof Error && err.message ? err.message : DEFAULT_CHECKLIST_ERROR_MESSAGE;
       setResult({
         ...result,
+        userIntent: retryIntent,
         checklistState: 'error',
         checklistError: message,
       });
       scheduleHistoryPatch({
+        userIntent: retryIntent,
         checklistState: 'error',
         checklistError: message,
       });
