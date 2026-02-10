@@ -12,6 +12,7 @@ import {
   markStrongBannerShownInSession,
   setSessionSuppressed,
 } from '@/lib/mypage-onboarding';
+import { hasMypageStarted } from '@/lib/mypage-profile';
 
 type MypageOnboardingPromptProps = {
   enabled: boolean;
@@ -35,22 +36,6 @@ const EVENT_CONTEXT = {
   entry_point: 'result',
   surface: 'mypage_onboarding',
 } as const;
-
-function hasValue(value: string | null | undefined): boolean {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function hasMypageStarted(profile: ProfileResponse): boolean {
-  if (hasValue(profile.displayName)) return true;
-  if (hasValue(profile.birthDate)) return true;
-  if (hasValue(profile.gender)) return true;
-  if (hasValue(profile.occupation)) return true;
-  if (hasValue(profile.nationality)) return true;
-  if (hasValue(profile.location)) return true;
-  if (hasValue(profile.visualTraits)) return true;
-  if (hasValue(profile.personality)) return true;
-  return false;
-}
 
 export function MypageOnboardingPrompt({ enabled }: MypageOnboardingPromptProps) {
   const router = useRouter();

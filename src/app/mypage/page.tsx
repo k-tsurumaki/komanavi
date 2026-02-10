@@ -1,12 +1,9 @@
 import { auth } from '@/lib/auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
+import { hasMypageStarted } from '@/lib/mypage-profile';
 import { redirect } from 'next/navigation';
 import { FlowStartTracker } from './FlowStartTracker';
 import { ProfileForm } from './ProfileForm';
-
-type TimestampLike = {
-  toDate: () => Date;
-};
 
 type MyPageSearchParams = {
   flow?: string | string[];
@@ -27,37 +24,7 @@ function getSingleParam(value: string | string[] | undefined): string | null {
   return null;
 }
 
-function hasProfileStringValue(value: unknown): boolean {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function hasBirthDateValue(value: unknown): boolean {
-  if (value instanceof Date) {
-    return !Number.isNaN(value.getTime());
-  }
-
-  if (typeof value === 'string') {
-    if (value.trim().length === 0) {
-      return false;
-    }
-    const parsed = new Date(value);
-    return !Number.isNaN(parsed.getTime());
-  }
-
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    'toDate' in value &&
-    typeof (value as { toDate?: unknown }).toDate === 'function'
-  ) {
-    const parsed = (value as TimestampLike).toDate();
-    return parsed instanceof Date && !Number.isNaN(parsed.getTime());
-  }
-
-  return false;
-}
-
-async function isMypageCompleted(userId: string): Promise<boolean> {
+async function hasStartedMypage(userId: string): Promise<boolean> {
   const db = getAdminFirestore();
   const docSnap = await db.collection('users').doc(userId).get();
 
@@ -70,16 +37,7 @@ async function isMypageCompleted(userId: string): Promise<boolean> {
     return false;
   }
 
-  return (
-    hasProfileStringValue(data.displayName) &&
-    hasBirthDateValue(data.birthDate) &&
-    hasProfileStringValue(data.gender) &&
-    hasProfileStringValue(data.occupation) &&
-    hasProfileStringValue(data.nationality) &&
-    hasProfileStringValue(data.location) &&
-    hasProfileStringValue(data.visualTraits) &&
-    hasProfileStringValue(data.personality)
-  );
+  return hasMypageStarted(data);
 }
 
 export default async function MyPage({ searchParams }: MyPageProps) {
@@ -93,15 +51,15 @@ export default async function MyPage({ searchParams }: MyPageProps) {
   const flow = getSingleParam(params.flow);
   const step = getSingleParam(params.step);
   const isCreationFlowStart = flow === 'create' && step === '1';
-  let hasCompletedProfile = false;
+  let hasStartedProfile = false;
 
   try {
-    hasCompletedProfile = await isMypageCompleted(session.user.id);
+    hasStartedProfile = await hasStartedMypage(session.user.id);
   } catch (error) {
-    console.error('Failed to resolve mypage completion status:', error);
+    console.error('Failed to resolve mypage started status:', error);
   }
 
-  const shouldShowCreationFlow = !hasCompletedProfile;
+  const shouldShowCreationFlow = !hasStartedProfile;
   const shouldUseCreationHeading = shouldShowCreationFlow;
 
   return (
@@ -110,13 +68,12 @@ export default async function MyPage({ searchParams }: MyPageProps) {
       {shouldShowCreationFlow && (
         <section className="ui-card mb-5 border-stone-300/80 bg-stone-50 p-4 sm:p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-stone-600">
-            マイページ作成フロー
+            マイページ作成ガイド
           </p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-slate-900">まずは基本情報から</p>
-            <span className="ui-badge">1 / 3</span>
-          </div>
-          <p className="mt-1.5 text-sm text-slate-600">後からいつでも編集できます。</p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">まずは1項目だけ入力して開始</p>
+          <p className="mt-1.5 text-sm text-slate-600">
+            すべての項目は任意です。後からいつでも編集できます。
+          </p>
         </section>
       )}
       <header className="mb-6">
