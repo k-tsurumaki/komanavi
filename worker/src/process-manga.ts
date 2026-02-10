@@ -81,7 +81,7 @@ function buildPanels(request: MangaRequest): MangaResult {
     request.warnings.slice(0, 2).forEach((warning) => {
       panels.push({
         id: `panel-${panelId++}`,
-        text: `⚠️ ${warning}`,
+        text: warning,
       });
     });
   }
@@ -158,7 +158,7 @@ function buildPanels(request: MangaRequest): MangaResult {
   if (panels.length < 7 && request.tips && request.tips.length > 0) {
     panels.push({
       id: `panel-${panelId++}`,
-      text: `💡 ${request.tips[0]}`,
+      text: request.tips[0],
     });
   }
 
@@ -220,7 +220,7 @@ function buildFallback(request: MangaRequest): MangaResult {
     request.warnings.slice(0, 2).forEach((warning) => {
       panels.push({
         id: `fallback-${panelId++}`,
-        text: `⚠️ ${warning}`,
+        text: warning,
       });
     });
   }
