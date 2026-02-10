@@ -213,14 +213,12 @@ export async function POST(request: NextRequest) {
       intermediate = generatedIntermediate;
     }
 
-    // チェックリスト生成（パーソナライズ適用）
-    const checklist = await generateChecklist(intermediate, personalizationInput);
-
-    // 要約生成（パーソナライズ適用）
-    const generatedSummary = await generateSimpleSummary(intermediate, personalizationInput);
-
-    // 概要（構造化）生成
-    const overview = await generateOverview(intermediate);
+    // 互いに依存しない生成は並列化して待ち時間を短縮する
+    const [checklist, generatedSummary, overview] = await Promise.all([
+      generateChecklist(intermediate, personalizationInput),
+      generateSimpleSummary(intermediate, personalizationInput),
+      generateOverview(intermediate),
+    ]);
 
     // 意図ベース回答生成（意図がある場合のみ）
     const intentAnswer = userIntent
