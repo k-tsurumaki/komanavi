@@ -20,7 +20,7 @@ interface RawUserProfile {
 
 /** デフォルトのユーザ意図（モック） */
 // export const DEFAULT_USER_INTENT = 'この制度について知りたい';
-export const DEFAULT_USER_INTENT = '自分は歯列矯正で月5万円払っている。何をすべきか知りたい。';
+export const DEFAULT_USER_INTENT = '';
 
 /**
  * Firebase Firestore からユーザプロフィールを取得

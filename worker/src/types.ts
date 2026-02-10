@@ -4,7 +4,7 @@
  */
 
 /** 漫画ジョブステータス */
-export type MangaJobStatus = "queued" | "processing" | "done" | "error";
+export type MangaJobStatus = 'queued' | 'processing' | 'done' | 'error';
 
 /** 漫画パネル */
 export interface MangaPanel {
@@ -22,20 +22,14 @@ export interface MangaResult {
     panelCount: number;
     generatedAt: string;
     sourceUrl?: string;
-    format?: "png";
+    format?: 'png';
     maxEdge?: number;
     title?: string;
   };
 }
 
 /** ドキュメントタイプ */
-export type DocumentType =
-  | "benefit"
-  | "procedure"
-  | "information"
-  | "faq"
-  | "guide"
-  | "other";
+export type DocumentType = 'benefit' | 'procedure' | 'information' | 'faq' | 'guide' | 'other';
 
 /** 漫画生成リクエスト */
 export interface MangaRequest {
@@ -68,4 +62,21 @@ export interface MangaRequest {
   };
   warnings?: string[];
   tips?: string[];
+  userIntent?: string;
+  userProfile?: {
+    age?: number;
+    gender?: string;
+    occupation?: string;
+    isJapaneseNational?: boolean;
+    location?: string;
+  };
+  intentSearchMetadata?: {
+    webSearchQueries?: string[];
+    groundingChunks?: Array<{
+      web?: {
+        uri: string;
+        title: string;
+      };
+    }>;
+  };
 }

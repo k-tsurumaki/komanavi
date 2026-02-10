@@ -56,10 +56,7 @@ type HistoryDetailResponse = {
   } | null;
 };
 
-
-export async function fetchHistoryList(params: {
-  limit: number;
-}): Promise<HistoryListResponse> {
+export async function fetchHistoryList(params: { limit: number }): Promise<HistoryListResponse> {
   const searchParams = new URLSearchParams();
   searchParams.set('limit', String(params.limit));
   const response = await fetch(`/api/history?${searchParams.toString()}`, {
@@ -138,6 +135,7 @@ export async function patchHistoryResult(
     guidanceUnlocked?: boolean;
     checklistState?: ChecklistGenerationState;
     checklistError?: string;
+    intermediate?: IntermediateRepresentation;
   },
   options?: {
     keepalive?: boolean;

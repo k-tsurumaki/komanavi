@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireUserId, toIsoString, compact, resolveChecklistErrorField } from '@/app/api/history/utils';
-import type { ChecklistGenerationState, ChecklistItem } from '@/lib/types/intermediate';
+import {
+  requireUserId,
+  toIsoString,
+  compact,
+  resolveChecklistErrorField,
+} from '@/app/api/history/utils';
+import type {
+  ChecklistGenerationState,
+  ChecklistItem,
+  IntermediateRepresentation,
+} from '@/lib/types/intermediate';
 import { validateHistoryResultMutableFields } from '@/app/api/history/validation';
 import { generateSignedUrl } from '@/lib/cloud-storage';
 
@@ -21,6 +30,7 @@ type PatchHistoryRequest = {
   guidanceUnlocked?: boolean;
   checklistState?: ChecklistGenerationState;
   checklistError?: string;
+  intermediate?: IntermediateRepresentation;
 };
 
 export async function GET(
@@ -119,7 +129,6 @@ export async function GET(
           };
         }
       }
-
     }
   }
 
@@ -246,6 +255,21 @@ export async function PATCH(
     }),
     { merge: true }
   );
+
+  if (body.intermediate) {
+    const intermediateRef = db.collection(COLLECTIONS.intermediates).doc(resultId);
+    // intermediateドキュメントが存在するか確認
+    const intermediateSnap = await intermediateRef.get();
+    if (intermediateSnap.exists && intermediateSnap.data()?.userId === userId) {
+      await intermediateRef.set(
+        compact({
+          updatedAt,
+          intermediate: body.intermediate,
+        }),
+        { merge: true }
+      );
+    }
+  }
 
   return NextResponse.json({ updated: true, historyId, resultId });
 }
