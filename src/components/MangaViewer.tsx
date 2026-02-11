@@ -598,14 +598,25 @@ export function MangaViewer(props: MangaViewerProps) {
   return (
     <div className="ui-card mb-6 rounded-2xl p-5 sm:p-6">
       <h3 className="ui-heading mb-3 flex items-center gap-2 text-lg">
-        <span className="ui-badge" aria-hidden="true">
-          MANGA
-        </span>
-        もっとわかりやすく（漫画で見る）
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5 shrink-0 text-stone-700"
+        >
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M20 22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2H20v20Z" />
+          <path d="M10 2v7l2-1.5L14 9V2" />
+        </svg>
+        まずは漫画で全体像をつかむ
       </h3>
 
       <p className="mb-4 text-sm text-slate-600">
-        4〜8コマの漫画で制度の要点を整理します。生成には最大60秒かかる場合があります。
+        あなたの意図を実現するための全体像を、4〜8コマで先にわかりやすく示します。生成には最大60秒ほどかかる場合があります。
       </p>
 
       {imageUrl ? (

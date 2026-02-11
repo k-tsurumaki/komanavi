@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import type {
   IntermediateRepresentation,
   Overview,
@@ -144,6 +146,25 @@ function SummaryHeadingIcon({
     );
   }
 
+  if (name === 'evidence') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M14 4h6v6" />
+        <path d="m10 14 10-10" />
+        <path d="M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5" />
+      </svg>
+    );
+  }
+
   return (
     <svg
       viewBox="0 0 24 24"
@@ -167,6 +188,7 @@ export function SummaryViewer({
   showTitle = true,
   hideDetails = false,
 }: SummaryViewerProps) {
+  const [isEvidenceExpanded, setIsEvidenceExpanded] = useState(false);
   const fallbackAudienceText = '対象条件は本文を確認してください';
   const hasContactKeyword = (text: string): boolean =>
     /(問い合わせ|連絡先|窓口|電話|相談|コールセンター|contact)/i.test(text);
@@ -552,34 +574,59 @@ export function SummaryViewer({
 
           {evidenceSections.length > 0 && (
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_6px_18px_rgba(13,13,13,0.07)]">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <SummaryHeadingIcon name="evidence" />
-                参照リンク
+              <h3 className="text-sm font-semibold text-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setIsEvidenceExpanded((prev) => !prev)}
+                  aria-expanded={isEvidenceExpanded}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <SummaryHeadingIcon name="evidence" />
+                    参照リンク
+                  </span>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`h-4 w-4 text-slate-500 transition-transform ${
+                      isEvidenceExpanded ? 'rotate-180' : ''
+                    }`}
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
               </h3>
-              <div className="mt-3 space-y-4">
-                {evidenceSections.map((section) => (
-                  <div key={section.blockId}>
-                    <p className="text-xs font-semibold text-slate-500">{section.label}</p>
-                    <ul className="mt-2 space-y-1.5">
-                      {section.urls.map((url, index) => (
-                        <li key={`${section.blockId}-${index}`} className="flex items-start gap-2">
-                          <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-500">
-                            {index + 1}
-                          </span>
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-900"
-                          >
-                            {evidenceTitleByUrl.get(url) || getHostnameLabel(url)}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+              {isEvidenceExpanded && (
+                <div className="mt-3 space-y-4">
+                  {evidenceSections.map((section) => (
+                    <div key={section.blockId}>
+                      <p className="text-xs font-semibold text-slate-500">{section.label}</p>
+                      <ul className="mt-2 space-y-1.5">
+                        {section.urls.map((url, index) => (
+                          <li key={`${section.blockId}-${index}`} className="flex items-start gap-2">
+                            <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-500">
+                              {index + 1}
+                            </span>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-900"
+                            >
+                              {evidenceTitleByUrl.get(url) || getHostnameLabel(url)}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
         </div>
