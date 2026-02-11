@@ -1,20 +1,5 @@
 import Link from 'next/link';
 
-const valueProps = [
-  {
-    title: '平易な要約',
-    description: '専門用語をかみ砕き、行政ページの要点を短時間で把握できます。',
-  },
-  {
-    title: '実行できるチェックリスト',
-    description: '必要な準備をステップで整理し、漏れを防ぎます。',
-  },
-  {
-    title: '漫画で確認',
-    description: '複雑な流れを視覚化して、理解を定着させます。',
-  },
-];
-
 const useCases = [
   '児童手当',
   '転入・転出手続き',
@@ -22,6 +7,16 @@ const useCases = [
   '国民健康保険',
   'パスポート申請',
   '各種届出',
+];
+
+const onboardingSteps = [
+  '行政ページのURLを入力して解析',
+  '1分でわかる要点ガイドで全体像を確認',
+  '必要に応じて深掘りする（任意）',
+  '意図を入力して、求める条件を明確化',
+  'まずは漫画で全体像をつかむ',
+  'あなた向けの回答を確認',
+  'チェックリストで次の行動を整理',
 ];
 
 export default function LandingPage() {
@@ -49,6 +44,7 @@ export default function LandingPage() {
               </h1>
               <p className="ui-muted mt-4 max-w-2xl text-sm sm:text-base">
                 URLを入力すると、要約・チェックリスト・漫画の3つで情報を再構成。
+                <br />
                 読みにくい行政情報を、行動できる形に変換します。
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
@@ -62,32 +58,17 @@ export default function LandingPage() {
             </div>
 
             <div className="ui-card-soft space-y-4 p-5 sm:p-6">
-              <p className="text-sm font-semibold text-slate-700">3ステップで利用可能</p>
+              <p className="text-sm font-semibold text-slate-700">7ステップで、あなたの希望をかたちに</p>
               <ol className="space-y-3">
-                <li className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                  <span className="ui-badge">1</span>
-                  <p className="text-sm text-slate-700">行政ページのURLを入力</p>
-                </li>
-                <li className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                  <span className="ui-badge">2</span>
-                  <p className="text-sm text-slate-700">AIが内容を解析して再整理</p>
-                </li>
-                <li className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                  <span className="ui-badge">3</span>
-                  <p className="text-sm text-slate-700">要約と手順を確認して行動</p>
-                </li>
+                {onboardingSteps.map((step, index) => (
+                  <li key={step} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                    <span className="ui-badge">{index + 1}</span>
+                    <p className="text-sm text-slate-700">{step}</p>
+                  </li>
+                ))}
               </ol>
             </div>
           </div>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-3">
-          {valueProps.map((value) => (
-            <article key={value.title} className="ui-card p-5 sm:p-6">
-              <h2 className="ui-heading text-lg">{value.title}</h2>
-              <p className="ui-muted mt-2 text-sm">{value.description}</p>
-            </article>
-          ))}
         </section>
 
         <section className="ui-card p-6 sm:p-7">
