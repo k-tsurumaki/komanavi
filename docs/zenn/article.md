@@ -1,5 +1,5 @@
 ---
-title: "【KOMANAVI】行政情報をAIが漫画にして届ける——支援が必要な人の「次の一歩」をつくる
+title: "【KOMANAVI】行政情報をAIが漫画にして届ける——支援が必要な人の「次の一歩」をつくる"
 emoji: "📖"
 type: "idea"
 topics: ["gch4", "googlecloud", "vertexai", "gemini", "cloudrun", "nextjs"]
