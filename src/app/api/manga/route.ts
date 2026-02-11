@@ -8,7 +8,7 @@ import {
 } from '@/lib/manga-job-store';
 import { enqueueMangaTask, getMissingCloudTasksEnvVars } from '@/lib/cloud-tasks';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { getUserProfileFromFirestore, toPersonalizationInput } from '@/lib/user-profile';
+import { getUserProfileFromFirestore, toMangaPersonalizationInput } from '@/lib/user-profile';
 
 const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10分（フロントエンドと整合）
 
@@ -30,6 +30,23 @@ const globalState = globalThis as typeof globalThis & {
 
 const usageByUser = globalState.__mangaUsageByUser ?? new Map<string, UsageState>();
 globalState.__mangaUsageByUser = usageByUser;
+
+const MAX_URL_LENGTH = 2000;
+const MAX_TITLE_LENGTH = 200;
+const MAX_SUMMARY_LENGTH = 2000;
+const MAX_RESULT_ID_LENGTH = 128;
+const MAX_HISTORY_ID_LENGTH = 128;
+const MAX_USER_INTENT_LENGTH = 1000;
+const MAX_KEYPOINTS = 20;
+const MAX_KEYPOINT_TEXT_LENGTH = 300;
+const MAX_WARNINGS = 20;
+const MAX_TIPS = 20;
+const MAX_NOTE_TEXT_LENGTH = 300;
+const MAX_CONDITIONS = 20;
+const MAX_STEPS = 20;
+const MAX_REQUIRED_DOCUMENTS = 20;
+const MAX_WEB_SEARCH_QUERIES = 20;
+const MAX_GROUNDING_CHUNKS = 30;
 
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -89,6 +106,225 @@ async function hasActiveJob(userId: string): Promise<boolean> {
   return true;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeString(value: unknown, maxLength: number): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  return trimmed.slice(0, maxLength);
+}
+
+function normalizeStringArray(
+  value: unknown,
+  maxItems: number,
+  maxItemLength: number
+): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const items = value
+    .map((item) => normalizeString(item, maxItemLength))
+    .filter((item): item is string => Boolean(item))
+    .slice(0, maxItems);
+  return items.length > 0 ? items : undefined;
+}
+
+function parseDocumentType(value: unknown): MangaRequest['documentType'] {
+  if (
+    value === 'benefit' ||
+    value === 'procedure' ||
+    value === 'information' ||
+    value === 'faq' ||
+    value === 'guide' ||
+    value === 'other'
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function parseTarget(value: unknown): MangaRequest['target'] {
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+  const conditions = Array.isArray(value.conditions)
+    ? value.conditions
+        .map((item) => normalizeString(item, MAX_NOTE_TEXT_LENGTH))
+        .filter((item): item is string => Boolean(item))
+        .slice(0, MAX_CONDITIONS)
+    : [];
+  if (conditions.length === 0) {
+    return undefined;
+  }
+  const eligibilitySummary = normalizeString(value.eligibility_summary, MAX_NOTE_TEXT_LENGTH);
+  return {
+    conditions,
+    ...(eligibilitySummary ? { eligibility_summary: eligibilitySummary } : {}),
+  };
+}
+
+function parseProcedure(value: unknown): MangaRequest['procedure'] {
+  if (!isPlainObject(value) || !Array.isArray(value.steps)) {
+    return undefined;
+  }
+  const steps = value.steps
+    .filter((step): step is Record<string, unknown> => isPlainObject(step))
+    .map((step) => {
+      const action = normalizeString(step.action, MAX_NOTE_TEXT_LENGTH);
+      const order = typeof step.order === 'number' ? step.order : Number(step.order);
+      if (!action || !Number.isFinite(order)) {
+        return null;
+      }
+      return { order, action };
+    })
+    .filter((step): step is { order: number; action: string } => Boolean(step))
+    .slice(0, MAX_STEPS);
+
+  if (steps.length === 0) {
+    return undefined;
+  }
+
+  const requiredDocuments = normalizeStringArray(
+    value.required_documents,
+    MAX_REQUIRED_DOCUMENTS,
+    MAX_NOTE_TEXT_LENGTH
+  );
+  const deadline = normalizeString(value.deadline, MAX_NOTE_TEXT_LENGTH);
+  const fee = normalizeString(value.fee, MAX_NOTE_TEXT_LENGTH);
+
+  return {
+    steps,
+    ...(requiredDocuments ? { required_documents: requiredDocuments } : {}),
+    ...(deadline ? { deadline } : {}),
+    ...(fee ? { fee } : {}),
+  };
+}
+
+function parseBenefits(value: unknown): MangaRequest['benefits'] {
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+  const description = normalizeString(value.description, MAX_NOTE_TEXT_LENGTH);
+  if (!description) {
+    return undefined;
+  }
+  const amount = normalizeString(value.amount, MAX_NOTE_TEXT_LENGTH);
+  const frequency = normalizeString(value.frequency, MAX_NOTE_TEXT_LENGTH);
+  return {
+    description,
+    ...(amount ? { amount } : {}),
+    ...(frequency ? { frequency } : {}),
+  };
+}
+
+function parseContact(value: unknown): MangaRequest['contact'] {
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+  const department = normalizeString(value.department, MAX_NOTE_TEXT_LENGTH);
+  const phone = normalizeString(value.phone, MAX_NOTE_TEXT_LENGTH);
+  const hours = normalizeString(value.hours, MAX_NOTE_TEXT_LENGTH);
+  if (!department && !phone && !hours) {
+    return undefined;
+  }
+  return {
+    ...(department ? { department } : {}),
+    ...(phone ? { phone } : {}),
+    ...(hours ? { hours } : {}),
+  };
+}
+
+function parseIntentSearchMetadata(value: unknown): MangaRequest['intentSearchMetadata'] {
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+
+  const webSearchQueries = normalizeStringArray(
+    value.webSearchQueries,
+    MAX_WEB_SEARCH_QUERIES,
+    MAX_NOTE_TEXT_LENGTH
+  );
+
+  const groundingChunks = Array.isArray(value.groundingChunks)
+    ? value.groundingChunks
+        .filter((chunk): chunk is Record<string, unknown> => isPlainObject(chunk))
+        .map((chunk) => {
+          const web = isPlainObject(chunk.web) ? chunk.web : undefined;
+          if (!web) return null;
+          const uri = normalizeString(web.uri, MAX_URL_LENGTH);
+          const title = normalizeString(web.title, MAX_TITLE_LENGTH);
+          if (!uri || !title) return null;
+          return { web: { uri, title } };
+        })
+        .filter((chunk): chunk is { web: { uri: string; title: string } } => Boolean(chunk))
+        .slice(0, MAX_GROUNDING_CHUNKS)
+    : [];
+
+  if (!webSearchQueries && groundingChunks.length === 0) {
+    return undefined;
+  }
+
+  return {
+    ...(webSearchQueries ? { webSearchQueries } : {}),
+    ...(groundingChunks.length > 0 ? { groundingChunks } : {}),
+  };
+}
+
+function parseMangaRequestBody(raw: unknown): { ok: true; data: MangaRequest } | { ok: false } {
+  if (!isPlainObject(raw)) {
+    return { ok: false };
+  }
+
+  const url = normalizeString(raw.url, MAX_URL_LENGTH);
+  const title = normalizeString(raw.title, MAX_TITLE_LENGTH);
+  const summary = normalizeString(raw.summary, MAX_SUMMARY_LENGTH);
+  const resultId = normalizeString(raw.resultId, MAX_RESULT_ID_LENGTH);
+  const historyId = normalizeString(raw.historyId, MAX_HISTORY_ID_LENGTH);
+
+  if (!url || !title || !summary || !resultId || !historyId) {
+    return { ok: false };
+  }
+
+  const keyPoints = normalizeStringArray(raw.keyPoints, MAX_KEYPOINTS, MAX_KEYPOINT_TEXT_LENGTH);
+  const documentType = parseDocumentType(raw.documentType);
+  const target = parseTarget(raw.target);
+  const procedure = parseProcedure(raw.procedure);
+  const benefits = parseBenefits(raw.benefits);
+  const contact = parseContact(raw.contact);
+  const warnings = normalizeStringArray(raw.warnings, MAX_WARNINGS, MAX_NOTE_TEXT_LENGTH);
+  const tips = normalizeStringArray(raw.tips, MAX_TIPS, MAX_NOTE_TEXT_LENGTH);
+  const userIntent = normalizeString(raw.userIntent, MAX_USER_INTENT_LENGTH);
+  const intentSearchMetadata = parseIntentSearchMetadata(raw.intentSearchMetadata);
+
+  return {
+    ok: true,
+    data: {
+      url,
+      title,
+      summary,
+      resultId,
+      historyId,
+      ...(keyPoints ? { keyPoints } : {}),
+      ...(documentType ? { documentType } : {}),
+      ...(target ? { target } : {}),
+      ...(procedure ? { procedure } : {}),
+      ...(benefits ? { benefits } : {}),
+      ...(contact ? { contact } : {}),
+      ...(warnings ? { warnings } : {}),
+      ...(tips ? { tips } : {}),
+      ...(userIntent ? { userIntent } : {}),
+      ...(intentSearchMetadata ? { intentSearchMetadata } : {}),
+    },
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     // 認証検証（必須）
@@ -100,15 +336,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: MangaRequest = await request.json();
-
-    // resultId, historyId のバリデーション
-    if (!body.url || !body.title || !body.summary || !body.resultId || !body.historyId) {
+    const parsedBody = parseMangaRequestBody(await request.json());
+    if (!parsedBody.ok) {
       return NextResponse.json(
         { error: '必要な情報が不足しています', errorCode: 'validation_error' },
         { status: 400 }
       );
     }
+    const body = parsedBody.data;
 
     const missingCloudTasksEnvVars = getMissingCloudTasksEnvVars();
     if (missingCloudTasksEnvVars.length > 0) {
@@ -166,7 +401,7 @@ export async function POST(request: NextRequest) {
     let enrichedBody: MangaRequest;
     try {
       const rawProfile = await getUserProfileFromFirestore(userId);
-      const personalizationInput = toPersonalizationInput(rawProfile, body.userIntent);
+      const personalizationInput = toMangaPersonalizationInput(rawProfile, body.userIntent);
       enrichedBody = {
         ...body,
         userIntent: personalizationInput.userIntent,
@@ -177,11 +412,9 @@ export async function POST(request: NextRequest) {
         'Failed to fetch user profile, proceeding without personalization:',
         profileError
       );
-      // プロファイル取得に失敗した場合はクライアント送信の userProfile / intentSearchMetadata を信頼しない
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { userProfile, intentSearchMetadata, ...rest } = body;
       enrichedBody = {
-        ...rest,
+        ...body,
+        intentSearchMetadata: undefined,
         userProfile: undefined,
       };
     }

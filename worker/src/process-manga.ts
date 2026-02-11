@@ -69,6 +69,15 @@ function buildPersonalizationContext(
   }
 
   if (userProfile) {
+    if (userProfile.displayName) {
+      lines.push(`- 呼称: ${userProfile.displayName}`);
+    }
+    if (userProfile.visualTraits) {
+      lines.push(`- 外見の特徴: ${userProfile.visualTraits}`);
+    }
+    if (userProfile.personality) {
+      lines.push(`- 性格・口調: ${userProfile.personality}`);
+    }
     if (userProfile.age !== undefined) {
       lines.push(`- 年齢: ${userProfile.age}歳`);
     }

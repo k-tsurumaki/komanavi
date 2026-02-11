@@ -4,6 +4,14 @@
  * 様々な種類の行政ドキュメントに対応できる汎用的な構造
  */
 
+import type {
+  MangaJobStatus as ContractMangaJobStatus,
+  MangaPanel as ContractMangaPanel,
+  MangaResult as ContractMangaResult,
+  MangaRequest as ContractMangaRequest,
+  MangaPersonalizationProfile as ContractMangaPersonalizationProfile,
+} from '../../../shared/manga-contract';
+
 // ============================================
 // ドキュメント分類
 // ============================================
@@ -410,71 +418,19 @@ export type AnalyzeStatus = 'idle' | 'loading' | 'success' | 'error';
 // ============================================
 
 /** 漫画ジョブステータス */
-export type MangaJobStatus = 'queued' | 'processing' | 'done' | 'error';
+export type MangaJobStatus = ContractMangaJobStatus;
 
 /** 漫画パネル */
-export interface MangaPanel {
-  id: string;
-  text: string;
-}
+export type MangaPanel = ContractMangaPanel;
 
 /** 漫画生成結果 */
-export interface MangaResult {
-  title: string;
-  panels: MangaPanel[];
-  imageUrls?: string[];
-  storageUrl?: string;
-  meta?: {
-    panelCount: number;
-    generatedAt: string;
-    sourceUrl?: string;
-    format?: 'png';
-    maxEdge?: number;
-    title?: string;
-  };
-}
+export type MangaResult = ContractMangaResult;
+
+/** 漫画生成向けのパーソナライズプロフィール */
+export type MangaPersonalizationProfile = ContractMangaPersonalizationProfile;
 
 /** 漫画生成リクエスト */
-export interface MangaRequest {
-  url: string;
-  title: string;
-  summary: string;
-  keyPoints?: string[];
-
-  // 新規追加（すべてオプショナル）
-  documentType?: DocumentType;
-  target?: {
-    conditions: string[];
-    eligibility_summary?: string;
-  };
-  procedure?: {
-    steps: Array<{ order: number; action: string }>;
-    required_documents?: string[];
-    deadline?: string;
-    fee?: string;
-  };
-  benefits?: {
-    description: string;
-    amount?: string;
-    frequency?: string;
-  };
-  contact?: {
-    department?: string;
-    phone?: string;
-    hours?: string;
-  };
-  warnings?: string[];
-  tips?: string[];
-
-  // パーソナライズ（オプショナル）
-  userIntent?: string;
-  userProfile?: NormalizedUserProfile;
-  intentSearchMetadata?: GroundingMetadata;
-
-  // 会話履歴との紐づけ
-  resultId: string; // 解析結果のID（必須）
-  historyId: string; // 会話履歴のID（必須）
-}
+export type MangaRequest = ContractMangaRequest;
 
 /** 漫画ジョブレスポンス */
 export interface MangaJobResponse {

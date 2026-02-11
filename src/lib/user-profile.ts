@@ -4,7 +4,11 @@
  */
 
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import type { PersonalizationInput, NormalizedUserProfile } from '@/lib/types/intermediate';
+import type {
+  MangaPersonalizationProfile,
+  NormalizedUserProfile,
+  PersonalizationInput,
+} from '@/lib/types/intermediate';
 
 /** Firestore から取得した生のユーザプロフィール */
 interface RawUserProfile {
@@ -21,6 +25,10 @@ interface RawUserProfile {
 /** デフォルトのユーザ意図（モック） */
 // export const DEFAULT_USER_INTENT = 'この制度について知りたい';
 export const DEFAULT_USER_INTENT = '';
+
+const MAX_DISPLAY_NAME_LENGTH = 80;
+const MAX_VISUAL_TRAITS_LENGTH = 300;
+const MAX_PERSONALITY_LENGTH = 300;
 
 /**
  * Firebase Firestore からユーザプロフィールを取得
@@ -97,6 +105,40 @@ function normalizeUserProfile(profile: RawUserProfile): NormalizedUserProfile {
   return normalized;
 }
 
+function normalizeOptionalText(value: unknown, maxLength: number): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  return trimmed.slice(0, maxLength);
+}
+
+function normalizeMangaUserProfile(profile: RawUserProfile): MangaPersonalizationProfile {
+  const normalized: MangaPersonalizationProfile = {
+    ...normalizeUserProfile(profile),
+  };
+
+  const displayName = normalizeOptionalText(profile.displayName, MAX_DISPLAY_NAME_LENGTH);
+  if (displayName) {
+    normalized.displayName = displayName;
+  }
+
+  const visualTraits = normalizeOptionalText(profile.visualTraits, MAX_VISUAL_TRAITS_LENGTH);
+  if (visualTraits) {
+    normalized.visualTraits = visualTraits;
+  }
+
+  const personality = normalizeOptionalText(profile.personality, MAX_PERSONALITY_LENGTH);
+  if (personality) {
+    normalized.personality = personality;
+  }
+
+  return normalized;
+}
+
 /**
  * ユーザプロフィールとユーザ意図からパーソナライズ入力を生成
  */
@@ -107,6 +149,22 @@ export function toPersonalizationInput(
   return {
     userIntent: userIntent || DEFAULT_USER_INTENT,
     userProfile: profile ? normalizeUserProfile(profile) : undefined,
+  };
+}
+
+/**
+ * 漫画生成向けのパーソナライズ入力を生成
+ */
+export function toMangaPersonalizationInput(
+  profile: RawUserProfile | null,
+  userIntent?: string
+): {
+  userIntent: string;
+  userProfile?: MangaPersonalizationProfile;
+} {
+  return {
+    userIntent: userIntent || DEFAULT_USER_INTENT,
+    userProfile: profile ? normalizeMangaUserProfile(profile) : undefined,
   };
 }
 
