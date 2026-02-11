@@ -1,32 +1,33 @@
+<div align="center">
+
 # KOMANAVI（コマナビ）
 
-行政手続きページの URL から、行動に移しやすい情報を生成する Web アプリです。  
-現在の実装では、要約・深掘り対話・意図ベース回答・チェックリスト・漫画生成・履歴管理・プロフィール連携までを含みます。
+**行政ドキュメントを、もっとわかりやすく。**
+
+[![Next.js](https://img.shields.io/badge/Next.js-16.1-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss)](https://tailwindcss.com/)
+[![Vertex AI](https://img.shields.io/badge/Vertex_AI-Gemini_3.0-4285F4?logo=googlecloud)](https://cloud.google.com/vertex-ai)
+
+<br />
+
+行政ページのURLを入力するだけで、**わかりやすい要約**・**チェックリスト**・**4コマ漫画**を自動生成
+
+</div>
 
 ## 主な機能
 
-- URL 解析: 行政ページを解析し、平易化サマリーを生成
-- 深掘り対話: 解析結果について追加質問（`/api/analyze` の `deepDive` モード）
-- 意図ベース回答: 「最終的に実現したいこと」を入力して回答とチェックリストを生成
-- 漫画生成: Cloud Tasks + Worker で非同期生成し、Cloud Storage 経由で配信
-- 履歴管理: 解析結果・中間表現・漫画結果を Firestore に保存
-- パーソナライズ: Myページのプロフィールを回答と漫画生成に反映
+| 機能 | 説明 |
+| --- | --- |
+| **AI要約** | 行政文書を「やさしい日本語」で要約 |
+| **チェックリスト** | 必要な手続き・書類を一覧化 |
+| **4コマ漫画** | 手続きの流れを視覚的に説明 |
+| **根拠表示** | 原文への参照リンクを常に表示 |
+| **履歴管理** | 過去に解析した結果を保存・再表示 |
 
-## アーキテクチャ（実装準拠）
-
-```text
-Browser (Next.js UI)
-  -> Next.js App Router API
-      - /api/analyze (Gemini + Google Search Grounding)
-      - /api/history, /api/history/[historyId] (Firestore)
-      - /api/manga, /api/manga/[resultId] (ジョブ投入・状態取得)
-      - /api/user/profile (プロフィール)
-  -> Cloud Tasks
-      -> Worker (Express /process)
-          -> Gemini 画像生成
-          -> Cloud Storage 保存
-          -> Firestore ジョブ更新
-```
+## アーキテクチャ
+![`docs/images/system_architecture.svg`](docs/images/system_architecture.svg)
 
 ## 技術スタック
 
