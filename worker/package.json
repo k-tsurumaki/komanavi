@@ -4,9 +4,10 @@
   "description": "Manga generation worker for KOMANAVI",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "sync:contract": "node scripts/sync-manga-contract.mjs",
+    "build": "npm run sync:contract && tsc",
     "start": "node dist/index.js",
-    "dev": "npx tsx watch src/index.ts"
+    "dev": "npm run sync:contract && npx tsx watch src/index.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.7.0",

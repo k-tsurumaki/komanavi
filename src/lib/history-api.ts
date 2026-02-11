@@ -6,7 +6,6 @@ import type {
   IntermediateRepresentation,
   Overview,
   MangaJobStatus,
-  MangaRequest,
   MangaResult,
   MangaJobStatusResponse,
 } from '@/lib/types/intermediate';
@@ -46,7 +45,6 @@ type HistoryDetailResponse = {
     userId: string;
     status: MangaJobStatus;
     progress: number;
-    request: MangaRequest;
     result?: MangaResult;
     error?: string;
     errorCode?: MangaJobStatusResponse['errorCode'];

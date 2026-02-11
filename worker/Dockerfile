@@ -11,6 +11,8 @@ RUN npm ci
 # ソースコードをコピー
 COPY worker/tsconfig.json ./
 COPY worker/src/ ./src/
+COPY worker/scripts/ ./scripts/
+COPY shared/ ./shared/
 COPY prompts/ ./prompts/
 
 # TypeScript ビルド

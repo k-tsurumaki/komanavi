@@ -122,8 +122,15 @@ export async function GET(
 
           manga = {
             id: mangaSnap.id,
-            ...mangaData,
+            resultId: mangaData.resultId,
+            historyId: mangaData.historyId,
+            userId: mangaData.userId,
+            status: mangaData.status,
+            progress: mangaData.progress,
             result: updatedResult,
+            error: mangaData.error,
+            errorCode: mangaData.errorCode,
+            storageUrl: mangaData.storageUrl,
             createdAt: toIsoString(mangaData.createdAt),
             updatedAt: toIsoString(mangaData.updatedAt),
           };
