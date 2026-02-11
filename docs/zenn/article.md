@@ -250,7 +250,7 @@ AIが生成した情報から、いつでもワンクリックで一次情報（
 | **DB** | Cloud Firestore | スキーマレスで高速イテレーション |
 | **ストレージ** | Cloud Storage | 署名付きURLで漫画画像を安全に配信 |
 | **非同期処理** | Cloud Tasks + Cloud Run Worker | 漫画生成の長時間処理をオフロード |
-| **CI/CD** | Cloud Build → Artifact Registry → Cloud Run | devマージで自動デプロイ |
+| **CI/CD** | Cloud Build → Artifact Registry → Cloud Run | devブランチへのpushで両サービスを並列ビルド＆自動デプロイ |
 
 
 ### Google Search Grounding への全面移行
@@ -306,25 +306,46 @@ KOMANAVIは2つのCloud Runサービスで構成されています。
 
 #### 課題：漫画生成は重い
 
-Gemini Pro Imageによる漫画生成は、1リクエストあたり **30秒〜2分** かかります。通常のAPIタイムアウト（30秒）では間に合いません。かといって、ユーザーを2分間待たせるわけにもいきません。
+Gemini Pro Imageによる漫画生成は、1リクエストあたり **30秒〜2分** かかります。これを同期的なAPIレスポンスとして処理すると、ユーザーはその間ずっとローディング画面を見続けることになります。
 
 #### 解決策：Cloud Tasks + Worker + 進捗ポーリング
 
 漫画生成を完全に非同期化し、メインアプリから切り離しました。
 
+```mermaid
+sequenceDiagram
+    participant Browser as ブラウザ
+    participant API as Next.js API
+    participant FS as Firestore
+    participant CT as Cloud Tasks
+    participant Worker as Cloud Run Worker
+    participant GCS as Cloud Storage
+
+    Browser->>API: 漫画生成リクエスト
+    API->>FS: ジョブ作成
+    API->>CT: エンキュー
+    CT->>Worker: OIDC認証付きHTTPリクエスト
+    Worker->>Worker: パネル構成を決定
+    Worker->>Worker: Gemini Pro Image で生成
+    Worker->>GCS: 画像アップロード
+    Worker->>FS: ステータス更新（0%→30%→50%→70%→85%→100%）
+    loop 2秒間隔
+        Browser->>FS: ポーリング
+    end
+    Browser->>GCS: 署名付きURL（60分TTL）で画像取得
 ```
-[メインアプリ]
-  ↓ Firestoreにジョブ作成 + Cloud Tasksにエンキュー
-[Cloud Tasks]
-  ↓ OIDC認証付きHTTPリクエスト
-[Cloud Run Worker (Express.js)]
-  ↓ ドキュメントタイプに応じたパネル構成を決定
-  ↓ Gemini Pro Image で生成（responseModalities: ['TEXT', 'IMAGE']）
-  ↓ Cloud Storage にアップロード
-  ↓ Firestore のジョブステータスを更新（30% → 50% → 70% → 85% → 100%）
-[クライアント]
-  ↓ 2秒間隔でポーリング → 署名付きURL（60分TTL）で画像を表示
+
+### CI/CD —— Cloud Build による自動デプロイ
+
+`dev` ブランチへのpushをトリガーに、Cloud Buildが2つのサービスを**並列にビルド・デプロイ**します。
+
 ```
+[dev ブランチへの push]
+  ├─ build-main ─→ push ─→ deploy komanavi
+  └─ build-worker ─→ push ─→ deploy komanavi-worker
+```
+
+1つの `cloudbuild.yaml` に全ステップを集約し、`waitFor` による並列制御でデプロイ時間を最小化。コードをマージするだけで本番環境が更新されるため、PoCフェーズに不可欠な**高速イテレーション**を実現しています。
 
 
 ## 🔮 今後の展望
