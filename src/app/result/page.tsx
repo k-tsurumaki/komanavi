@@ -1002,7 +1002,7 @@ function ResultContent() {
 
       <div ref={summarySectionRef}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="ui-heading text-lg">1分でわかる平易化サマリー</h3>
+          <h3 className="ui-heading text-lg">1分でわかる要点ガイド</h3>
         </div>
 
         <SummaryViewer data={intermediate} overview={overview} hideDetails />
@@ -1235,7 +1235,7 @@ function ResultContent() {
             <div className="flex items-center">
               <div>
                 <h3 className="ui-heading text-lg">回答</h3>
-                <p className="text-xs text-slate-600">あなたの意図とパーソナル情報に基づく回答</p>
+                <p className="text-xs text-slate-600">あなたの意図とプロフィール情報に基づく回答</p>
               </div>
             </div>
           </div>
