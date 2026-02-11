@@ -136,7 +136,7 @@ KOMANAVIは、**行政ページのURLを貼るだけ** で「やさしい要約�
 
 ### 機能 1：ページ概要 —— 行政ページを1分で把握
 
-AIがGoogle Search Groundingを活用してページ内容を取得し、以下の構造で概要を生成します。
+AIがGoogle Search Groundingを活用し、対象ページに関する情報をGoogle検索で収集・合成して、以下の構造で概要を生成します。
 
 | 表示項目 | 内容 |
 |---------|------|
@@ -217,9 +217,6 @@ AIが生成した情報から、いつでもワンクリックで一次情報（
 | **免責事項** | 「参考情報であること」を明示するバナーとモーダル |
 
 
-
-
-
 ### 機能 7：会話履歴 —— 途中から再開できる
 
 ログインユーザーの解析結果はCloud Firestoreに自動保存され、サイドバーからいつでも再参照できます。
@@ -246,71 +243,63 @@ AIが生成した情報から、いつでもワンクリックで一次情報（
 | **AI SDK** | @google/genai（Vertex AI 経由） | Google Search Grounding対応 |
 | **AI（解析）** | Gemini 3.0 Flash + Google Search Grounding | 低コスト＋Grounding Metadata取得 |
 | **AI（漫画生成）** | Gemini 3.0 Pro Image | テキスト＋画像の同時生成 |
-| **認証** | NextAuth v5 + Firebase Auth | Google認証＋Firestore連携 |
+| **認証** | NextAuth v5 + Firebase Auth（Identity Platform） | Google認証＋Firestore連携 |
 | **DB** | Cloud Firestore | スキーマレスで高速イテレーション |
 | **ストレージ** | Cloud Storage | 署名付きURLで漫画画像を安全に配信 |
 | **非同期処理** | Cloud Tasks + Cloud Run Worker | 漫画生成の長時間処理をオフロード |
 | **CI/CD** | Cloud Build → Artifact Registry → Cloud Run | devブランチへのpushで両サービスを並列ビルド＆自動デプロイ |
 
 
-### Google Search Grounding への全面移行
+### 認証：GCP Identity Platform + Auth.js
 
-#### 課題：スクレイピングの限界
+このアプリでは、認証をGoogle Cloudのサービスで統一しています。ブラウザ側では **Firebase Auth SDK** がGoogle OAuth またはメール/パスワード認証を処理し、バックエンドの実体は **GCP Identity Platform** です。
 
-当初はCheerioによるHTMLスクレイピングで行政ページの内容を取得していました。しかし、開発を進めるうちに「これでは本質的に無理がある」と気づきます。
+ログイン後に発行されるIDトークンは、Cloud Run上の **Firebase Admin SDK** でサーバーサイド検証します。Auth.js（NextAuth v5）がセッション管理を担い、Cloud Runではサービスアカウント認証が自動適用されるため、APIキーの管理が不要になっています。
 
-| 壁 | 具体的な状況 |
-|-----|------------|
-| **PDF問題** | 行政情報の多くがPDFで公開されている。HTMLスクレイピングでは中身を取得できない |
-| **JSレンダリング** | SPAやiframe埋め込みのページが増加。Cheerioでは空のHTMLが返る |
-| **文脈の欠落** | HTMLのタグ構造だけでは「この情報が何を意味するか」の文脈が失われる |
-| **メンテナンスコスト** | 自治体ごとにHTML構造が異なり、パーサーの保守が膨大になる |
+```mermaid
+sequenceDiagram
+    participant B as ブラウザ
+    participant IP as Identity Platform
+    participant CR as Cloud Run（Next.js）
+    participant FS as Firestore
 
-#### 解決策：「スクレイピングしない」という判断
-
-発想を転換しました。**自分でページ情報を取得するのではなく、Gemini に取得してもらう**。
-
-```typescript
-const result = await ai.models.generateContent({
-  model: 'gemini-3-flash-preview',
-  contents: [{ role: 'user', parts: [{ text: prompt }] }],
-  config: {
-    temperature: 1.0,  // Google推奨値
-    tools: [{ googleSearch: {} }],  // ← これだけ
-  },
-});
+    B->>IP: ① Firebase Auth SDK で<br>Google OAuth / メールPWログイン
+    IP-->>B: ② IDトークン発行
+    B->>CR: ③ Authorization: Bearer {IDトークン}
+    CR->>CR: ④ Firebase Admin SDK で<br>IDトークン検証
+    CR->>FS: ⑤ ユーザーID で Firestore アクセス
+    CR-->>B: ⑥ セッション返却（Auth.js）
 ```
 
-`tools: [{ googleSearch: {} }]` を指定するだけで、Geminiが自動的にWeb検索を実行し、ページ内容を取得します。PDFもJSレンダリングページも、Googleの検索インフラが解決してくれます。
+> 参考：[GCP Identity Platform パターン集](https://zenn.dev/google_cloud_jp/articles/idp-patterns)
 
-さらに、レスポンスの `GroundingMetadata` から以下が自動的に取得できます：
 
-- **searchEntryPoint**: 検索クエリのURLパラメータ
-- **groundingChunks**: 参照されたWebページのURL
-- **webSearchQueries**: 実際に実行された検索クエリ
+### 「スクレイピングしない」という判断
 
-これが **出典表示の基盤** になりました。スクレイピング時代には手動で管理していた「この情報はどこから来たか」が、Google Search Groundingでは **自動的に** 記録されるのです。
+当初はHTMLスクレイピングで行政ページの内容を取得していましたが、PDF・JSレンダリング・自治体ごとのHTML構造差異といった壁に直面し、「自前でスクレイピングするアプローチは本質的に無理がある」と判断しました。
+
+そこで発想を転換——**自分でページをスクレイピングするのではなく、Googleの検索インフラに情報収集を任せる**。Gemini API の `tools: [{ googleSearch: {} }]` を指定するだけで、Geminiが自動的に検索クエリを生成・実行し、対象ページに関する情報をGoogleのインデックスから収集・合成してくれます。PDFやSPAの中身もGoogleがクロール済みであれば対応可能です。
+
+> 参考：[Google 検索によるグラウンディング（Gemini API ドキュメント）](https://ai.google.dev/gemini-api/docs/grounding)
 
 
 
 ### 漫画生成の非同期パイプライン
 
-KOMANAVIは2つのCloud Runサービスで構成されています。
+#### 課題：漫画生成は重い
+
+Gemini Pro Imageによる漫画生成は、1リクエストあたり **30秒〜2分** かかります。これを同期的なAPIレスポンスとして処理すると、ユーザーはその間ずっとローディング画面を見続けることになります。
+
+#### 解決策：専用Workerへの非同期オフロード
+
+そこで、漫画生成を専用のCloud Runサービスに切り出し、完全に非同期化しました。
 
 | サービス | 役割 | 構成 |
 |---------|------|------|
 | **komanavi** | Next.js（standalone） | フロントエンド兼APIサーバー |
 | **komanavi-worker** | Express.js | 漫画生成専用 |
 
-なぜWorkerを分離したのか——それは漫画生成の処理時間にあります。
-
-#### 課題：漫画生成は重い
-
-Gemini Pro Imageによる漫画生成は、1リクエストあたり **30秒〜2分** かかります。これを同期的なAPIレスポンスとして処理すると、ユーザーはその間ずっとローディング画面を見続けることになります。
-
-#### 解決策：Cloud Tasks + Worker + 進捗ポーリング
-
-漫画生成を完全に非同期化し、メインアプリから切り離しました。
+メインアプリはCloud Tasks経由でWorkerにジョブを投げるだけ。ブラウザはFirestoreへの進捗ポーリングで完了を検知し、生成された画像を署名付きURLで取得します。
 
 ```mermaid
 sequenceDiagram
@@ -350,19 +339,33 @@ sequenceDiagram
 
 ## 🔮 今後の展望
 
+KOMANAVIは現在PoCフェーズですが、「入口の詰まり」を解消するという使命はここで終わりではありません。行政負担の3コスト（Learning・Psychological・Compliance）をさらに引き下げるために、以下の展開を計画しています。
+
 ### 多言語対応 —— 「やさしい日本語」から「やさしい多言語」へ
 
-KOMANAVIの第1優先ターゲットには **外国人住民** が含まれています。
+KOMANAVIの第1優先ターゲットには **外国人住民** が含まれています。出入国在留管理庁の統計によれば、在留外国人数は約340万人（2024年6月末時点）に達しており、行政情報の言語バリアは年々深刻化しています。
 
-- 現在の「やさしい日本語」を起点に、英語・中国語・ベトナム語・ポルトガル語などへ展開予定
-- 中間表現パイプラインの設計上、新しい出力言語は「翻訳タスク」を追加するだけで対応可能
+現在の「やさしい日本語」を起点に、在留外国人の上位国籍に対応する言語から優先的に展開予定です。
 
-### ユーザーテストの実施
+| 優先度 | 言語 | 選定根拠 |
+|--------|------|----------|
+| 第1波 | 英語・中国語・ベトナム語 | 在留外国人数の上位3カ国語 |
+| 第2波 | 韓国語・ポルトガル語・ネパール語 | 定住者・技能実習生の主要言語 |
 
-現在のKOMANAVIは「作り手の仮説」に基づいて設計されています。
 
-- 実際のターゲットユーザー（子育て支援団体、外国人支援NPOなど）にフィードバックを収集予定
-- 「理解の入口」として本当に機能しているか——これはユーザーにしか検証できない
+> 参考：[在留外国人統計（出入国在留管理庁）](https://www.moj.go.jp/isa/policies/statistics/toukei_ichiran_touroku.html)
+
+### ユーザーテストの実施 —— 仮説を検証し、プロダクトを磨く
+
+現在のKOMANAVIは「作り手の仮説」に基づいて設計されています。しかし、**本当に「入口の詰まり」を解消できているかは、実際のユーザーにしか検証できません。**
+
+| フェーズ | 対象 | 検証したいこと |
+|----------|------|---------------|
+| α テスト | 子育て支援団体・外国人支援NPO | 要約・漫画が「理解の入口」として機能するか |
+| β テスト | 実際の行政手続き利用者 | チェックリストが「次の一歩」につながるか |
+| 定量評価 | 両グループ | 理解度・行動転換率の変化を測定 |
+
+特に重視しているのは、**「KOMANAVIを使った後に、実際に窓口へ行けたか・申請できたか」** という行動変容の測定です。「わかりやすかった」という感想だけでなく、Complianceコストの低減まで追跡することで、プロダクトの本質的な価値を検証します。
 
 
 ## おわりに
