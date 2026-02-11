@@ -397,27 +397,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ユーザープロファイルを取得してリクエストに追加
-    let enrichedBody: MangaRequest;
-    try {
-      const rawProfile = await getUserProfileFromFirestore(userId);
-      const personalizationInput = toMangaPersonalizationInput(rawProfile, body.userIntent);
-      enrichedBody = {
-        ...body,
-        userIntent: personalizationInput.userIntent,
-        userProfile: personalizationInput.userProfile,
-      };
-    } catch (profileError) {
-      console.warn(
-        'Failed to fetch user profile, proceeding without personalization:',
-        profileError
-      );
-      enrichedBody = {
-        ...body,
-        intentSearchMetadata: undefined,
-        userProfile: undefined,
-      };
-    }
+    // getUserProfileFromFirestore は内部で例外を握りつぶし null を返す
+    const rawProfile = await getUserProfileFromFirestore(userId);
+    const personalizationInput = toMangaPersonalizationInput(rawProfile, body.userIntent);
+    const enrichedBody: MangaRequest = {
+      ...body,
+      userIntent: personalizationInput.userIntent,
+      ...(personalizationInput.userProfile
+        ? { userProfile: personalizationInput.userProfile }
+        : {}),
+    };
 
     // Firestore に conversation_manga を作成
     try {
